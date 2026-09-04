@@ -16,7 +16,21 @@ apiClient.interceptors.request.use((config) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // If the dev server falls back to index.html for unhandled API routes, treat as API error
+    const contentType = String(response.headers?.['content-type'] || '');
+    if (
+      typeof response.data === 'string' &&
+      (contentType.includes('text/html') ||
+        response.data.trim().startsWith('<!doctype') ||
+        response.data.trim().startsWith('<html'))
+    ) {
+      return Promise.reject(
+        new Error('Backend endpoint returned HTML instead of JSON (unhandled route).')
+      );
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('bhoomi_auth_token');

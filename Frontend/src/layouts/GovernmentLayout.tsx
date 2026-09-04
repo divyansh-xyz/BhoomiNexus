@@ -1,48 +1,55 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import BhoomiLogo from '../components/common/BhoomiLogo';
 
 export const GovernmentLayout: React.FC = () => {
-  const { user, logout, switchRole } = useAuth();
+  const { logout } = useAuth();
 
   return (
-    <div className="layout-government">
-      <header className="gov-header">
-        <div className="gov-title">
-          <h3>BhoomiNexus — Official Government Workspace</h3>
-          <span>Role: {user?.role || 'Guest'}</span>
-        </div>
-        <div className="gov-user-actions">
-          <span>{user?.name} ({user?.email})</span>
-          <button onClick={logout}>Sign Out</button>
+    <div className="gov-workspace-shell">
+      {/* Sovereign Official Top Masthead */}
+      <header className="gov-top-masthead">
+        <div className="gov-masthead-inner">
+          {/* Top Left Corner Content */}
+          <div className="gov-masthead-left">
+            <Link to="/boss/dashboard" className="gov-masthead-brand">
+              <BhoomiLogo size={22} strokeWidth={2.4} />
+              <span className="gov-brand-title">BhoomiNexus</span>
+            </Link>
+            <div className="gov-brand-divider" />
+            <div className="gov-brand-agency">
+              <span className="gov-ministry-name">
+                {window.location.pathname.startsWith('/projects')
+                  ? 'National Infrastructure Authorities'
+                  : 'Ministry of Rural Development'}
+              </span>
+              <span className="gov-sub-label">
+                {window.location.pathname.startsWith('/projects')
+                  ? 'Statutory Proponent Intake Portal • RFCTLARR'
+                  : 'Central Land Acquisition Oversight • BOSS'}
+              </span>
+            </div>
+          </div>
+
+          {/* Top Right: Only Sign Out Button */}
+          <div className="gov-masthead-right">
+            <button
+              type="button"
+              onClick={logout}
+              className="gov-signout-btn"
+              title="Sign Out from Sovereign Terminal"
+            >
+              Sign Out &rarr;
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="gov-body">
-        <aside className="gov-sidebar">
-          <nav>
-            <ul>
-              <li><Link to="/dashboard">Dashboard Overview</Link></li>
-              <li><Link to="/dashboard/projects">Projects</Link></li>
-              <li><Link to="/dashboard/tasks">Tasks</Link></li>
-            </ul>
-          </nav>
-
-          <div className="dev-role-switcher" style={{ marginTop: '2rem', padding: '0.5rem', border: '1px dashed #ccc' }}>
-            <small>Dev Role Switcher:</small>
-            <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem' }}>
-              <button onClick={() => switchRole('REQUESTING_AUTHORITY')}>RA</button>
-              <button onClick={() => switchRole('BOSS')}>BOSS</button>
-              <button onClick={() => switchRole('PROCESSING_OFFICER')}>Officer</button>
-              <button onClick={() => switchRole('ADMIN')}>Admin</button>
-            </div>
-          </div>
-        </aside>
-
-        <main className="gov-content">
-          <Outlet />
-        </main>
-      </div>
+      {/* Main Administrative Workspace Content Floor */}
+      <main className="gov-main-canvas">
+        <Outlet />
+      </main>
     </div>
   );
 };

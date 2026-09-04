@@ -37,46 +37,31 @@ export const CadastralHeroConsole: React.FC = () => {
           >
             <defs>
               <linearGradient id="waterwayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#1e293b" />
-                <stop offset="100%" stopColor="#172033" />
+                <stop offset="0%" stopColor="#dcebf5" />
+                <stop offset="100%" stopColor="#c5dde9" />
               </linearGradient>
 
-              <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-
-              <filter id="glowOrange" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-
               <radialGradient id="parcelGlow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#cf6055" stopOpacity="0.55" />
-                <stop offset="100%" stopColor="#8c332b" stopOpacity="0.3" />
+                <stop offset="0%" stopColor="#fecaca" stopOpacity="0.75" />
+                <stop offset="100%" stopColor="#fca5a5" stopOpacity="0.5" />
               </radialGradient>
             </defs>
 
-            {/* Base land grid */}
-            <rect width="920" height="520" fill="#15191e" />
+            {/* Base land architectural parchment */}
+            <rect width="920" height="520" fill="#f6f0ee" />
 
             {/* Waterway / River basin */}
             <path
               d="M 330 0 C 340 140, 310 260, 370 380 C 400 440, 390 490, 380 520 L 260 520 C 280 430, 270 320, 240 200 C 220 120, 210 50, 200 0 Z"
               fill="url(#waterwayGrad)"
-              opacity="0.9"
+              stroke="#b5d1e6"
+              strokeWidth="1"
             />
             {/* Waterway dock lines */}
-            <path d="M 230 110 L 245 115 M 240 180 L 258 184 M 270 310 L 290 312" stroke="#334155" strokeWidth="1.5" />
+            <path d="M 230 110 L 245 115 M 240 180 L 258 184 M 270 310 L 290 312" stroke="#93b7d1" strokeWidth="1.5" />
 
             {/* Secondary urban / cadastral street grid */}
-            <g stroke="#222831" strokeWidth="1.2" opacity="0.85">
+            <g stroke="#e2d8d5" strokeWidth="1.2">
               <path d="M 350 70 L 920 60" />
               <path d="M 360 130 L 920 115" />
               <path d="M 370 190 L 920 180" />
@@ -94,7 +79,7 @@ export const CadastralHeroConsole: React.FC = () => {
             </g>
 
             {/* Major Arterial / Rail Lines */}
-            <g stroke="#2d3748" strokeWidth="2.5" strokeLinecap="round">
+            <g stroke="#1a1e24" strokeWidth="2.2" strokeLinecap="round">
               <path d="M 340 90 Q 550 160 920 130" />
               <path d="M 480 0 Q 570 280 620 520" />
               <path d="M 720 0 Q 750 310 920 480" />
@@ -145,53 +130,51 @@ export const CadastralHeroConsole: React.FC = () => {
             <polygon points="615,295 635,305 625,320 608,312" fill="url(#parcelGlow)" stroke="#ef4444" strokeWidth="1" />
             <polygon points="700,75 720,82 710,95 695,88" fill="url(#parcelGlow)" stroke="#ef4444" strokeWidth="1" />
 
-            {/* Survey Alignment Route Corridors (as in screenshot) */}
-            {/* Route 1: Cyan / Light Blue alignment */}
+            {/* Survey Alignment Route Corridors */}
+            {/* Route 1: Signal Blue alignment */}
             <path
               d="M 500,190 L 515,120 M 515,120 C 530,125 560,130 585,135 C 600,140 605,155 605,170"
-              stroke="#00b4d8"
-              strokeWidth="3.5"
+              stroke="#0058fe"
+              strokeWidth={selectedCorridor === '1' ? '4.5' : '3.2'}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter={selectedCorridor === '1' ? 'url(#glowCyan)' : undefined}
             />
 
             {/* Route 2: Red / Coral alignment loop */}
             <path
               d="M 590,160 C 605,170 608,210 590,220 C 570,230 635,225 615,175"
               stroke="#ef4444"
-              strokeWidth="3"
+              strokeWidth={selectedCorridor === '2' ? '4.5' : '3'}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
 
-            {/* Route 3: Orange / Amber corridor */}
+            {/* Route 3: Amber / Gold corridor */}
             <path
               d="M 605,135 C 625,130 660,130 700,150 C 715,160 740,150 745,170"
-              stroke="#f59e0b"
-              strokeWidth="3.2"
+              stroke="#d97706"
+              strokeWidth={selectedCorridor === '3' ? '4.5' : '3.2'}
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter={selectedCorridor === '3' ? 'url(#glowOrange)' : undefined}
             />
 
             {/* Waypoint Badges on the Map */}
             {/* Waypoint 1 (Blue) */}
             <g transform="translate(515, 120)">
-              <circle cx="0" cy="0" r="11" fill="#0f172a" stroke="#00b4d8" strokeWidth="2" />
-              <text x="0" y="4" fill="#ffffff" fontSize="10" fontWeight="bold" textAnchor="middle">1</text>
+              <circle cx="0" cy="0" r="11" fill="#ffffff" stroke="#0058fe" strokeWidth="2" />
+              <text x="0" y="4" fill="#000000" fontSize="10" fontWeight="bold" textAnchor="middle">1</text>
             </g>
 
-            {/* Waypoint 1 (Orange) */}
+            {/* Waypoint 1 (Amber) */}
             <g transform="translate(735, 145)">
-              <circle cx="0" cy="0" r="11" fill="#0f172a" stroke="#f59e0b" strokeWidth="2" />
-              <text x="0" y="4" fill="#ffffff" fontSize="10" fontWeight="bold" textAnchor="middle">1</text>
+              <circle cx="0" cy="0" r="11" fill="#ffffff" stroke="#d97706" strokeWidth="2" />
+              <text x="0" y="4" fill="#000000" fontSize="10" fontWeight="bold" textAnchor="middle">1</text>
             </g>
 
-            {/* Floating Cadastral Vehicle / Survey GPS Pin (Blue Circle with Icon) */}
+            {/* Floating Cadastral Vehicle / Survey GPS Pin */}
             <g transform="translate(585, 115)">
-              <circle cx="0" cy="0" r="20" fill="#007afc" filter="url(#glowCyan)" />
-              <circle cx="0" cy="0" r="16" fill="#007afc" stroke="#ffffff" strokeWidth="2" />
+              <circle cx="0" cy="0" r="20" fill="#0058fe" opacity="0.18" />
+              <circle cx="0" cy="0" r="14" fill="#0058fe" stroke="#ffffff" strokeWidth="2" />
               {/* Cadastral surveying / parcel truck symbol */}
               <path
                 d="M -7 -4 L -3 -4 L 0 -1 L 5 -1 L 5 4 L -7 4 Z M -5 4 A 2 2 0 0 0 -1 4 M 1 4 A 2 2 0 0 0 5 4"

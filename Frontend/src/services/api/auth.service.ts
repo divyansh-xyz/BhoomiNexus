@@ -46,6 +46,15 @@ export const authService = {
     return res.data;
   },
 
+  /**
+   * Section 7.4: POST /api/v1/auth/refresh
+   * Refreshes authentication credentials
+   */
+  async refresh(): Promise<LoginResponse> {
+    const res = await apiClient.post<LoginResponse>('/auth/refresh');
+    return res.data;
+  },
+
   getMockLogin(email: string, requestedRole?: UserRole): LoginResponse {
     let role: UserRole = requestedRole || 'REQUESTING_AUTHORITY';
     let name = 'Rajesh Sharma';

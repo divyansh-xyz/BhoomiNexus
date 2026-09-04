@@ -28,7 +28,7 @@ export interface NationalOverview {
 }
 
 export const nationalOverview: NationalOverview = {
-  totalStatesActive: 28,
+  totalStatesActive: 36,
   projectsInProgress: 347,
   areaUnderAcquisitionHa: 124500,
   totalPipelineValueCr: 89720,
@@ -308,16 +308,19 @@ export const statesData: Record<string, StateData> = {
   },
   'Dadra and Nagar Haveli': {
     id: 'DN', name: 'Dadra and Nagar Haveli', code: 'DN',
-    activeProjects: 2, totalParcels: 190, districtsCovered: 1, pipelineValueCr: 280,
+    activeProjects: 4, totalParcels: 350, districtsCovered: 3, pipelineValueCr: 520,
     projects: [
       { id: 'dn-1', name: 'Silvassa Smart Infrastructure Corridor', status: 'active' },
+      { id: 'dn-2', name: 'Daman Coastal Highway Spur', status: 'active' },
     ],
   },
-  'Daman and Diu': {
-    id: 'DD', name: 'Daman and Diu', code: 'DD',
-    activeProjects: 2, totalParcels: 160, districtsCovered: 2, pipelineValueCr: 240,
+  'Ladakh': {
+    id: 'LA', name: 'Ladakh', code: 'LA',
+    activeProjects: 5, totalParcels: 680, districtsCovered: 2, pipelineValueCr: 1450,
     projects: [
-      { id: 'dd-1', name: 'Daman Coastal Highway Spur', status: 'active' },
+      { id: 'la-1', name: 'Zoji-La Tunnel Access Road', status: 'active' },
+      { id: 'la-2', name: 'Leh Smart City Expansion', status: 'survey' },
+      { id: 'la-3', name: 'Hanle Solar Observatory Zone', status: 'notification' },
     ],
   },
   'Lakshadweep': {
@@ -336,12 +339,17 @@ const STATE_ALIASES: Record<string, string> = {
   'jammu and kashmir': 'Jammu and Kashmir',
   'andaman and nicobar islands': 'Andaman and Nicobar',
   'andaman and nicobar': 'Andaman and Nicobar',
+  'andaman & nicobar': 'Andaman and Nicobar',
   'nct of delhi': 'Delhi',
   'delhi': 'Delhi',
-  'daman and diu': 'Daman and Diu',
+  'daman and diu': 'Dadra and Nagar Haveli',
+  'daman & diu': 'Dadra and Nagar Haveli',
+  'dadra and nagar haveli and daman and diu': 'Dadra and Nagar Haveli',
   'dadra and nagar haveli': 'Dadra and Nagar Haveli',
+  'dadra & nagar haveli': 'Dadra and Nagar Haveli',
   'pondicherry': 'Puducherry',
   'puducherry': 'Puducherry',
+  'ladakh': 'Ladakh',
 };
 
 /**

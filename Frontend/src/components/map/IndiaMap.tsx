@@ -4,94 +4,111 @@ import type { StateData } from '../../data/india-states';
 import { findStateData } from '../../data/india-states';
 import indiaStatesGeoJson from '../../data/india-states.json';
 
-// Strict geographical bounds for India
+// Strict geographical bounds for India (including Ladakh & Andaman & Nicobar)
 const INDIA_BOUNDS = L.latLngBounds(
-  [6.8, 68.0],  // South-West corner
-  [37.2, 97.5]   // North-East corner
+  [6.5, 68.0],  // South-West corner
+  [37.5, 97.5]  // North-East corner
 );
 
-/* ---- Style tokens ---- */
+/* ---- Style tokens (OpenWeb Editorial Broadsheet palette) ---- */
 const COLORS = {
   default: {
-    fillColor: '#1c1f24',
-    color: '#333943',
-    weight: 1.2,
-    fillOpacity: 0.7,
-  },
-  hover: {
-    fillColor: '#23262d',
-    color: '#007afc',
-    weight: 2,
+    fillColor: '#e8dedb',
+    color: '#000000',
+    weight: 1.0,
     fillOpacity: 0.85,
   },
+  hover: {
+    fillColor: '#ffffff',
+    color: '#0058fe',
+    weight: 2.0,
+    fillOpacity: 0.95,
+  },
   selected: {
-    fillColor: '#007afc',
-    color: '#007afc',
-    weight: 2.2,
-    fillOpacity: 0.3,
+    fillColor: '#0058fe',
+    color: '#0058fe',
+    weight: 2.4,
+    fillOpacity: 0.22,
   },
 } as const;
 
 interface IndiaMapProps {
   onStateSelect: (state: StateData) => void;
+  onReset?: () => void;
   selectedStateId: string | null;
 }
 
-export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedStateId }) => {
+export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, selectedStateId }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const activeLayerRef = useRef<L.Path | null>(null);
+  const hasMountedRef = useRef(false);
 
-  const resetView = useCallback(() => {
-    if (!mapRef.current) return;
+  // Keep references to state & callbacks to prevent map recreation
+  const onStateSelectRef = useRef(onStateSelect);
+  onStateSelectRef.current = onStateSelect;
+
+  const onResetRef = useRef(onReset);
+  onResetRef.current = onReset;
+
+  const selectedStateIdRef = useRef(selectedStateId);
+  selectedStateIdRef.current = selectedStateId;
+
+  const handleResetToNational = useCallback(() => {
     if (activeLayerRef.current) {
       activeLayerRef.current.setStyle(COLORS.default);
       activeLayerRef.current = null;
     }
-    mapRef.current.fitBounds(INDIA_BOUNDS, {
-      padding: [15, 15],
-      animate: true,
-      duration: 0.4,
-    });
+    // Inform parent (which closes sidebar and clears selectedStateId)
+    onResetRef.current?.();
+
+    if (mapRef.current) {
+      mapRef.current.fitBounds(INDIA_BOUNDS, {
+        padding: [15, 15],
+        duration: 0.5,
+      });
+    }
   }, []);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize Leaflet map strictly locked to India
+    // Initialize Leaflet map locked to India
     const map = L.map(mapContainerRef.current, {
-      maxBounds: INDIA_BOUNDS,
-      maxBoundsViscosity: 1.0, // Hard impenetrable boundary wall
-      minZoom: 4.6,           // Prevents zooming out to other continents
-      maxZoom: 6.8,           // Prevents excessive micro-zooming
+      maxBounds: INDIA_BOUNDS.pad(0.08),
+      maxBoundsViscosity: 1.0,
+      minZoom: 3.5,
+      maxZoom: 9,
       zoomControl: true,
       attributionControl: true,
       bounceAtZoomLimits: false,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 120,
     });
 
-    // Keep map permanently inside India bounds on drag
+    // Fit precisely within India bounds so Ladakh/J&K and southern tips are fully visible
+    map.fitBounds(INDIA_BOUNDS, { padding: [15, 15], animate: false });
+
+    // Keep map inside India bounds on drag
     map.on('drag', () => {
       map.panInsideBounds(INDIA_BOUNDS, { animate: false });
     });
 
-    // Dark CartoDB tile layer
+    // Esri World Light Gray Canvas base layer — 100% free, no API key, zero watermarks, pairs with Blush Paper
     L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       {
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19,
-        bounds: INDIA_BOUNDS,
+          '&copy; <a href="https://www.esri.com/">Esri</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+        maxZoom: 16,
       }
     ).addTo(map);
 
-    // Initial fit strictly to India
-    map.fitBounds(INDIA_BOUNDS, { padding: [15, 15] });
     mapRef.current = map;
 
-    // Render local 63KB GeoJSON with native SVG paths for bulletproof click detection
+    // Render local GeoJSON with SVG paths for click and hover
     const geojsonLayer = L.geoJSON(indiaStatesGeoJson as any, {
       style: () => ({ ...COLORS.default }),
       onEachFeature: (feature, layer) => {
@@ -124,36 +141,45 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
             const targetPath = layer as L.Path;
             const stateData = findStateData(stateName);
 
-            // Reset previous state
+            // Reset previous state styling
             if (activeLayerRef.current && activeLayerRef.current !== targetPath) {
               activeLayerRef.current.setStyle(COLORS.default);
             }
 
-            // Highlight selected state
+            // Immediately highlight selected state
             targetPath.setStyle(COLORS.selected);
             targetPath.bringToFront();
             activeLayerRef.current = targetPath;
 
-            const bounds = (layer as L.Polygon).getBounds();
-            const center = bounds.getCenter();
-            const currentZoom = map.getZoom();
+            const isFirstSelection = !selectedStateIdRef.current;
 
-            // Smooth gliding without zooming out:
-            // If already at state inspection zoom (>= 5.0), simply glide with panTo!
-            // If at initial national view, zoom directly into state at 5.4.
-            if (currentZoom >= 5.0) {
-              map.panTo(center, {
-                animate: true,
-                duration: 0.35,
+            // Trigger parent state selection to open inspector
+            onStateSelectRef.current(stateData);
+
+            const bounds = (layer as L.Polygon).getBounds();
+
+            const flyToState = () => {
+              if (!mapRef.current) return;
+              const optimalZoom = mapRef.current.getBoundsZoom(bounds, false, L.point(30, 30));
+              const targetZoom = Math.min(Math.max(optimalZoom, 5.8), 8.0);
+              mapRef.current.flyTo(bounds.getCenter(), targetZoom, {
+                duration: 0.55,
                 easeLinearity: 0.25,
               });
-            } else {
-              map.flyTo(center, 5.4, {
-                duration: 0.45,
-              });
-            }
+            };
 
-            onStateSelect(stateData);
+            if (isFirstSelection) {
+              // First click: sidebar panel is opening, causing container to resize.
+              // Wait for layout resize to complete so invalidateSize doesn't abort flyTo.
+              setTimeout(() => {
+                if (!mapRef.current) return;
+                mapRef.current.invalidateSize({ animate: false });
+                flyToState();
+              }, 100);
+            } else {
+              // Subsequent clicks: sidebar is already open, fly immediately and smoothly!
+              flyToState();
+            }
           },
         });
       },
@@ -161,24 +187,44 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
 
     geojsonLayerRef.current = geojsonLayer;
 
+    // Observe container resize to auto-invalidate map dimensions
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    resizeObserver.observe(mapContainerRef.current);
+
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };
-  }, [onStateSelect]);
+  }, []); // Run ONCE on mount — map instance is never torn down on re-renders
 
-  // Handle external selection reset (e.g. when state drawer is closed)
+  // Handle external selection reset (e.g. when state drawer is closed via '✕')
   useEffect(() => {
-    if (!selectedStateId && activeLayerRef.current) {
-      activeLayerRef.current.setStyle(COLORS.default);
-      activeLayerRef.current = null;
+    selectedStateIdRef.current = selectedStateId;
+
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
     }
 
-    const timer = setTimeout(() => {
-      mapRef.current?.invalidateSize({ animate: false });
-    }, 200);
-
-    return () => clearTimeout(timer);
+    if (!selectedStateId) {
+      if (activeLayerRef.current) {
+        activeLayerRef.current.setStyle(COLORS.default);
+        activeLayerRef.current = null;
+      }
+      // Return smoothly to full India national bounds when inspector closes
+      const timer = setTimeout(() => {
+        if (!mapRef.current) return;
+        mapRef.current.invalidateSize({ animate: false });
+        mapRef.current.fitBounds(INDIA_BOUNDS, {
+          padding: [15, 15],
+          duration: 0.5,
+        });
+      }, 80);
+      return () => clearTimeout(timer);
+    }
   }, [selectedStateId]);
 
   return (
@@ -187,14 +233,17 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
         ref={mapContainerRef}
         style={{ height: '100%', width: '100%', outline: 'none' }}
       />
-      <button
-        type="button"
-        className="map-reset-btn"
-        onClick={resetView}
-        title="Reset to national view"
-      >
-        ↻ India
-      </button>
+      {selectedStateId && (
+        <button
+          type="button"
+          className="map-reset-btn"
+          onClick={handleResetToNational}
+          title="Reset to national view"
+          aria-label="Reset to national view"
+        >
+          ↻ India
+        </button>
+      )}
     </div>
   );
 };

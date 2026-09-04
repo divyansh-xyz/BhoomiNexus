@@ -897,7 +897,7 @@ the backend:
 
 1. Creates workflow stages.
 2. Creates first task.
-3. Assigns it to responsible officer.
+3. Assign![alt text](image.png)s it to responsible officer.
 4. Sets the project's current stage.
 5. Creates audit event.
 6. Sends notification.

@@ -6,18 +6,26 @@ import ProtectedRoute from '../components/auth/ProtectedRoute';
 import RoleGuard from '../components/auth/RoleGuard';
 import LoginPage from '../pages/auth/LoginPage';
 import LandingPage from '../pages/public/LandingPage';
+import BossDashboardPage from '../pages/boss/BossDashboardPage';
+import BossProjectReviewPage from '../pages/boss/BossProjectReviewPage';
+import BossParcelDeterminationPage from '../pages/boss/BossParcelDeterminationPage';
+import BossWorkflowConfigPage from '../pages/boss/BossWorkflowConfigPage';
+import ProponentProjectsPage from '../pages/proponent/ProponentProjectsPage';
+import CreateProjectPage from '../pages/proponent/CreateProjectPage';
+import ProponentProjectDetailPage from '../pages/proponent/ProponentProjectDetailPage';
 
-// Simple placeholder page components
+// Simple placeholder page components for other modules
 const DashboardPlaceholder: React.FC = () => (
-  <div style={{ padding: '1rem' }}>
-    <h2>Government Workspace Dashboard (Boilerplate)</h2>
-    <p>Dashboard placeholder for Phase 0.</p>
+  <div style={{ padding: '2rem' }}>
+    <h2>Government Workspace Dashboard</h2>
+    <p>General dashboard placeholder.</p>
   </div>
 );
 
 const AdminOnlyPlaceholder: React.FC = () => (
-  <div style={{ padding: '1rem' }}>
-    <h2>Admin Module (Boilerplate)</h2>
+  <div style={{ padding: '2rem' }}>
+    <h2>Admin Module</h2>
+    <p>Administrative control settings.</p>
   </div>
 );
 
@@ -27,13 +35,30 @@ export const AppRoutes: React.FC = () => {
       {/* Public Routes */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
       </Route>
+
+      {/* Sovereign Officer Authentication Portal */}
+      <Route path="/login" element={<LoginPage />} />
 
       {/* Protected Government Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<GovernmentLayout />}>
-          <Route path="/dashboard" element={<DashboardPlaceholder />} />
+          <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
+
+          {/* Phase 3 — Requesting Authority / Proponent Routes */}
+          <Route path="/projects" element={<ProponentProjectsPage />} />
+          <Route path="/projects/new" element={<CreateProjectPage />} />
+          <Route path="/projects/:projectId" element={<ProponentProjectDetailPage />} />
+          
+          {/* Phase 4 & Phase 5 — BOSS Scrutiny, Cadastral Determination & Workflow Config */}
+          <Route path="/boss/dashboard" element={<BossDashboardPage />} />
+          <Route path="/boss/projects/:projectId" element={<BossProjectReviewPage />} />
+          <Route path="/boss/projects/:projectId/parcels" element={<BossParcelDeterminationPage />} />
+          <Route path="/boss/projects/:projectId/workflow" element={<BossWorkflowConfigPage />} />
+          <Route path="/boss/projects/:projectId/workflow/templates" element={<BossWorkflowConfigPage initialSelectTemplate={true} />} />
+
+          {/* Other Role Placeholders */}
+          <Route path="/officer/dashboard" element={<DashboardPlaceholder />} />
           <Route
             path="/dashboard/admin"
             element={
