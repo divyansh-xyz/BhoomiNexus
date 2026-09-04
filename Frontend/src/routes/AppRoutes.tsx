@@ -5,15 +5,9 @@ import GovernmentLayout from '../layouts/GovernmentLayout';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import RoleGuard from '../components/auth/RoleGuard';
 import LoginPage from '../pages/auth/LoginPage';
+import LandingPage from '../pages/public/LandingPage';
 
 // Simple placeholder page components
-const HomePagePlaceholder: React.FC = () => (
-  <div style={{ padding: '2rem' }}>
-    <h1>BhoomiNexus Public Portal (Boilerplate)</h1>
-    <p>Landing page placeholder for Phase 0.</p>
-  </div>
-);
-
 const DashboardPlaceholder: React.FC = () => (
   <div style={{ padding: '1rem' }}>
     <h2>Government Workspace Dashboard (Boilerplate)</h2>
@@ -32,7 +26,7 @@ export const AppRoutes: React.FC = () => {
     <Routes>
       {/* Public Routes */}
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<HomePagePlaceholder />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
       </Route>
 

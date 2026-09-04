@@ -74,7 +74,7 @@ Open **`http://localhost:5173/`** in your browser to view the application.
 
 | URL Path | Access Tier | Description |
 | :--- | :--- | :--- |
-| `/` | Public | Citizen portal & project information landing |
+| `/` | Public | Interactive National Spatial Map (Phase 1): state drilldown, cadastral parcels & acquisition metrics |
 | `/login` | Public | Government Officer login portal |
 | `/dashboard` | Authenticated | Multi-role workspace dashboard |
 | `/dashboard/admin` | Role: `ADMIN` | System administration & RBAC settings |

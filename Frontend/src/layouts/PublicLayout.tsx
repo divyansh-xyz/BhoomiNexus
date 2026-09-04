@@ -4,22 +4,37 @@ import { Outlet, Link } from 'react-router-dom';
 export const PublicLayout: React.FC = () => {
   return (
     <div className="layout-public">
-      <header className="public-header">
-        <div className="brand">
-          <h2>BhoomiNexus — Public Portal</h2>
+      <header className="site-nav">
+        <div className="nav-inner">
+          <Link to="/" className="nav-wordmark">
+            Bhoomi<span>Nexus</span>
+          </Link>
+
+          <nav className="nav-links-list" aria-label="Main Navigation">
+            <Link to="/">National Map</Link>
+            <a href="#map-explorer">State Registry</a>
+            <a href="https://landrecords.gov.in" target="_blank" rel="noreferrer">
+              Digital India Land Records
+            </a>
+          </nav>
+
+          <div className="nav-actions">
+            <Link to="/login" className="btn-primary" style={{ padding: '8px 18px', fontSize: '14px' }}>
+              Officer Login
+            </Link>
+          </div>
         </div>
-        <nav className="nav-links">
-          <Link to="/">Home</Link>
-          <Link to="/login">Officer Login</Link>
-        </nav>
       </header>
 
-      <main className="public-content">
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Outlet />
       </main>
 
-      <footer className="public-footer">
-        <p>© {new Date().getFullYear()} BhoomiNexus. Government of India.</p>
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <p>© {new Date().getFullYear()} BhoomiNexus. National Land Acquisition & Management System.</p>
+          <p>Ministry of Rural Development & Department of Land Resources</p>
+        </div>
       </footer>
     </div>
   );
