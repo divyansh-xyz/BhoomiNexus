@@ -22,11 +22,15 @@ export const GovernmentLayout: React.FC = () => {
               <span className="gov-ministry-name">
                 {window.location.pathname.startsWith('/projects')
                   ? 'National Infrastructure Authorities'
+                  : window.location.pathname.startsWith('/officer')
+                  ? 'Field Operations Directorate'
                   : 'Ministry of Rural Development'}
               </span>
               <span className="gov-sub-label">
                 {window.location.pathname.startsWith('/projects')
                   ? 'Statutory Proponent Intake Portal • RFCTLARR'
+                  : window.location.pathname.startsWith('/officer')
+                  ? 'Cadastre & Evidence Scrutiny • Officer Terminal'
                   : 'Central Land Acquisition Oversight • BOSS'}
               </span>
             </div>

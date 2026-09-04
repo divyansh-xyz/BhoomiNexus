@@ -13,14 +13,8 @@ import BossWorkflowConfigPage from '../pages/boss/BossWorkflowConfigPage';
 import ProponentProjectsPage from '../pages/proponent/ProponentProjectsPage';
 import CreateProjectPage from '../pages/proponent/CreateProjectPage';
 import ProponentProjectDetailPage from '../pages/proponent/ProponentProjectDetailPage';
-
-// Simple placeholder page components for other modules
-const DashboardPlaceholder: React.FC = () => (
-  <div style={{ padding: '2rem' }}>
-    <h2>Government Workspace Dashboard</h2>
-    <p>General dashboard placeholder.</p>
-  </div>
-);
+import OfficerDashboardPage from '../pages/officer/OfficerDashboardPage';
+import OfficerTaskDetailPage from '../pages/officer/OfficerTaskDetailPage';
 
 const AdminOnlyPlaceholder: React.FC = () => (
   <div style={{ padding: '2rem' }}>
@@ -57,8 +51,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="/boss/projects/:projectId/workflow" element={<BossWorkflowConfigPage />} />
           <Route path="/boss/projects/:projectId/workflow/templates" element={<BossWorkflowConfigPage initialSelectTemplate={true} />} />
 
-          {/* Other Role Placeholders */}
-          <Route path="/officer/dashboard" element={<DashboardPlaceholder />} />
+          {/* Phase 7 — Officer Dashboard & Tasks */}
+          <Route path="/officer/dashboard" element={<OfficerDashboardPage />} />
+          <Route path="/officer/tasks/:taskId" element={<OfficerTaskDetailPage />} />
           <Route
             path="/dashboard/admin"
             element={
