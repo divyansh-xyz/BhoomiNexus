@@ -269,19 +269,116 @@ export const statesData: Record<string, StateData> = {
       { id: 'wb-3', name: 'Haldia Port Expansion', status: 'notification' },
     ],
   },
+  'Jammu and Kashmir': {
+    id: 'JK', name: 'Jammu and Kashmir', code: 'JK',
+    activeProjects: 9, totalParcels: 1650, districtsCovered: 8, pipelineValueCr: 2150,
+    projects: [
+      { id: 'jk-1', name: 'Udhampur–Srinagar Rail Link', status: 'active' },
+      { id: 'jk-2', name: 'Jammu Ring Road Ph-II', status: 'survey' },
+    ],
+  },
+  'Delhi': {
+    id: 'DL', name: 'Delhi', code: 'DL',
+    activeProjects: 14, totalParcels: 980, districtsCovered: 11, pipelineValueCr: 4800,
+    projects: [
+      { id: 'dl-1', name: 'Delhi–Dehradun Expressway Corridor', status: 'active' },
+      { id: 'dl-2', name: 'RRTS Anand Vihar Junction', status: 'active' },
+    ],
+  },
+  'Chandigarh': {
+    id: 'CH', name: 'Chandigarh', code: 'CH',
+    activeProjects: 2, totalParcels: 140, districtsCovered: 1, pipelineValueCr: 320,
+    projects: [
+      { id: 'ch-1', name: 'Tribune Flyover Land Expansion', status: 'active' },
+    ],
+  },
+  'Puducherry': {
+    id: 'PY', name: 'Puducherry', code: 'PY',
+    activeProjects: 3, totalParcels: 280, districtsCovered: 2, pipelineValueCr: 410,
+    projects: [
+      { id: 'py-1', name: 'Karaikal Port Rail Connectivity', status: 'active' },
+    ],
+  },
+  'Andaman and Nicobar': {
+    id: 'AN', name: 'Andaman and Nicobar', code: 'AN',
+    activeProjects: 2, totalParcels: 210, districtsCovered: 2, pipelineValueCr: 650,
+    projects: [
+      { id: 'an-1', name: 'Great Nicobar Transshipment Port', status: 'survey' },
+    ],
+  },
+  'Dadra and Nagar Haveli': {
+    id: 'DN', name: 'Dadra and Nagar Haveli', code: 'DN',
+    activeProjects: 2, totalParcels: 190, districtsCovered: 1, pipelineValueCr: 280,
+    projects: [
+      { id: 'dn-1', name: 'Silvassa Smart Infrastructure Corridor', status: 'active' },
+    ],
+  },
+  'Daman and Diu': {
+    id: 'DD', name: 'Daman and Diu', code: 'DD',
+    activeProjects: 2, totalParcels: 160, districtsCovered: 2, pipelineValueCr: 240,
+    projects: [
+      { id: 'dd-1', name: 'Daman Coastal Highway Spur', status: 'active' },
+    ],
+  },
+  'Lakshadweep': {
+    id: 'LD', name: 'Lakshadweep', code: 'LD',
+    activeProjects: 1, totalParcels: 95, districtsCovered: 1, pipelineValueCr: 150,
+    projects: [
+      { id: 'ld-1', name: 'Minicoy Airstrip Expansion', status: 'survey' },
+    ],
+  },
+};
+
+const STATE_ALIASES: Record<string, string> = {
+  'orissa': 'Odisha',
+  'uttaranchal': 'Uttarakhand',
+  'jammu & kashmir': 'Jammu and Kashmir',
+  'jammu and kashmir': 'Jammu and Kashmir',
+  'andaman and nicobar islands': 'Andaman and Nicobar',
+  'andaman and nicobar': 'Andaman and Nicobar',
+  'nct of delhi': 'Delhi',
+  'delhi': 'Delhi',
+  'daman and diu': 'Daman and Diu',
+  'dadra and nagar haveli': 'Dadra and Nagar Haveli',
+  'pondicherry': 'Puducherry',
+  'puducherry': 'Puducherry',
 };
 
 /**
  * Resolve state data by GeoJSON feature name.
- * GeoJSON names may differ slightly from our keys, so we try exact match first,
- * then a case-insensitive includes search.
+ * Robust matching with alias translation and fallback guarantee.
  */
-export function findStateData(geoJsonName: string): StateData | undefined {
-  if (statesData[geoJsonName]) return statesData[geoJsonName];
+export function findStateData(geoJsonName: string): StateData {
+  const cleanName = geoJsonName.trim();
+  const lower = cleanName.toLowerCase();
 
-  const lower = geoJsonName.toLowerCase();
-  const key = Object.keys(statesData).find(
-    (k) => k.toLowerCase() === lower || lower.includes(k.toLowerCase())
+  // 1. Check direct match
+  if (statesData[cleanName]) return statesData[cleanName];
+
+  // 2. Check alias map
+  if (STATE_ALIASES[lower] && statesData[STATE_ALIASES[lower]]) {
+    return statesData[STATE_ALIASES[lower]];
+  }
+
+  // 3. Check case-insensitive / substring match
+  const foundKey = Object.keys(statesData).find(
+    (k) => k.toLowerCase() === lower || lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower)
   );
-  return key ? statesData[key] : undefined;
+  if (foundKey) return statesData[foundKey];
+
+  // 4. Default mock fallback so clicking ANY territory always works smoothly
+  const code = cleanName.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || 'IN';
+  return {
+    id: code,
+    name: cleanName,
+    code,
+    activeProjects: 5,
+    totalParcels: 1400,
+    districtsCovered: 4,
+    pipelineValueCr: 1850,
+    projects: [
+      { id: `${code.toLowerCase()}-1`, name: `${cleanName} Infrastructure Corridor`, status: 'active' },
+      { id: `${code.toLowerCase()}-2`, name: `${cleanName} Bypass Realignment`, status: 'survey' },
+    ],
+  };
 }

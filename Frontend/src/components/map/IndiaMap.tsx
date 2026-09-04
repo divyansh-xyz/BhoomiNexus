@@ -4,37 +4,31 @@ import type { StateData } from '../../data/india-states';
 import { findStateData } from '../../data/india-states';
 import indiaStatesGeoJson from '../../data/india-states.json';
 
-// Geographic bounds strictly confined to the Indian Subcontinent
-const INDIA_BOUNDS: L.LatLngBoundsLiteral = [
-  [6.5, 68.0],
-  [37.2, 97.5],
-];
-
-// Hard constraint bounding box to prevent drifting to other countries
-const HARD_PAN_BOUNDS: L.LatLngBoundsLiteral = [
-  [4.0, 64.0],
-  [39.0, 101.0],
-];
+// Strict geographical bounds for India
+const INDIA_BOUNDS = L.latLngBounds(
+  [6.8, 68.0],  // South-West corner
+  [37.2, 97.5]   // North-East corner
+);
 
 /* ---- Style tokens ---- */
 const COLORS = {
   default: {
     fillColor: '#1c1f24',
     color: '#333943',
-    weight: 1,
-    fillOpacity: 0.65,
+    weight: 1.2,
+    fillOpacity: 0.7,
   },
   hover: {
     fillColor: '#23262d',
     color: '#007afc',
     weight: 2,
-    fillOpacity: 0.8,
+    fillOpacity: 0.85,
   },
   selected: {
     fillColor: '#007afc',
     color: '#007afc',
-    weight: 2,
-    fillOpacity: 0.28,
+    weight: 2.2,
+    fillOpacity: 0.3,
   },
 } as const;
 
@@ -58,22 +52,27 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
     mapRef.current.fitBounds(INDIA_BOUNDS, {
       padding: [15, 15],
       animate: true,
-      duration: 0.45,
+      duration: 0.4,
     });
   }, []);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize Leaflet map with Canvas renderer for ultra-smooth 60fps performance
+    // Initialize Leaflet map strictly locked to India
     const map = L.map(mapContainerRef.current, {
-      preferCanvas: true, // Eliminates SVG DOM repaints during zoom/pan animations
-      maxBounds: HARD_PAN_BOUNDS,
-      maxBoundsViscosity: 1.0, // Hard constraint against panning outside India
-      minZoom: 4.2,
-      maxZoom: 6.8,
+      maxBounds: INDIA_BOUNDS,
+      maxBoundsViscosity: 1.0, // Hard impenetrable boundary wall
+      minZoom: 4.6,           // Prevents zooming out to other continents
+      maxZoom: 6.8,           // Prevents excessive micro-zooming
       zoomControl: true,
       attributionControl: true,
+      bounceAtZoomLimits: false,
+    });
+
+    // Keep map permanently inside India bounds on drag
+    map.on('drag', () => {
+      map.panInsideBounds(INDIA_BOUNDS, { animate: false });
     });
 
     // Dark CartoDB tile layer
@@ -84,6 +83,7 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
           '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19,
+        bounds: INDIA_BOUNDS,
       }
     ).addTo(map);
 
@@ -91,7 +91,7 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
     map.fitBounds(INDIA_BOUNDS, { padding: [15, 15] });
     mapRef.current = map;
 
-    // Render local optimized GeoJSON (63KB instead of 23MB)
+    // Render local 63KB GeoJSON with native SVG paths for bulletproof click detection
     const geojsonLayer = L.geoJSON(indiaStatesGeoJson as any, {
       style: () => ({ ...COLORS.default }),
       onEachFeature: (feature, layer) => {
@@ -119,21 +119,17 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
             }
           },
           click: (e: L.LeafletMouseEvent) => {
-            // Blur clicked element to prevent browser focus bounding box
-            const targetEl = e.originalEvent?.target as HTMLElement | null;
-            targetEl?.blur?.();
-
-            const stateData = findStateData(stateName);
-            if (!stateData) return;
+            L.DomEvent.stopPropagation(e);
 
             const targetPath = layer as L.Path;
+            const stateData = findStateData(stateName);
 
-            // Reset previously selected state (O(1) update)
+            // Reset previous state
             if (activeLayerRef.current && activeLayerRef.current !== targetPath) {
               activeLayerRef.current.setStyle(COLORS.default);
             }
 
-            // Highlight newly selected state
+            // Highlight selected state
             targetPath.setStyle(COLORS.selected);
             targetPath.bringToFront();
             activeLayerRef.current = targetPath;
@@ -143,8 +139,8 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
             const currentZoom = map.getZoom();
 
             // Smooth gliding without zooming out:
-            // If already at inspection zoom level, smoothly glide directly with panTo.
-            // If at full national overview, zoom in directly to the state.
+            // If already at state inspection zoom (>= 5.0), simply glide with panTo!
+            // If at initial national view, zoom directly into state at 5.4.
             if (currentZoom >= 5.0) {
               map.panTo(center, {
                 animate: true,
@@ -152,7 +148,7 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
                 easeLinearity: 0.25,
               });
             } else {
-              map.flyTo(center, 5.5, {
+              map.flyTo(center, 5.4, {
                 duration: 0.45,
               });
             }
@@ -180,7 +176,7 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedState
 
     const timer = setTimeout(() => {
       mapRef.current?.invalidateSize({ animate: false });
-    }, 250);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [selectedStateId]);
