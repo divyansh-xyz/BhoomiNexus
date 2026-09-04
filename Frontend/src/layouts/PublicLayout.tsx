@@ -9,20 +9,6 @@ export const PublicLayout: React.FC = () => {
           <Link to="/" className="nav-wordmark">
             Bhoomi<span>Nexus</span>
           </Link>
-
-          <nav className="nav-links-list" aria-label="Main Navigation">
-            <Link to="/">National Map</Link>
-            <a href="#map-explorer">State Registry</a>
-            <a href="https://landrecords.gov.in" target="_blank" rel="noreferrer">
-              Digital India Land Records
-            </a>
-          </nav>
-
-          <div className="nav-actions">
-            <Link to="/login" className="btn-primary" style={{ padding: '8px 18px', fontSize: '14px' }}>
-              Officer Login
-            </Link>
-          </div>
         </div>
       </header>
 

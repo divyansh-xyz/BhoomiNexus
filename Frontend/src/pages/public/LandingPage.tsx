@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import IndiaMap from '../../components/map/IndiaMap';
+import CadastralHeroConsole from '../../components/hero/CadastralHeroConsole';
+import AgencyProofRail from '../../components/common/AgencyProofRail';
 import {
   nationalOverview,
   type StateData,
@@ -43,6 +45,12 @@ export const LandingPage: React.FC = () => {
             Explore National Map
           </a>
         </div>
+
+        {/* Hero Cadastral Console Mockup */}
+        <CadastralHeroConsole />
+
+        {/* Federated Government & Agency Proof Rail */}
+        <AgencyProofRail />
       </section>
 
       {/* National Aggregate Overview */}

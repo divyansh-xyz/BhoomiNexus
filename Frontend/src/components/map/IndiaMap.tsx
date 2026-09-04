@@ -2,32 +2,39 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import type { StateData } from '../../data/india-states';
 import { findStateData } from '../../data/india-states';
+import indiaStatesGeoJson from '../../data/india-states.json';
 
-const INDIA_CENTER: L.LatLngTuple = [22.5, 82.0];
-const INDIA_ZOOM = 5;
+// Geographic bounds strictly confined to the Indian Subcontinent
+const INDIA_BOUNDS: L.LatLngBoundsLiteral = [
+  [6.5, 68.0],
+  [37.2, 97.5],
+];
 
-const GEOJSON_URL =
-  'https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson';
+// Hard constraint bounding box to prevent drifting to other countries
+const HARD_PAN_BOUNDS: L.LatLngBoundsLiteral = [
+  [4.0, 64.0],
+  [39.0, 101.0],
+];
 
-/* ---- Style tokens (mirrors CSS custom properties) ---- */
+/* ---- Style tokens ---- */
 const COLORS = {
   default: {
     fillColor: '#1c1f24',
     color: '#333943',
     weight: 1,
-    fillOpacity: 0.6,
+    fillOpacity: 0.65,
   },
   hover: {
     fillColor: '#23262d',
     color: '#007afc',
     weight: 2,
-    fillOpacity: 0.7,
+    fillOpacity: 0.8,
   },
   selected: {
     fillColor: '#007afc',
     color: '#007afc',
-    weight: 2.5,
-    fillOpacity: 0.25,
+    weight: 2,
+    fillOpacity: 0.28,
   },
 } as const;
 
@@ -36,28 +43,35 @@ interface IndiaMapProps {
   selectedStateId: string | null;
 }
 
-const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedStateId }) => {
+export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedStateId }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
-  const selectedRef = useRef<string | null>(null);
-
-  // Keep selectedRef in sync
-  selectedRef.current = selectedStateId;
+  const activeLayerRef = useRef<L.Path | null>(null);
 
   const resetView = useCallback(() => {
-    mapRef.current?.flyTo(INDIA_CENTER, INDIA_ZOOM, { duration: 0.8 });
+    if (!mapRef.current) return;
+    if (activeLayerRef.current) {
+      activeLayerRef.current.setStyle(COLORS.default);
+      activeLayerRef.current = null;
+    }
+    mapRef.current.fitBounds(INDIA_BOUNDS, {
+      padding: [15, 15],
+      animate: true,
+      duration: 0.45,
+    });
   }, []);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Create map
+    // Initialize Leaflet map with Canvas renderer for ultra-smooth 60fps performance
     const map = L.map(mapContainerRef.current, {
-      center: INDIA_CENTER,
-      zoom: INDIA_ZOOM,
-      minZoom: 4,
-      maxZoom: 8,
+      preferCanvas: true, // Eliminates SVG DOM repaints during zoom/pan animations
+      maxBounds: HARD_PAN_BOUNDS,
+      maxBoundsViscosity: 1.0, // Hard constraint against panning outside India
+      minZoom: 4.2,
+      maxZoom: 6.8,
       zoomControl: true,
       attributionControl: true,
     });
@@ -73,102 +87,112 @@ const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, selectedStateId }) =
       }
     ).addTo(map);
 
+    // Initial fit strictly to India
+    map.fitBounds(INDIA_BOUNDS, { padding: [15, 15] });
     mapRef.current = map;
 
-    // Load GeoJSON
-    fetch(GEOJSON_URL)
-      .then((res) => res.json())
-      .then((data) => {
-        const geojsonLayer = L.geoJSON(data, {
-          style: () => ({
-            ...COLORS.default,
-          }),
-          onEachFeature: (feature, layer) => {
-            const stateName =
-              feature.properties?.NAME_1 ||
-              feature.properties?.name ||
-              feature.properties?.ST_NM ||
-              '';
+    // Render local optimized GeoJSON (63KB instead of 23MB)
+    const geojsonLayer = L.geoJSON(indiaStatesGeoJson as any, {
+      style: () => ({ ...COLORS.default }),
+      onEachFeature: (feature, layer) => {
+        const stateName = feature.properties?.name || '';
 
-            // Tooltip
-            layer.bindTooltip(stateName, {
-              sticky: true,
-              className: 'map-tooltip',
-              direction: 'top',
-              offset: [0, -8],
-            });
+        layer.bindTooltip(stateName, {
+          sticky: true,
+          className: 'map-tooltip',
+          direction: 'top',
+          offset: [0, -8],
+        });
 
-            layer.on({
-              mouseover: (e: L.LeafletMouseEvent) => {
-                const target = e.target as L.Path;
-                const currentSelected = selectedRef.current;
-                const stateData = findStateData(stateName);
-                if (stateData?.id !== currentSelected) {
-                  target.setStyle(COLORS.hover);
-                  target.bringToFront();
-                }
-              },
-              mouseout: (e: L.LeafletMouseEvent) => {
-                const target = e.target as L.Path;
-                const stateData = findStateData(stateName);
-                const currentSelected = selectedRef.current;
-                if (stateData?.id !== currentSelected) {
-                  target.setStyle(COLORS.default);
-                }
-              },
-              click: () => {
-                const stateData = findStateData(stateName);
-                if (!stateData) return;
-
-                // Reset all layers first
-                geojsonLayer.setStyle(COLORS.default);
-
-                // Highlight selected
-                (layer as L.Path).setStyle(COLORS.selected);
-                (layer as L.Path).bringToFront();
-
-                // Fly to state bounds
-                const bounds = (layer as L.FeatureGroup).getBounds();
-                map.flyToBounds(bounds, {
-                  padding: [60, 60],
-                  duration: 0.6,
-                  maxZoom: 7,
-                });
-
-                onStateSelect(stateData);
-              },
-            });
+        layer.on({
+          mouseover: (e: L.LeafletMouseEvent) => {
+            const target = e.target as L.Path;
+            if (target !== activeLayerRef.current) {
+              target.setStyle(COLORS.hover);
+              target.bringToFront();
+            }
           },
-        }).addTo(map);
+          mouseout: (e: L.LeafletMouseEvent) => {
+            const target = e.target as L.Path;
+            if (target !== activeLayerRef.current) {
+              target.setStyle(COLORS.default);
+            }
+          },
+          click: (e: L.LeafletMouseEvent) => {
+            // Blur clicked element to prevent browser focus bounding box
+            const targetEl = e.originalEvent?.target as HTMLElement | null;
+            targetEl?.blur?.();
 
-        geojsonLayerRef.current = geojsonLayer;
-      })
-      .catch((err) => {
-        console.error('Failed to load India GeoJSON:', err);
-      });
+            const stateData = findStateData(stateName);
+            if (!stateData) return;
+
+            const targetPath = layer as L.Path;
+
+            // Reset previously selected state (O(1) update)
+            if (activeLayerRef.current && activeLayerRef.current !== targetPath) {
+              activeLayerRef.current.setStyle(COLORS.default);
+            }
+
+            // Highlight newly selected state
+            targetPath.setStyle(COLORS.selected);
+            targetPath.bringToFront();
+            activeLayerRef.current = targetPath;
+
+            const bounds = (layer as L.Polygon).getBounds();
+            const center = bounds.getCenter();
+            const currentZoom = map.getZoom();
+
+            // Smooth gliding without zooming out:
+            // If already at inspection zoom level, smoothly glide directly with panTo.
+            // If at full national overview, zoom in directly to the state.
+            if (currentZoom >= 5.0) {
+              map.panTo(center, {
+                animate: true,
+                duration: 0.35,
+                easeLinearity: 0.25,
+              });
+            } else {
+              map.flyTo(center, 5.5, {
+                duration: 0.45,
+              });
+            }
+
+            onStateSelect(stateData);
+          },
+        });
+      },
+    }).addTo(map);
+
+    geojsonLayerRef.current = geojsonLayer;
 
     return () => {
       map.remove();
       mapRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onStateSelect]);
 
-  // Sync selected state highlight when selectedStateId changes externally (e.g. panel close)
+  // Handle external selection reset (e.g. when state drawer is closed)
   useEffect(() => {
-    if (!geojsonLayerRef.current) return;
-    if (!selectedStateId) {
-      geojsonLayerRef.current.setStyle(COLORS.default);
+    if (!selectedStateId && activeLayerRef.current) {
+      activeLayerRef.current.setStyle(COLORS.default);
+      activeLayerRef.current = null;
     }
+
+    const timer = setTimeout(() => {
+      mapRef.current?.invalidateSize({ animate: false });
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [selectedStateId]);
 
   return (
     <div className="map-frame">
       <div
         ref={mapContainerRef}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%', outline: 'none' }}
       />
       <button
+        type="button"
         className="map-reset-btn"
         onClick={resetView}
         title="Reset to national view"

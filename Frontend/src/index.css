@@ -509,11 +509,18 @@ img { display: block; max-width: 100%; }
   width: 100%;
 }
 
+.map-section {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--spacing-32) var(--spacing-24) var(--spacing-64);
+  width: 100%;
+}
+
 .map-section-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: var(--spacing-24);
+  margin-bottom: var(--spacing-20);
 }
 
 .map-section-title {
@@ -531,9 +538,9 @@ img { display: block; max-width: 100%; }
 
 .map-container {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 330px;
   gap: var(--spacing-16);
-  min-height: 560px;
+  min-height: 440px;
 }
 
 .map-container.panel-closed {
@@ -542,10 +549,11 @@ img { display: block; max-width: 100%; }
 
 .map-frame {
   position: relative;
-  border-radius: var(--radius-cards);
+  border-radius: 20px;
   overflow: hidden;
   background-color: var(--surface-deep-panel);
-  min-height: 560px;
+  min-height: 440px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .map-frame::after {
@@ -554,10 +562,24 @@ img { display: block; max-width: 100%; }
   bottom: 0;
   left: 0;
   right: 0;
-  height: 175px;
-  box-shadow: var(--shadow-xl);
+  height: 50px;
+  background: linear-gradient(to top, rgba(14, 16, 18, 0.7), transparent);
   pointer-events: none;
   z-index: 400;
+}
+
+/* Remove default browser focus box around SVG elements / state polygons on click */
+.map-frame :focus,
+.map-frame :focus-visible,
+.leaflet-container :focus,
+.leaflet-container :focus-visible,
+.leaflet-interactive:focus,
+.leaflet-interactive:focus-visible,
+path.leaflet-interactive:focus,
+svg.leaflet-zoom-animated path:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Leaflet overrides for dark theme */
@@ -565,6 +587,7 @@ img { display: block; max-width: 100%; }
   background-color: var(--surface-deep-panel);
   height: 100%;
   width: 100%;
+  outline: none !important;
 }
 
 .map-frame .leaflet-control-zoom {
@@ -575,10 +598,11 @@ img { display: block; max-width: 100%; }
   background-color: var(--surface-raised) !important;
   color: var(--color-fog) !important;
   border: 1px solid var(--color-gunmetal) !important;
-  width: 32px !important;
-  height: 32px !important;
-  line-height: 30px !important;
-  font-size: 16px !important;
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 28px !important;
+  font-size: 15px !important;
+  border-radius: 6px !important;
 }
 
 .map-frame .leaflet-control-zoom a:hover {
@@ -605,8 +629,8 @@ img { display: block; max-width: 100%; }
   color: var(--color-fog);
   border: 1px solid var(--color-gunmetal);
   border-radius: var(--radius-inputs);
-  padding: 8px 14px;
-  font-size: var(--text-body-sm);
+  padding: 7px 12px;
+  font-size: 13px;
   font-weight: var(--font-weight-medium);
   font-family: inherit;
   cursor: pointer;
@@ -628,13 +652,14 @@ img { display: block; max-width: 100%; }
 
 .state-panel {
   background-color: var(--surface-deep-panel);
-  border-radius: var(--radius-cards);
-  padding: var(--card-padding);
+  border-radius: 20px;
+  padding: 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-16);
+  gap: 12px;
   animation: panelSlideIn 0.25s ease-out;
   overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 @keyframes panelSlideIn {
@@ -812,3 +837,450 @@ img { display: block; max-width: 100%; }
     display: none;
   }
 }
+
+/* ============================================================
+   HERO CADASTRAL CONSOLE — Inspired by Mapbox Navigation Console
+   ============================================================ */
+
+.console-wrapper {
+  max-width: 880px;
+  width: 100%;
+  margin: var(--spacing-32) auto 0;
+  position: relative;
+  text-align: left;
+}
+
+.console-chassis {
+  position: relative;
+  background-color: #0f1216;
+  border-radius: 22px;
+  padding: 10px;
+  box-shadow: 0 35px 80px -20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 122, 252, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Neon corner accents mirroring the reference screenshot */
+.console-corner-glow-top-right {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 90px;
+  height: 90px;
+  border-top: 2.5px solid #38bdf8;
+  border-right: 2.5px solid #007afc;
+  border-top-right-radius: 22px;
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.45);
+  pointer-events: none;
+}
+
+.console-corner-glow-bottom-left {
+  position: absolute;
+  bottom: -1px;
+  left: -1px;
+  width: 90px;
+  height: 90px;
+  border-bottom: 2.5px solid #007afc;
+  border-left: 2.5px solid #38bdf8;
+  border-bottom-left-radius: 22px;
+  box-shadow: 0 0 22px rgba(0, 122, 252, 0.45);
+  pointer-events: none;
+}
+
+.console-screen {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: #15191e;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 420px;
+}
+
+.cadastral-svg-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  display: block;
+}
+
+/* Floating Left Instrument Panel (Cadastral Dispatch) */
+.console-instrument-card {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  bottom: 16px;
+  width: 290px;
+  background: rgba(14, 18, 23, 0.93);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+}
+
+.instrument-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  margin-bottom: 14px;
+}
+
+.instrument-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 3px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.instrument-tab {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #8b96aa;
+  padding: 5px 2px;
+  text-align: center;
+  border-radius: 100px;
+  background: transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.instrument-tab.active {
+  background-color: #007afc;
+  color: #ffffff;
+}
+
+.instrument-tab:hover:not(.active) {
+  color: #ffffff;
+}
+
+.instrument-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: #a0aaba;
+}
+
+.instrument-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.instrument-table td {
+  padding: 10px 4px;
+  vertical-align: middle;
+}
+
+.instrument-table tbody tr {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.instrument-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.instrument-table tbody tr.row-selected {
+  background: rgba(0, 122, 252, 0.14);
+}
+
+.radio-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid #475569;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.radio-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.radio-dot.selected {
+  background-color: #007afc;
+}
+
+.row-id {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.route-line-swatch {
+  display: block;
+  width: 28px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.center-cell {
+  text-align: center;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.time-val-cell {
+  text-align: right;
+  color: #e2e8f0;
+  font-weight: 600;
+  font-feature-settings: "lnum";
+}
+
+.instrument-footer-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.instrument-btn-cancel {
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 6px 10px;
+  background: transparent;
+  transition: color 0.15s;
+}
+
+.instrument-btn-cancel:hover {
+  color: #ffffff;
+}
+
+.instrument-btn-save {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #007afc;
+  padding: 7px 16px;
+  border-radius: 100px;
+  transition: background-color 0.15s, transform 0.1s;
+}
+
+.instrument-btn-save:hover {
+  background-color: #0069d9;
+}
+
+.instrument-btn-save:active {
+  transform: scale(0.97);
+}
+
+/* Watermark */
+.console-watermark {
+  position: absolute;
+  bottom: 18px;
+  right: 24px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@media (max-width: 820px) {
+  .console-instrument-card {
+    position: relative;
+    top: auto;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .cadastral-svg-canvas {
+    min-height: 320px;
+  }
+}
+
+/* ============================================================
+   AGENCY / INTER-DEPARTMENT PROOF RAIL
+   Inspired by Mapbox Partner Logo Rail (LandingPage.md)
+   ============================================================ */
+
+.agency-rail-section {
+  max-width: var(--page-max-width);
+  margin: var(--spacing-64) auto 0;
+  padding: 0 var(--spacing-24);
+  width: 100%;
+  text-align: center;
+}
+
+.agency-rail-eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  color: #566171;
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  margin-bottom: var(--spacing-32);
+}
+
+.agency-rail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-24);
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+.agency-marquee-container {
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 1060px;
+  margin: 0 auto;
+  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}
+
+.agency-marquee-track-wrapper {
+  overflow: hidden;
+  width: 100%;
+  display: flex;
+}
+
+.agency-marquee-track {
+  display: flex;
+  gap: 44px;
+  width: max-content;
+  flex-shrink: 0;
+  will-change: transform;
+}
+
+.agency-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.marquee-scroll-left {
+  animation: scrollMarqueeLeft 28s linear infinite;
+}
+
+.marquee-scroll-right {
+  animation: scrollMarqueeRight 28s linear infinite;
+}
+
+@keyframes scrollMarqueeLeft {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-100% / 3));
+  }
+}
+
+@keyframes scrollMarqueeRight {
+  0% {
+    transform: translateX(calc(-100% / 3));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.agency-badge-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.65;
+  transition: opacity 0.2s, transform 0.2s;
+  cursor: default;
+  user-select: none;
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.agency-badge-item:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.agency-icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #333943;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #a0aaba;
+  letter-spacing: 0.5px;
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+
+.agency-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.agency-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a0aaba;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.agency-sub {
+  font-size: 9.5px;
+  color: #64748b;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.agency-rail-cta {
+  margin-top: var(--spacing-32);
+}
+
+.agency-rail-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: #007afc;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s;
+}
+
+.agency-rail-link:hover {
+  color: #38bdf8;
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-scroll-left,
+  .marquee-scroll-right {
+    animation: none;
+  }
+}
+
+
+
