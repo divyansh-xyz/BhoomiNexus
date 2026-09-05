@@ -12,13 +12,20 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
 
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, env.JWT_SECRET) as {
-      id: string;
+      userId: string;
       email: string;
       role: string;
-      department: string | null;
+      name?: string;
+      designation?: string;
     };
 
-    req.user = decoded;
+    req.user = {
+      id: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+      name: decoded.name || "",
+      designation: decoded.designation || "",
+    };
     next();
   } catch (error) {
     next(new ApiError(401, "Unauthorized: Invalid or expired token"));

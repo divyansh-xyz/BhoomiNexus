@@ -1,19 +1,19 @@
 import { Router } from "express";
-import { z } from "zod";
-import { login, getMe } from "./auth.controller";
-import { validate } from "../../middlewares/validate.middleware";
+import { login, getMe, logout, refresh } from "./auth.controller";
 import { authenticate } from "../../middlewares/auth.middleware";
 
 const router = Router();
 
-const loginSchema = z.object({
-  body: z.object({
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-  }),
-});
+// POST /api/v1/auth/login
+router.post("/login", login);
 
-router.post("/login", validate(loginSchema), login);
+// POST /api/v1/auth/refresh
+router.post("/refresh", refresh);
+
+// GET /api/v1/auth/me
 router.get("/me", authenticate, getMe);
+
+// POST /api/v1/auth/logout
+router.post("/logout", authenticate, logout);
 
 export default router;

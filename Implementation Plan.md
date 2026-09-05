@@ -3,7 +3,7 @@
 
 ---
 
-# 0. Implementation Rule
+# 0. Implementatio Rule
 
 This document is the implementation contract for the project.
 

@@ -7,12 +7,20 @@ const runMigrations = async () => {
     const client = await pool.connect();
     console.log("⏳ Starting migrations...");
 
-    const sqlFilePath = path.join(__dirname, "migrations", "001_initial_schema.sql");
-    const sql = fs.readFileSync(sqlFilePath, { encoding: "utf-8" });
+    const migrationsDir = path.join(__dirname, "migrations");
+    const files = fs.readdirSync(migrationsDir)
+      .filter((f: string) => f.endsWith(".sql"))
+      .sort();
 
-    await client.query(sql);
+    for (const file of files) {
+      const filePath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(filePath, { encoding: "utf-8" });
+      console.log(`  Running: ${file}...`);
+      await client.query(sql);
+      console.log(`  ✅ ${file} completed.`);
+    }
 
-    console.log("✅ Migrations completed successfully!");
+    console.log("✅ All migrations completed successfully!");
     client.release();
     process.exit(0);
   } catch (error) {
