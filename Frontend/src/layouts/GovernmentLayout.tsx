@@ -36,8 +36,11 @@ export const GovernmentLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Top Right: Only Sign Out Button */}
-          <div className="gov-masthead-right">
+          {/* Top Right */}
+          <div className="gov-masthead-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Link to="/documents" className="gov-signout-btn">
+              Document Vault
+            </Link>
             <button
               type="button"
               onClick={logout}

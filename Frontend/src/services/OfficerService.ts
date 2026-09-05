@@ -97,6 +97,24 @@ const mockTaskDetails: Record<string, TaskDetail> = {
   }
 };
 
+export interface OcrExtractionResult {
+  docId: string;
+  status: 'PENDING' | 'OCR_PROCESSING' | 'GEMINI_EXTRACTING' | 'COMPLETED';
+  extractedData?: {
+    surveyNumber: string;
+    area: string;
+    village: string;
+    district: string;
+    notificationNo: string;
+    notificationDate: string;
+  };
+  confidenceScores?: {
+    surveyNumber: number;
+    area: number;
+    village: number;
+  };
+}
+
 export const OfficerService = {
   getAssignedTasks: async (): Promise<OfficerTask[]> => {
     return new Promise((resolve) => {
@@ -127,6 +145,37 @@ export const OfficerService = {
   uploadEvidence: async (_taskId: string, _file: File): Promise<{ success: boolean }> => {
     return new Promise((resolve) => {
       setTimeout(() => resolve({ success: true }), 1500);
+    });
+  },
+
+  // Phase 9 Mock Methods
+  getOcrExtractionStatus: async (_taskId: string, docId: string): Promise<OcrExtractionResult> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          docId,
+          status: 'COMPLETED',
+          extractedData: {
+            surveyNumber: 'MH-PN-004821',
+            area: '2.41 acres',
+            village: 'ABC',
+            district: 'Pune',
+            notificationNo: 'N-2026-182',
+            notificationDate: '2026-09-01'
+          },
+          confidenceScores: {
+            surveyNumber: 97,
+            area: 94,
+            village: 99
+          }
+        });
+      }, 500);
+    });
+  },
+
+  submitOcrVerification: async (_taskId: string, _docId: string, _verifiedData: any): Promise<{ success: boolean }> => {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve({ success: true }), 1000);
     });
   }
 };
