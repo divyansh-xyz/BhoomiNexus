@@ -110,11 +110,11 @@ They:
 
 - Open the assigned task
 - Read required project/parcel information
-- Review required documents
-- Upload documents/evidence
-- Use OCR-assisted verification
-- Upload digital document
-- Upload hard-copy scan/photo where required
+- Review required statutory documents & checklist
+- Conduct physical verification / field inspection
+- Upload hard-copy scan/photo & digital document evidence
+- Use OCR + Gemini-assisted auto-fill for soft-copy submission
+- Verify and correct extracted data side-by-side
 - Accept the stage
 - Reject the stage with a reason
 
@@ -1099,48 +1099,137 @@ The application can upload, retrieve, version and audit documents without AI.
 
 ---
 
-# 16. Phase 9 — OCR + Gemini Document Intelligence
+# 16. Phase 9 — Hard-Copy Evidence Intake & Physical Verification
 
 ## Objective
 
-Add AI to a real officer workflow.
+Demonstrate realistic human physical verification and ground truth in Indian land administration. The processing officer receives or prints the statutory form, carries it to the field / revenue office, performs physical verification (wet-ink signature, official seal, site inspection), and captures/uploads the hard-copy scan or photo into the system.
 
-### Processing flow
+### Operational Sequence
 
 ```text
-Officer uploads document
-        |
-        v
-Document saved
-        |
-        v
-BullMQ Job
-        |
-        v
-Google Cloud Vision OCR
-        |
-        v
-Extracted Text
-        |
-        v
-Gemini
-        |
-        v
-Structured JSON
-        |
-        v
-Backend Validation
-        |
-        v
-Officer Review
-        |
-        v
-Verified Record
+Officer receives draft form / revenue record (Tehsil RoR, Deed, Survey Sheet)
+                 |
+                 v
+Prints form / takes physical document to field for scrutiny
+                 |
+                 v
+Performs physical inspection, stamps, & signs with wet-ink endorsement
+                 |
+                 v
+Clicks high-resolution photo / scans physical hard-copy document
+                 |
+                 v
+Uploads to Stage Evidence:
+  - HARD_COPY_SCAN (scanned physical document with wet-ink signature & seal)
+  - PHOTO (field parcel photos, geo-tagged markers, ground evidence)
+  - DIGITAL_DOCUMENT (original digital PDF draft, if available)
+                 |
+                 v
+Evidence cryptographically hashed (SHA-256) & stored in Object Storage + PostgreSQL
+                 |
+                 v
+Physical Evidence Locked & Ingested into AI Pipeline (Phase 10)
 ```
 
-The TRD specifies this architecture and explicitly says no local LLM is required.
+### UI & Evidence Ingestion
 
-### Backend
+The officer scrutiny workbench provides a dedicated evidence ingestion card:
+
+```text
+Evidence Type:
+  [●] Hard-Copy Scan (Physical Paper)
+  [○] Field Photograph (Ground Reality)
+  [○] Digital Source Document (PDF)
+
+[ Drag & drop scanned copy / Click to use device camera ]
+Supported: PDF, TIFF, JPG, PNG (Up to 25MB)
+```
+
+Features:
+- Live scan preview with multi-page support and zoom controls.
+- Automatic SHA-256 checksum calculation for evidentiary chain-of-custody.
+- Upload tagging with statutory stage, project, and parcel ULPIN.
+
+### APIs
+
+```http
+POST /api/v1/documents/upload
+POST /api/v1/tasks/:taskId/evidence
+GET  /api/v1/tasks/:taskId/evidence
+```
+
+### Database
+
+Use:
+
+```text
+stage_evidence
+```
+
+with evidence types:
+
+```text
+DIGITAL_DOCUMENT
+HARD_COPY_SCAN
+PHOTO
+```
+
+### Definition of Done
+
+The stage securely stores both digital documents and physical hard-copy scans/photos with immutable metadata and cryptographic hashes, establishing the verified physical foundation required for AI extraction and auto-filling.
+
+---
+
+# 17. Phase 10 — OCR + Gemini Document Intelligence & Auto-Fill Verification
+
+## Objective
+
+Ingest the hard-copy scan / photo (or uploaded digital document) into an intelligent automated extraction pipeline. The system runs Vision OCR and Gemini Document Intelligence to extract key statutory land attributes and automatically pre-fill the digital soft-copy submission, allowing the officer to review side-by-side against the physical scan, correct anomalies, and officially verify the record.
+
+### Processing Flow
+
+```text
+Hard-Copy Scan / Photo uploaded by Officer (from Phase 9)
+                 |
+                 v
+Document saved in Object Storage
+                 |
+                 v
+BullMQ Job triggered automatically
+                 |
+                 v
+Google Cloud Vision OCR (bilingual extraction: Hindi & English)
+                 |
+                 v
+Extracted Raw Text + Bounding Box Layout
+                 |
+                 v
+Gemini Document Intelligence
+                 |
+                 v
+Structured JSON (with schema validation & field confidence scores)
+                 |
+                 v
+Backend Validation (Zod schema checking)
+                 |
+                 v
+Dual-Pane Officer Verification UI:
+  [Hard-Copy Scan Preview] <---> [Auto-Filled Soft-Copy Form]
+                 |
+                 v
+Officer Reviews & Corrects AI Suggestions
+                 |
+                 v
+Officer Verification Sign-Off (`POST /api/v1/documents/:id/verify`)
+                 |
+                 v
+Official Verified Record (Ready for Stage Acceptance)
+```
+
+The TRD specifies this architecture and explicitly says no local LLM is required (Google Cloud Vision OCR + Gemini API via BullMQ backend worker).
+
+### Backend APIs
 
 ```http
 GET  /api/v1/documents/:id/processing
@@ -1148,65 +1237,39 @@ GET  /api/v1/documents/:id/extraction
 POST /api/v1/documents/:id/verify
 ```
 
-Processing should automatically start after upload.
+Processing automatically starts immediately after hard-copy scan upload.
 
-### Example extracted fields
+### Example Extracted & Auto-Filled Fields
 
 ```text
 Survey Number
 ULPIN
 Village
 District
-Area
+Area / Extent
 Notification Number
 Notification Date
 Award Number
 Award Date
-Authority
+Authority / Signatory Officer
 ```
 
-### Definition of Done
-
-An actual uploaded acquisition document generates structured fields that the officer can verify and correct.
-
----
-
-# 17. Phase 10 — Hard-Copy Evidence
-
-## Objective
-
-Demonstrate a realistic human verification process.
-
-Officer receives:
+### Dual-Pane Verification UI
 
 ```text
-Digital Document
-```
-
-Officer prints it and performs physical verification.
-
-Then uploads:
-
-```text
-Digital Document
-+
-Hard-Copy Scan/Photo
-```
-
-### UI
-
-```text
-Digital Source Document
-     ✓
-
-OCR Extraction
-     ✓
-
-Hard-Copy Evidence
-     ✓
-
-Officer Verification
-     ✓
++------------------------------------+------------------------------------+
+| PHYSICAL HARD-COPY SCAN (EVIDENCE) | AUTO-FILLED SOFT-COPY SUBMISSION   |
+| [ Zoomable High-Res Document View ]|                                    |
+| - Shows wet-ink signatures         | Survey Number: [ 104/2           ] |
+| - Official seals & revenue stamps  | ULPIN:         [ 27-01-002-1042  ] |
+| - Physical endorsements            | Village:       [ Rampur          ] |
+|                                    | District:      [ Nagpur          ] |
+|                                    | Area:          [ 1.45 Ha         ] |
+|                                    | Notification:  [ LA/2026/041     ] |
+|                                    | [ Confidence: 98% High ]           |
+|                                    |                                    |
+|                                    | [✓ Verify & Sign-Off Record]       |
++------------------------------------+------------------------------------+
 ```
 
 ### Database
@@ -1220,15 +1283,14 @@ stage_evidence
 with:
 
 ```text
-DIGITAL_DOCUMENT
-HARD_COPY_SCAN
-PHOTO
 OCR_OUTPUT
+AI_STRUCTURED_DATA
+OFFICER_VERIFICATION_LOG
 ```
 
 ### Definition of Done
 
-The stage stores both digital and physical evidence and the officer explicitly verifies it.
+The uploaded physical hard-copy scan generates structured fields that auto-fill the digital soft-copy form; the officer reviews side-by-side with the physical scan, corrects any discrepancies, and explicitly verifies the soft-copy record before advancing the stage.
 
 ---
 
@@ -1725,15 +1787,15 @@ BOSS exits
         ↓
 Officer Task
         ↓
-Upload Document
+Print / Physical Intake
         ↓
-OCR
+Hard-Copy Scan & Evidence Upload
         ↓
-Gemini Extraction
+OCR (Google Cloud Vision)
         ↓
-Human Verification
+Gemini Document Intelligence
         ↓
-Hard-Copy Evidence
+Auto-Fill Soft Copy & Dual-Pane Verification
         ↓
 Accept
         ↓
@@ -2562,10 +2624,10 @@ PHASE 8
 Documents
         ↓
 PHASE 9
-OCR + Gemini
+Hard-Copy Evidence & Physical Intake
         ↓
 PHASE 10
-Hard-Copy Evidence
+OCR + Gemini Document Intelligence & Auto-Fill
         ↓
 PHASE 11
 Audit
