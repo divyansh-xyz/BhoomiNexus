@@ -19,6 +19,18 @@ export const useNationalOverview = () => {
 };
 
 /**
+ * Hook for Section 6.2: GET /api/v1/public/states
+ * All states summary.
+ */
+export const usePublicStates = () => {
+  return useQuery({
+    queryKey: ['public', 'states'],
+    queryFn: () => publicService.getPublicStates(),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+/**
  * Hook for Section 6.3: GET /api/v1/public/states/:stateId
  * Aggregate metrics for state inspector panel.
  */

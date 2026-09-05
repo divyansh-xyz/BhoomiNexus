@@ -31,7 +31,7 @@ export interface CreateProjectRequestDTO {
   description: string;
   estimatedBudgetCr: number;
   corridorCoordinates: [number, number][];
-  documents: Omit<ProjectDocument, 'id' | 'uploadedAt' | 'verified'>[];
+  documentIds?: string[];
 }
 
 export interface CorridorPreset {

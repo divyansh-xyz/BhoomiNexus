@@ -236,7 +236,7 @@ export const ProponentProjectDetailPage: React.FC = () => {
         <div className="boss-kpi-item">
           <span className="kpi-label">Requested Land Area</span>
           <div className="kpi-value text-signal-blue">
-            <span>{project.requestedAreaAcres.toFixed(1)}</span>
+            <span>{(project.requestedAreaAcres || 0).toFixed(1)}</span>
             <span className="kpi-unit">Acres</span>
           </div>
           <span className="kpi-sub">({project.requestedAreaHa} Ha metric)</span>
@@ -327,7 +327,7 @@ export const ProponentProjectDetailPage: React.FC = () => {
           </div>
           <div className="boss-card-body">
             <div className="boss-documents-list">
-              {project.initialDocuments.map((doc) => (
+              {project.initialDocuments?.map((doc) => (
                 <div key={doc.id} className="boss-doc-item">
                   <div className="doc-icon-col">📄</div>
                   <div className="doc-meta-col">

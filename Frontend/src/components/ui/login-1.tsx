@@ -64,8 +64,8 @@ export const Component: React.FC = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [mapMode, setMapMode] = useState<'blueprint' | 'satellite'>('blueprint');
 
-  const [email, setEmail] = useState('officer.revenue@nic.in');
-  const [password, setPassword] = useState('••••••••••••');
+  const [email, setEmail] = useState('boss@bhoomi.gov.in');
+  const [password, setPassword] = useState('Demo@123');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -108,7 +108,7 @@ export const Component: React.FC = () => {
       } else if (lower.includes('admin')) {
         inferredRole = 'ADMIN';
       }
-      await login(email, inferredRole);
+      await login(email, password, inferredRole);
       navigate(routeByRole(inferredRole));
     } catch (err: any) {
       setErrorMsg(err?.message || 'Authentication failed. Please check your credentials.');
@@ -121,7 +121,7 @@ export const Component: React.FC = () => {
     try {
       const ssoEmail = `officer.${provider.toLowerCase().replace(/[^a-z]/g, '')}@nic.in`;
       setEmail(ssoEmail);
-      await login(ssoEmail, 'PROCESSING_OFFICER');
+      await login(ssoEmail, 'Demo@123', 'PROCESSING_OFFICER');
       navigate(routeByRole('PROCESSING_OFFICER'));
     } catch (err: any) {
       setErrorMsg(err?.message || `${provider} SSO authentication failed.`);
@@ -241,7 +241,7 @@ export const Component: React.FC = () => {
               <div className="login-inputs-stack">
                 <AppInput
                   label="Official Email / Employee ID"
-                  placeholder="officer.revenue@nic.in"
+                  placeholder="boss@bhoomi.gov.in"
                   type="text"
                   required
                   value={email}
@@ -256,7 +256,7 @@ export const Component: React.FC = () => {
 
                 <AppInput
                   label="Security Password"
-                  placeholder="••••••••••••"
+                  placeholder="Demo@123"
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}

@@ -236,7 +236,7 @@ export const CreateProjectPage: React.FC = () => {
         description: description || `Statutory infrastructure corridor by ${proponentAuthority}`,
         estimatedBudgetCr,
         corridorCoordinates: coordinates,
-        documents,
+        documentIds: documents.map((doc: any) => doc.id),
       });
 
       // Navigate to project detail view
@@ -514,20 +514,27 @@ export const CreateProjectPage: React.FC = () => {
                 )}
               </div>
 
-              <div
-                className="doc-upload-dropzone"
-                onClick={() => {
-                  const newDoc = {
-                    title: `Technical Alignment Addendum ${documents.length + 1}.pdf`,
-                    type: 'ALIGNMENT_GEOJSON',
-                    fileSize: '2.1 MB',
-                    hash: `sha256:${Math.random().toString(16).slice(2, 10)}${Math.random().toString(16).slice(2, 10)}`,
-                  };
-                  setDocuments((prev) => [...prev, newDoc]);
-                }}
-              >
+              <label className="doc-upload-dropzone" style={{ display: 'block', cursor: 'pointer' }}>
+                <input 
+                  type="file" 
+                  style={{ display: 'none' }} 
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        const uploadedDoc = await bossService.uploadDocument(file, 'ALIGNMENT_GEOJSON');
+                        setDocuments((prev) => [...prev, uploadedDoc]);
+                      } catch (err) {
+                        console.error('Failed to upload document', err);
+                        alert('Failed to upload document.');
+                      }
+                    }
+                    e.target.value = ''; // Reset input
+                  }}
+                  accept=".pdf,.doc,.docx,.zip"
+                />
                 <span>+ Click to attach additional statutory annexure / DPR extract</span>
-              </div>
+              </label>
             </div>
           </div>
 

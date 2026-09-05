@@ -99,7 +99,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
   const handleDirectUpdateSla = (stageId: string, newSla: number) => {
     if (!workflow) return;
     const validatedSla = Math.max(1, Math.min(120, newSla));
-    const updatedStages = workflow.stages.map((s) =>
+    const updatedStages = (workflow.stages || []).map((s) =>
       s.id === stageId ? { ...s, slaDays: validatedSla } : s
     );
     const updated: ProjectWorkflowInstance = { ...workflow, stages: updatedStages };
@@ -113,7 +113,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
     const selectedOfficer = officers.find((o) => o.id === officerId);
     if (!selectedOfficer) return;
 
-    const updatedStages = workflow.stages.map((s) =>
+    const updatedStages = (workflow.stages || []).map((s) =>
       s.id === stageId
         ? {
             ...s,
@@ -127,6 +127,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
     setWorkflow(updated);
     workflowService.updateStage(workflow.projectId, stageId, {
       assignedOfficer: selectedOfficer,
+      assignedOfficerId: selectedOfficer.id,
       assignedRole: selectedOfficer.designation,
       department: selectedOfficer.department,
     });
@@ -152,7 +153,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
 
   // 4. REORDER STAGE (BOSS Action: Reorder Stage - Move Down)
   const handleMoveDown = (index: number) => {
-    if (!workflow || index === workflow.stages.length - 1) return;
+    if (!workflow || index === (workflow.stages || []).length - 1) return;
     const newStages = [...workflow.stages];
     const temp = newStages[index + 1];
     newStages[index + 1] = newStages[index];
@@ -171,14 +172,14 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
   // 5. REMOVE STAGE (BOSS Action: Remove Stage)
   const handleRemoveStage = (stageId: string) => {
     if (!workflow) return;
-    if (workflow.stages.length <= 1) {
+    if ((workflow.stages || []).length <= 1) {
       alert('Statutory Governance Rule: An acquisition workflow must contain at least one scrutiny stage.');
       return;
     }
     if (!window.confirm('Are you sure you want to remove this scrutiny stage from the sequence?')) {
       return;
     }
-    const newStages = workflow.stages.filter((s) => s.id !== stageId);
+    const newStages = (workflow.stages || []).filter((s) => s.id !== stageId);
     newStages.forEach((s, idx) => {
       s.order = idx + 1;
     });
@@ -216,36 +217,34 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
   };
 
   // 7. MODIFY STAGE (BOSS Action: Modify Stage - Save Modal)
-  const handleSaveStageModal = (e: React.FormEvent) => {
+  const handleSaveStageModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workflow || !editingStage) return;
 
-    let updatedStages: WorkflowStageInstance[];
-    if (isAddingStage) {
-      const newOrder = workflow.stages.length + 1;
-      const newStage: WorkflowStageInstance = {
-        ...editingStage,
-        id: `stg-custom-${Date.now()}`,
-        order: newOrder,
-        status: 'PENDING',
-      };
-      updatedStages = [...workflow.stages, newStage];
-    } else {
-      updatedStages = workflow.stages.map((s) =>
-        s.id === editingStage.id ? editingStage : s
-      );
+    try {
+      setSaving(true);
+      if (isAddingStage) {
+        const newOrder = (workflow.stages || []).length + 1;
+        const newStage: WorkflowStageInstance = {
+          ...editingStage,
+          order: newOrder,
+          status: 'PENDING',
+        };
+        await workflowService.addStage(workflow.projectId, newStage);
+      } else {
+        await workflowService.updateStage(workflow.projectId, editingStage.id, editingStage);
+      }
+      
+      const refreshedWorkflow = await workflowService.getProjectWorkflow(workflow.projectId);
+      setWorkflow(refreshedWorkflow);
+    } catch (err) {
+      console.error('Failed to save stage:', err);
+      alert('Failed to save stage to the server.');
+    } finally {
+      setSaving(false);
+      setEditingStage(null);
+      setIsAddingStage(false);
     }
-
-    const updatedWorkflow: ProjectWorkflowInstance = { ...workflow, stages: updatedStages };
-    setWorkflow(updatedWorkflow);
-    if (isAddingStage) {
-      const newStage = updatedStages[updatedStages.length - 1];
-      workflowService.addStage(workflow.projectId, newStage);
-    } else {
-      workflowService.updateStage(workflow.projectId, editingStage.id, editingStage);
-    }
-    setEditingStage(null);
-    setIsAddingStage(false);
   };
 
   // Document tags management in modal
@@ -435,7 +434,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                 {templates.map((tmpl) => {
                   const isPrototypeSeed = tmpl.id === 'tmpl-prototype-la';
                   const isCurrent = workflow?.templateId === tmpl.id;
-                  const totalDefaultSla = tmpl.defaultStages.reduce((s, stg) => s + stg.defaultSlaDays, 0);
+                  const totalDefaultSla = (tmpl.defaultStages || []).reduce((s, stg) => s + stg.defaultSlaDays, 0);
 
                   return (
                     <div
@@ -455,7 +454,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
 
                       <div className="template-card-kpis">
                         <span className="template-kpi-pill">
-                          <strong>{tmpl.defaultStages.length}</strong> Statutory Stages
+                          <strong>{(tmpl.defaultStages || []).length}</strong> Statutory Stages
                         </span>
                         <span className="template-kpi-pill">
                           <strong>{totalDefaultSla}</strong> Days Total SLA
@@ -507,8 +506,8 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
   // =========================================================================
   // WORKBENCH VIEW (When workflow instance is instantiated & editable)
   // =========================================================================
-  const cumulativeSlaDays = workflow.stages.reduce((sum, s) => sum + s.slaDays, 0);
-  const distinctDepartmentsCount = new Set(workflow.stages.map((s) => s.department)).size;
+  const cumulativeSlaDays = (workflow.stages || []).reduce((sum, s) => sum + s.slaDays, 0);
+  const distinctDepartmentsCount = new Set((workflow.stages || []).map((s) => s.department)).size;
 
   return (
     <div className="boss-page-container">
@@ -590,7 +589,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
         <div className="boss-kpi-item">
           <span className="kpi-label">Pipeline Sequence</span>
           <div className="kpi-value">
-            <span>{workflow.stages.length}</span>
+            <span>{(workflow.stages || []).length}</span>
             <span className="kpi-unit">Stages</span>
           </div>
           <span className="kpi-sub">Sequential Approval Gates</span>
@@ -664,9 +663,9 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
       {/* 5. Interactive Broadsheet Pipeline Canvas */}
       <section className="workflow-pipeline-section">
         <div className="pipeline-stages-list">
-          {workflow.stages.map((stage, idx) => {
+          {(workflow.stages || []).map((stage, idx) => {
             const isFirst = idx === 0;
-            const isLast = idx === workflow.stages.length - 1;
+            const isLast = idx === (workflow.stages || []).length - 1;
 
             return (
               <div key={stage.id} className="workflow-stage-card">
@@ -713,7 +712,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                   <div className="stage-docs-row">
                     <span className="docs-label">Statutory Deliverables:</span>
                     <div className="docs-tags-wrap">
-                      {stage.requiredDocuments.map((doc, dIdx) => (
+                      {stage.requiredDocuments?.map((doc, dIdx) => (
                         <span key={dIdx} className="doc-deliverable-chip">
                           &bull; {doc}
                         </span>
@@ -727,21 +726,21 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                   <div className="officer-avatar-box">&#127963;</div>
                   <div className="officer-meta-info">
                     <div className="officer-name-row">
-                      <span className="officer-name">{stage.assignedOfficer.name}</span>
-                      <span className="officer-cadre font-mono">{stage.assignedOfficer.cadre}</span>
+                      <span className="officer-name">{stage.assignedOfficer?.name ?? 'Unassigned'}</span>
+                      <span className="officer-cadre font-mono">{stage.assignedOfficer?.cadre}</span>
                     </div>
-                    <span className="officer-designation">{stage.assignedOfficer.designation}</span>
+                    <span className="officer-designation">{stage.assignedOfficer?.designation ?? 'Pending'}</span>
                     <div className="officer-contact-row">
-                      <span>{stage.assignedOfficer.email}</span>
+                      <span>{stage.assignedOfficer?.email}</span>
                       <span>&bull;</span>
-                      <span>{stage.assignedOfficer.officeLocation}</span>
+                      <span>{stage.assignedOfficer?.officeLocation}</span>
                     </div>
                   </div>
 
                   <div className="officer-reassign-col">
                     <label className="reassign-label">Assign Officer:</label>
                     <select
-                      value={stage.assignedOfficer.id}
+                      value={stage.assignedOfficer?.id ?? ''}
                       onChange={(e) => handleDirectAssignOfficer(stage.id, e.target.value)}
                       className="inline-officer-select"
                       title="Directly reassign competent officer"
@@ -753,8 +752,8 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                           </option>
                         ))
                       ) : (
-                        <option value={stage.assignedOfficer.id}>
-                          {stage.assignedOfficer.name} &mdash; {stage.assignedOfficer.designation}
+                        <option value={stage.assignedOfficer?.id ?? ''}>
+                          {stage.assignedOfficer?.name ?? 'Unassigned'} &mdash; {stage.assignedOfficer?.designation ?? 'Pending'}
                         </option>
                       )}
                     </select>
@@ -893,7 +892,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
               <div>
                 <label className="form-field-label">Designated Competent Officer *</label>
                 <select
-                  value={editingStage.assignedOfficer.id}
+                  value={editingStage.assignedOfficer?.id ?? ''}
                   onChange={(e) => {
                     const selected = officers.find((o) => o.id === e.target.value);
                     if (selected) {
@@ -914,8 +913,8 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                       </option>
                     ))
                   ) : (
-                    <option value={editingStage.assignedOfficer.id}>
-                      {editingStage.assignedOfficer.name} &mdash; {editingStage.assignedOfficer.designation}
+                    <option value={editingStage.assignedOfficer?.id ?? ''}>
+                      {editingStage.assignedOfficer?.name ?? 'Unassigned'} &mdash; {editingStage.assignedOfficer?.designation ?? 'Pending'}
                     </option>
                   )}
                 </select>

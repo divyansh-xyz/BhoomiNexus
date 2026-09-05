@@ -92,33 +92,15 @@ export const publicService = {
    * Returns national aggregate information for the public landing page.
    */
   async getNationalOverview(): Promise<NationalOverviewAPIResponse> {
-    try {
-      const response = await apiClient.get<NationalOverviewAPIResponse>('/public/overview');
-      if (
-        !response.data ||
-        typeof response.data !== 'object' ||
-        typeof (response.data as any).projectsInProgress !== 'number'
-      ) {
-        throw new Error('Invalid overview response from backend');
-      }
-      return response.data;
-    } catch (error) {
-      console.warn(
-        '[API Contract] GET /api/v1/public/overview not yet reachable on backend. Using contractual fallback.'
-      );
-      // Contractual fallback adhering to TRD specifications
-      return {
-        totalProjects: nationalOverview.projectsInProgress + 530,
-        projectsInProgress: nationalOverview.projectsInProgress,
-        projectsCompleted: 530,
-        landProposed: nationalOverview.areaUnderAcquisitionHa * 1.2,
-        landAcquired: nationalOverview.areaUnderAcquisitionHa,
-        compensationPaid: nationalOverview.totalPipelineValueCr * 10000000,
-        totalStatesActive: nationalOverview.totalStatesActive,
-        areaUnderAcquisitionHa: nationalOverview.areaUnderAcquisitionHa,
-        totalPipelineValueCr: nationalOverview.totalPipelineValueCr,
-      };
+    const response = await apiClient.get<NationalOverviewAPIResponse>('/public/overview');
+    if (
+      !response.data ||
+      typeof response.data !== 'object' ||
+      typeof (response.data as any).projectsInProgress !== 'number'
+    ) {
+      throw new Error('Invalid overview response from backend');
     }
+    return response.data;
   },
 
   /**
@@ -126,18 +108,11 @@ export const publicService = {
    * Returns all states available on the public map.
    */
   async getPublicStates(): Promise<PublicStateSummaryAPIResponse[]> {
-    try {
-      const response = await apiClient.get<PublicStateSummaryAPIResponse[]>('/public/states');
-      if (!Array.isArray(response.data)) {
-        throw new Error('Invalid states response from backend');
-      }
-      return response.data;
-    } catch (error) {
-      console.warn(
-        '[API Contract] GET /api/v1/public/states not yet reachable on backend. Using fallback registry.'
-      );
-      return [];
+    const response = await apiClient.get<PublicStateSummaryAPIResponse[]>('/public/states');
+    if (!Array.isArray(response.data)) {
+      throw new Error('Invalid states response from backend');
     }
+    return response.data;
   },
 
   /**
@@ -145,31 +120,11 @@ export const publicService = {
    * Returns aggregate data for one state for the public map & state side panel.
    */
   async getStateOverview(stateId: string, stateNameHint?: string): Promise<StateOverviewAPIResponse> {
-    try {
-      const response = await apiClient.get<StateOverviewAPIResponse>(`/public/states/${stateId}`);
-      if (!response.data || typeof response.data !== 'object' || typeof (response.data as any).activeProjects !== 'number') {
-        throw new Error('Invalid state overview response from backend');
-      }
-      return response.data;
-    } catch (error) {
-      console.warn(
-        `[API Contract] GET /api/v1/public/states/${stateId} not yet reachable on backend. Using state data fallback.`
-      );
-      const local = findStateData(stateNameHint || stateId);
-      return {
-        state: local.name,
-        stateCode: local.code,
-        projectCount: local.activeProjects + 8,
-        completedProjects: 8,
-        activeProjects: local.activeProjects,
-        landProposed: local.totalParcels * 1.4,
-        landAcquired: local.totalParcels,
-        compensationPaid: local.pipelineValueCr * 10000000,
-        districtsCovered: local.districtsCovered,
-        totalParcels: local.totalParcels,
-        highRiskProjects: 1,
-      };
+    const response = await apiClient.get<StateOverviewAPIResponse>(`/public/states/${stateId}`);
+    if (!response.data || typeof response.data !== 'object' || typeof (response.data as any).activeProjects !== 'number') {
+      throw new Error('Invalid state overview response from backend');
     }
+    return response.data;
   },
 
   /**
@@ -177,23 +132,11 @@ export const publicService = {
    * Returns public-safe project-level information for public state exploration.
    */
   async getStateProjects(stateId: string, stateNameHint?: string): Promise<PublicProjectAPIResponse[]> {
-    try {
-      const response = await apiClient.get<PublicProjectAPIResponse[]>(`/public/states/${stateId}/projects`);
-      if (!Array.isArray(response.data)) {
-        throw new Error('Invalid projects response from backend');
-      }
-      return response.data;
-    } catch (error) {
-      console.warn(
-        `[API Contract] GET /api/v1/public/states/${stateId}/projects not yet reachable on backend. Using fallback projects.`
-      );
-      const local = findStateData(stateNameHint || stateId);
-      return local.projects.map((p) => ({
-        id: p.id,
-        name: p.name,
-        status: p.status,
-      }));
+    const response = await apiClient.get<PublicProjectAPIResponse[]>(`/public/states/${stateId}/projects`);
+    if (!Array.isArray(response.data)) {
+      throw new Error('Invalid projects response from backend');
     }
+    return response.data;
   },
 
   /**
@@ -201,24 +144,11 @@ export const publicService = {
    * Submits a public inquiry or grievance into the sovereign audit pipeline.
    */
   async submitInquiry(payload: PublicInquiryPayload): Promise<PublicInquiryAPIResponse> {
-    try {
-      const response = await apiClient.post<PublicInquiryAPIResponse>('/public/inquiries', payload);
-      if (!response.data || typeof response.data !== 'object' || !(response.data as any).referenceId) {
-        throw new Error('Invalid inquiry response from backend');
-      }
-      return response.data;
-    } catch (error) {
-      console.warn(
-        '[API Contract] POST /api/v1/public/inquiries not yet reachable on backend. Simulating contractual response.'
-      );
-      const generatedRef = `BNX-${Math.floor(100000 + Math.random() * 900000)}`;
-      return {
-        success: true,
-        referenceId: generatedRef,
-        timestamp: new Date().toISOString(),
-        message: 'Inquiry successfully logged into sovereign audit trail.',
-      };
+    const response = await apiClient.post<PublicInquiryAPIResponse>('/public/inquiries', payload);
+    if (!response.data || typeof response.data !== 'object' || !(response.data as any).referenceId) {
+      throw new Error('Invalid inquiry response from backend');
     }
+    return response.data;
   },
 };
 

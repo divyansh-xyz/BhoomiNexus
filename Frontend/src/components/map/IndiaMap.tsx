@@ -3,6 +3,7 @@ import L from 'leaflet';
 import type { StateData } from '../../data/india-states';
 import { findStateData } from '../../data/india-states';
 import indiaStatesGeoJson from '../../data/india-states.json';
+import type { PublicStateSummaryAPIResponse } from '../../services/api/public.service';
 
 // Strict geographical bounds for India (including Ladakh & Andaman & Nicobar)
 const INDIA_BOUNDS = L.latLngBounds(
@@ -36,9 +37,10 @@ interface IndiaMapProps {
   onStateSelect: (state: StateData) => void;
   onReset?: () => void;
   selectedStateId: string | null;
+  statesData?: PublicStateSummaryAPIResponse[];
 }
 
-export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, selectedStateId }) => {
+export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, selectedStateId, statesData }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
@@ -55,9 +57,23 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, sele
   const selectedStateIdRef = useRef(selectedStateId);
   selectedStateIdRef.current = selectedStateId;
 
+  const statesDataRef = useRef(statesData);
+  statesDataRef.current = statesData;
+
+  const getBaseStyle = useCallback((stateName: string) => {
+    const stateHasProjects = statesDataRef.current?.some(s => s.stateName === stateName && s.projectCount > 0);
+    return {
+      ...COLORS.default,
+      fillColor: stateHasProjects ? '#c4d7f5' : COLORS.default.fillColor,
+    };
+  }, []);
+
   const handleResetToNational = useCallback(() => {
     if (activeLayerRef.current) {
-      activeLayerRef.current.setStyle(COLORS.default);
+      // Find the state name from the feature properties
+      const feature = (activeLayerRef.current as any).feature;
+      const stateName = feature?.properties?.name || '';
+      activeLayerRef.current.setStyle(getBaseStyle(stateName));
       activeLayerRef.current = null;
     }
     // Inform parent (which closes sidebar and clears selectedStateId)
@@ -110,7 +126,7 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, sele
 
     // Render local GeoJSON with SVG paths for click and hover
     const geojsonLayer = L.geoJSON(indiaStatesGeoJson as any, {
-      style: () => ({ ...COLORS.default }),
+      style: (feature) => getBaseStyle(feature?.properties?.name || ''),
       onEachFeature: (feature, layer) => {
         const stateName = feature.properties?.name || '';
 
@@ -132,7 +148,7 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, sele
           mouseout: (e: L.LeafletMouseEvent) => {
             const target = e.target as L.Path;
             if (target !== activeLayerRef.current) {
-              target.setStyle(COLORS.default);
+              target.setStyle(getBaseStyle(stateName));
             }
           },
           click: (e: L.LeafletMouseEvent) => {
@@ -143,7 +159,9 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, sele
 
             // Reset previous state styling
             if (activeLayerRef.current && activeLayerRef.current !== targetPath) {
-              activeLayerRef.current.setStyle(COLORS.default);
+              const prevFeature = (activeLayerRef.current as any).feature;
+              const prevStateName = prevFeature?.properties?.name || '';
+              activeLayerRef.current.setStyle(getBaseStyle(prevStateName));
             }
 
             // Immediately highlight selected state
@@ -200,6 +218,18 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, sele
     };
   }, []); // Run ONCE on mount — map instance is never torn down on re-renders
 
+  // Dynamically update styles when statesData loads
+  useEffect(() => {
+    if (geojsonLayerRef.current) {
+      geojsonLayerRef.current.setStyle((feature: any) => {
+        if (activeLayerRef.current && (activeLayerRef.current as any).feature === feature) {
+          return COLORS.selected; // Keep selected state selected
+        }
+        return getBaseStyle(feature?.properties?.name || '');
+      });
+    }
+  }, [statesData, getBaseStyle]);
+
   // Handle external selection reset (e.g. when state drawer is closed via '✕')
   useEffect(() => {
     selectedStateIdRef.current = selectedStateId;
@@ -211,7 +241,9 @@ export const IndiaMap: React.FC<IndiaMapProps> = ({ onStateSelect, onReset, sele
 
     if (!selectedStateId) {
       if (activeLayerRef.current) {
-        activeLayerRef.current.setStyle(COLORS.default);
+        const feature = (activeLayerRef.current as any).feature;
+        const stateName = feature?.properties?.name || '';
+        activeLayerRef.current.setStyle(getBaseStyle(stateName));
         activeLayerRef.current = null;
       }
       // Return smoothly to full India national bounds when inspector closes

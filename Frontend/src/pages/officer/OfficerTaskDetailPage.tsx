@@ -106,7 +106,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
     try {
       const uploadResult = await OfficerService.uploadEvidence(task.id, file);
       
-      const updatedDocs = task.requiredDocuments.map(doc => 
+      const updatedDocs = (task.requiredDocuments || []).map(doc => 
         doc.id === targetDocId ? { ...doc, status: 'UPLOADED' as const } : doc
       );
       setTask({ ...task, requiredDocuments: updatedDocs });
@@ -160,7 +160,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
       setIsOcrVerified(true);
       
       // Update local state to reflect document is now fully verified
-      const updatedDocs = task.requiredDocuments.map(doc => 
+      const updatedDocs = (task.requiredDocuments || []).map(doc => 
         doc.id === ocrStatus.docId ? { ...doc, status: 'VERIFIED' as const } : doc
       );
       setTask({ ...task, requiredDocuments: updatedDocs });
@@ -367,7 +367,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {task.relevantParcels.map((parcel, idx) => (
+                  {task.relevantParcels?.map((parcel, idx) => (
                     <tr key={parcel.id} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9', transition: 'background-color 0.2s' }}>
                       <td style={{ padding: '16px', borderBottom: '1px solid #f1f5f9', fontFamily: 'monospace', color: '#0f172a', fontWeight: 500 }}>{parcel.id}</td>
                       <td style={{ padding: '16px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, color: '#334155' }}>{parcel.surveyNumber}</td>
@@ -390,7 +390,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
               <span style={{ color: '#8b5cf6' }}>&#128194;</span> Evidence &amp; Documents
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {task.requiredDocuments.map(doc => {
+              {task.requiredDocuments?.map(doc => {
                 const isMissing = doc.status === 'MISSING';
                 const isUploading = uploadingDocId === doc.id;
                 const isCurrentlyProcessingOcr = ocrStatus?.docId === doc.id;
@@ -606,7 +606,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                       if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
                       setShowOcrModal(false);
                       // Revert document to MISSING so the user isn't stuck
-                      const revertedDocs = task.requiredDocuments.map(doc => 
+                      const revertedDocs = (task.requiredDocuments || []).map(doc => 
                         doc.id === ocrStatus.docId ? { ...doc, status: 'MISSING' as const } : doc
                       );
                       setTask({ ...task, requiredDocuments: revertedDocs });

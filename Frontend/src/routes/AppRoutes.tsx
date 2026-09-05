@@ -43,7 +43,14 @@ export const AppRoutes: React.FC = () => {
 
           {/* Phase 3 — Requesting Authority / Proponent Routes */}
           <Route path="/projects" element={<ProponentProjectsPage />} />
-          <Route path="/projects/new" element={<CreateProjectPage />} />
+          <Route 
+            path="/projects/new" 
+            element={
+              <RoleGuard allowedRoles={['REQUESTING_AUTHORITY']}>
+                <CreateProjectPage />
+              </RoleGuard>
+            } 
+          />
           <Route path="/projects/:projectId" element={<ProponentProjectDetailPage />} />
           
           {/* Phase 4 & Phase 5 — BOSS Scrutiny, Cadastral Determination & Workflow Config */}
