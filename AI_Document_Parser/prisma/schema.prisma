@@ -1,0 +1,119 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_CORRECTION
+}
+
+enum EvidenceType {
+  DIGITAL_DOCUMENT
+  OCR_OUTPUT
+  HARD_COPY_SCAN
+  PHOTO
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+model Document {
+  id               String             @id @default(uuid())
+  filename         String
+  originalFilename String
+  mimeType         String
+  fileSize         Int
+  storagePath      String
+  ocrStatus        ProcessingStatus   @default(PENDING)
+  llmStatus        ProcessingStatus   @default(PENDING)
+  overallStatus    ProcessingStatus   @default(PENDING)
+  retryCount       Int                @default(0)
+  errorMessage     String?
+  documentType     String             @default("unknown")
+  isVerified       Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  pages            DocumentPage[]
+  extractions      ExtractionResult[]
+  reviews          ExtractionReview[]
+  evidences        StageEvidence[]
+
+  @@map("documents")
+}
+
+model DocumentPage {
+  id          String   @id @default(uuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  pageNumber  Int
+  rawText     String   @db.Text
+  cleanedText String   @db.Text
+  confidence  Float    @default(1.0)
+  createdAt   DateTime @default(now())
+
+  @@map("document_pages")
+}
+
+model ExtractionResult {
+  id               String   @id @default(uuid())
+  documentId       String
+  document         Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  rawJson          Json
+  formattedJson    Json
+  confidenceScores Json
+  missingFields    Json
+  piiRedactionCount Int     @default(0)
+  schemaVersion    String   @default("1.0")
+  createdAt        DateTime @default(now())
+
+  @@map("extraction_results")
+}
+
+model ExtractionReview {
+  id            String       @id @default(uuid())
+  documentId    String
+  document      Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  status        ReviewStatus @default(PENDING)
+  correctedJson Json?
+  reviewerNotes String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@map("extraction_reviews")
+}
+
+model StageEvidence {
+  id                 String             @id @default(uuid())
+  documentId         String
+  document           Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  evidenceType       EvidenceType       @default(DIGITAL_DOCUMENT)
+  storagePath        String
+  originalFilename   String
+  description        String?
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  notes              String?
+  createdAt          DateTime           @default(now())
+
+  @@map("stage_evidence")
+}

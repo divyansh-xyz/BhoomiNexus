@@ -22,7 +22,17 @@ export const OfficerTaskDetailPage: React.FC = () => {
   const [showOcrModal, setShowOcrModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollIntervalRef = useRef<number | null>(null);
   const [activeUploadDocId, setActiveUploadDocId] = useState<string | null>(null);
+
+  // Clear polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        window.clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Cleanup object URL
@@ -94,27 +104,43 @@ export const OfficerTaskDetailPage: React.FC = () => {
     setUploadedFileUrl(URL.createObjectURL(file));
     
     try {
-      await OfficerService.uploadEvidence(task.id, file);
+      const uploadResult = await OfficerService.uploadEvidence(task.id, file);
       
       const updatedDocs = task.requiredDocuments.map(doc => 
         doc.id === targetDocId ? { ...doc, status: 'UPLOADED' as const } : doc
       );
-      
       setTask({ ...task, requiredDocuments: updatedDocs });
 
-      // Phase 9: Trigger Asynchronous OCR Pipeline Mock
-      setOcrStatus({ docId: targetDocId, status: 'OCR_PROCESSING' });
+      // Phase 9: Real Asynchronous Backend Integration
+      const realDocId = uploadResult.documentId;
+      setOcrStatus({ docId: targetDocId, backendDocId: realDocId, status: 'OCR_PROCESSING' });
       setIsOcrVerified(false);
       setShowOcrModal(true);
       
-      setTimeout(() => {
-        setOcrStatus({ docId: targetDocId, status: 'GEMINI_EXTRACTING' });
+      if (!realDocId) return; // Fallback if backend isn't up
+
+      // Start Polling
+      pollIntervalRef.current = window.setInterval(async () => {
+        const statusResponse = await OfficerService.getProcessingStatus(realDocId);
+        const st = statusResponse.overall_status;
         
-        setTimeout(async () => {
-          const result = await OfficerService.getOcrExtractionStatus(task.id, targetDocId);
+        if (st === 'error') {
+          if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
+          setOcrStatus({ docId: targetDocId, backendDocId: realDocId, status: 'PENDING' });
+        } else if (st === 'ocr_completed' || st === 'extracting') {
+          setOcrStatus(prev => prev ? { ...prev, status: 'GEMINI_EXTRACTING' } : null);
+        } else if (st === 'validation_completed' || st === 'completed') {
+          if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
+          
+          // Fetch final extraction
+          const result = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
+          // Map backend doc ID back to frontend doc ID for UI mapping
+          result.backendDocId = realDocId;
+          result.docId = targetDocId; 
+          
           setOcrStatus(result);
           setOcrData(result.extractedData);
-        }, 1500);
+        }
       }, 2000);
 
     } catch (err) {
@@ -130,7 +156,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
     if (!task || !ocrStatus) return;
     setOcrSubmitting(true);
     try {
-      await OfficerService.submitOcrVerification(task.id, ocrStatus.docId, ocrData);
+      await OfficerService.submitOcrVerification(task.id, ocrStatus.docId, ocrStatus.backendDocId, ocrData);
       setIsOcrVerified(true);
       
       // Update local state to reflect document is now fully verified
@@ -577,6 +603,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                 {!isOcrVerified && (
                   <button 
                     onClick={() => {
+                      if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
                       setShowOcrModal(false);
                       // Revert document to MISSING so the user isn't stuck
                       const revertedDocs = task.requiredDocuments.map(doc => 
@@ -617,8 +644,23 @@ export const OfficerTaskDetailPage: React.FC = () => {
                 {ocrStatus.status === 'COMPLETED' && ocrData && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     
-                    {Object.entries(ocrData).map(([key, value]) => {
-                      const confidence = ocrStatus.confidenceScores?.[key as keyof typeof ocrStatus.confidenceScores] || 90;
+                    {(() => {
+                      const flattenObject = (obj: any, prefix = ''): Record<string, string> => {
+                        let result: Record<string, string> = {};
+                        for (const key in obj) {
+                          if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                            Object.assign(result, flattenObject(obj[key], `${prefix}${key}.`));
+                          } else {
+                            result[`${prefix}${key}`] = obj[key] === null ? '' : String(obj[key]);
+                          }
+                        }
+                        return result;
+                      };
+                      
+                      const flatData = flattenObject(ocrData);
+                      
+                      return Object.entries(flatData).map(([key, value]) => {
+                        const confidence = ocrStatus.confidenceScores?.[key as keyof typeof ocrStatus.confidenceScores] || 90;
                       const confidenceColor = confidence > 95 ? '#10b981' : confidence > 85 ? '#f59e0b' : '#ef4444';
                       const isEditable = !isOcrVerified;
 
@@ -658,7 +700,8 @@ export const OfficerTaskDetailPage: React.FC = () => {
                           />
                         </div>
                       );
-                    })}
+                      });
+                    })()}
 
                     {!isOcrVerified ? (
                       <button 
