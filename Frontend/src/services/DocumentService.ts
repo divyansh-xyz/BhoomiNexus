@@ -102,5 +102,28 @@ export const DocumentService = {
     document.body.appendChild(link);
     link.click();
     link.remove();
-  }
+  },
+
+  uploadDocument: async (data: {
+    projectId: string;
+    file: File;
+    title: string;
+    documentType: string;
+    workflowStage?: string;
+  }): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', data.file);
+    formData.append('projectId', data.projectId);
+    formData.append('title', data.title);
+    formData.append('documentType', data.documentType);
+    if (data.workflowStage) {
+      formData.append('workflowStage', data.workflowStage);
+    }
+    const res = await apiClient.post('/documents', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
 };

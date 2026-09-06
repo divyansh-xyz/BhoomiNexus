@@ -13,6 +13,8 @@ import type {
   LandParcel,
   BossDashboardStats,
   ParcelConfirmationResponse,
+  GrievanceRecord,
+  GrievanceSummary,
 } from '../../types/boss.types';
 import type { CreateProjectRequestDTO, ProponentDashboardStats } from '../../types/proponent.types';
 
@@ -248,6 +250,95 @@ export const bossService = {
       draftsCount: 0,
     };
   },
+
+  /**
+   * Phase 11: POST /api/v1/projects/:projectId/workflow-stages/:stageId/resubmit
+   * Resubmits a rejected workflow stage with optional corrective documents
+   */
+  async resubmitStage(
+    projectId: string,
+    stageId: string,
+    payload: { explanation: string; documentIds?: string[] }
+  ): Promise<any> {
+    try {
+      const res = await apiClient.post(
+        `/projects/${projectId}/workflow-stages/${stageId}/resubmit`,
+        payload
+      );
+      return res.data;
+    } catch (e) {
+      console.warn(`[bossService] resubmitStage failed for ${projectId}/${stageId}:`, e);
+      throw e;
+    }
+  },
+
+  /**
+   * Phase 12: GET /api/v1/projects/:projectId/grievances
+   */
+  async getProjectGrievances(projectId: string): Promise<{ grievances: GrievanceRecord[]; summary: GrievanceSummary }> {
+    try {
+      const res = await apiClient.get<{ success: boolean; data: { grievances: GrievanceRecord[]; summary: GrievanceSummary } }>(
+        `/projects/${projectId}/grievances`
+      );
+      if (res.data && res.data.data) {
+        return res.data.data;
+      }
+    } catch (e) {
+      console.warn(`[bossService] getProjectGrievances failed for ${projectId}:`, e);
+    }
+    return { grievances: [], summary: { total: 0, open: 0, underReview: 0, resolved: 0 } };
+  },
+
+  /**
+   * Phase 12: POST /api/v1/projects/:projectId/grievances
+   */
+  async createGrievance(
+    projectId: string,
+    payload: {
+      citizenName: string;
+      citizenReference?: string;
+      surveyNumber?: string;
+      grievanceType: string;
+      subject: string;
+      description: string;
+    }
+  ): Promise<GrievanceRecord | null> {
+    try {
+      const res = await apiClient.post<{ success: boolean; data: GrievanceRecord }>(
+        `/projects/${projectId}/grievances`,
+        payload
+      );
+      if (res.data && res.data.data) {
+        return res.data.data;
+      }
+    } catch (e) {
+      console.warn(`[bossService] createGrievance failed:`, e);
+      throw e;
+    }
+    return null;
+  },
+
+  /**
+   * Phase 12: POST /api/v1/grievances/:grievanceId/respond
+   */
+  async respondGrievance(
+    grievanceId: string,
+    payload: { resolutionNotes: string; status?: string }
+  ): Promise<GrievanceRecord | null> {
+    try {
+      const res = await apiClient.post<{ success: boolean; data: GrievanceRecord }>(
+        `/grievances/${grievanceId}/respond`,
+        payload
+      );
+      if (res.data && res.data.data) {
+        return res.data.data;
+      }
+    } catch (e) {
+      console.warn(`[bossService] respondGrievance failed:`, e);
+      throw e;
+    }
+    return null;
+  },
 };
 
 function mapLandParcelRow(row: any): LandParcel {
@@ -256,7 +347,7 @@ function mapLandParcelRow(row: any): LandParcel {
     if (row.geometry && row.geometry.type === 'Polygon' && Array.isArray(row.geometry.coordinates) && row.geometry.coordinates.length > 0) {
       // GeoJSON Polygon coordinates are [[[lon, lat], [lon, lat], ...]]
       // Leaflet expects [[lat, lon], [lat, lon], ...]
-      coordinates = row.geometry.coordinates[0].map((c: number[]) => [c[1], c[0]]);
+      coordinates = row.geometry.coordinates[0].map((c: any) => [Number(c[1]), Number(c[0])]);
     }
   } catch (e) {
     console.error('Failed to parse parcel geometry', e);
@@ -264,6 +355,9 @@ function mapLandParcelRow(row: any): LandParcel {
 
   return {
     ...row,
+    areaAcres: Number(row.areaAcres || 0),
+    areaHa: Number(row.areaHa || 0),
+    marketRatePerAcre: Number(row.marketRatePerAcre || 0),
     coordinates
   };
 }

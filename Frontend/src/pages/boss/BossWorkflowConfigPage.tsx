@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { bossService } from '../../services/api/boss.service';
 import { workflowService } from '../../services/api/workflow.service';
+import { DocumentService } from '../../services/DocumentService';
 import type { ProjectRequest } from '../../types/boss.types';
 import type {
   ProjectWorkflowInstance,
@@ -53,6 +54,14 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
 
   // Document tags input helper for modal
   const [docInputText, setDocInputText] = useState('');
+
+  // Available Documents Modal State (BOSS Action: Add Document to Stage)
+  const [docModalStage, setDocModalStage] = useState<WorkflowStageInstance | null>(null);
+  const [availableProjectDocs, setAvailableProjectDocs] = useState<
+    { id: string; title: string; type?: string; size?: string; hash?: string }[]
+  >([]);
+  const [loadingProjectDocs, setLoadingProjectDocs] = useState(false);
+  const [customDocInput, setCustomDocInput] = useState('');
 
   useEffect(() => {
     async function loadData() {
@@ -284,6 +293,141 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
       ...editingStage,
       requiredDocuments: currentDocs.filter((_, idx) => idx !== docIdx),
     });
+  };
+
+  // 8. OPEN DOCUMENTS MODAL FOR STAGE (BOSS Action: Add Document)
+  const handleOpenAddDocModal = async (stage: WorkflowStageInstance) => {
+    setDocModalStage(stage);
+    setCustomDocInput('');
+    if (!projectId) return;
+
+    try {
+      setLoadingProjectDocs(true);
+      const [proj, serverDocs] = await Promise.all([
+        bossService.getProjectById(projectId),
+        DocumentService.getDocuments(projectId).catch(() => []),
+      ]);
+
+      const docList: { id: string; title: string; type?: string; size?: string; hash?: string }[] = [];
+      const seen = new Set<string>();
+
+      // 1. Initial documents from project
+      if (proj?.initialDocuments) {
+        for (const d of proj.initialDocuments) {
+          const key = d.title.trim().toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            docList.push({
+              id: d.id,
+              title: d.title,
+              type: d.type,
+              size: d.fileSize,
+              hash: d.hash,
+            });
+          }
+        }
+      }
+
+      // 2. Server documents
+      if (Array.isArray(serverDocs)) {
+        for (const d of serverDocs) {
+          const key = d.title?.trim().toLowerCase();
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            docList.push({
+              id: d.id,
+              title: d.title!,
+              type: d.documentType,
+              size: (d as any).fileSize
+                ? `${((d as any).fileSize / (1024 * 1024)).toFixed(1)} MB`
+                : undefined,
+              hash: (d as any).hash,
+            });
+          }
+        }
+      }
+
+      // 3. Fallback statutory templates if none are yet in the database
+      if (docList.length === 0) {
+        const statutoryPresets = [
+          { id: 'std-1', title: 'Schedule of Land Holdings (Khasra/Khatauni Extract)', type: 'LAND_RECORD', size: '4.2 MB', hash: '0x8f2ae639d1b54a20' },
+          { id: 'std-2', title: 'Gazette Notification Draft (Section 4(1))', type: 'GAZETTE_DRAFT', size: '2.8 MB', hash: '0x3c7d9e81b52a4401' },
+          { id: 'std-3', title: 'Detailed Project Report (DPR) Alignment Extract', type: 'DPR_EXTRACT', size: '18.5 MB', hash: '0x11b9204cd76e3952' },
+          { id: 'std-4', title: 'Cadastral Survey Map & Right-of-Way Vector Layer', type: 'ALIGNMENT_GEOJSON', size: '6.4 MB', hash: '0x5e41aa9098bc14d6' },
+          { id: 'std-5', title: 'Social Impact Assessment (SIA) Clearance & Study', type: 'SIA_CLEARANCE', size: '11.0 MB', hash: '0x99a2185b304c21fe' },
+          { id: 'std-6', title: 'State Environmental & Forest NOC Clearance', type: 'OTHER', size: '3.6 MB', hash: '0x77ef428019a2b53c' },
+        ];
+        docList.push(...statutoryPresets);
+      }
+
+      setAvailableProjectDocs(docList);
+    } catch (err) {
+      console.error('Failed to load project documents', err);
+    } finally {
+      setLoadingProjectDocs(false);
+    }
+  };
+
+  // Toggle attaching/detaching a document from the stage
+  const handleToggleAttachDoc = async (docTitle: string) => {
+    if (!docModalStage || !workflow) return;
+    const currentDocs = docModalStage.requiredDocuments || [];
+    const isAttached = currentDocs.some((d) => d.toLowerCase() === docTitle.toLowerCase());
+
+    const updatedDocs = isAttached
+      ? currentDocs.filter((d) => d.toLowerCase() !== docTitle.toLowerCase())
+      : [...currentDocs, docTitle];
+
+    // Update modal stage
+    const updatedStage = { ...docModalStage, requiredDocuments: updatedDocs };
+    setDocModalStage(updatedStage);
+
+    // Update workflow instance
+    const updatedStages = (workflow.stages || []).map((s) =>
+      s.id === docModalStage.id ? updatedStage : s
+    );
+    setWorkflow({ ...workflow, stages: updatedStages });
+
+    // Persist to server
+    try {
+      await workflowService.updateStage(workflow.projectId, docModalStage.id, {
+        requiredDocuments: updatedDocs,
+      });
+    } catch (err) {
+      console.error('Failed to update stage documents', err);
+    }
+  };
+
+  // Add a custom deliverable name
+  const handleAddCustomDeliverable = async () => {
+    const trimmed = customDocInput.trim();
+    if (!trimmed || !docModalStage) return;
+    await handleToggleAttachDoc(trimmed);
+    setCustomDocInput('');
+  };
+
+  // Remove deliverable directly from stage chip
+  const handleRemoveDocFromStage = async (stageId: string, docTitle: string) => {
+    if (!workflow) return;
+    const targetStage = (workflow.stages || []).find((s) => s.id === stageId);
+    if (!targetStage) return;
+
+    const updatedDocs = (targetStage.requiredDocuments || []).filter(
+      (d) => d.toLowerCase() !== docTitle.toLowerCase()
+    );
+
+    const updatedStages = (workflow.stages || []).map((s) =>
+      s.id === stageId ? { ...s, requiredDocuments: updatedDocs } : s
+    );
+    setWorkflow({ ...workflow, stages: updatedStages });
+
+    try {
+      await workflowService.updateStage(workflow.projectId, stageId, {
+        requiredDocuments: updatedDocs,
+      });
+    } catch (err) {
+      console.error('Failed to remove stage document', err);
+    }
   };
 
   // ACTIVATE WORKFLOW & REDIRECT TO MAIN PROJECT DOSSIER
@@ -718,8 +862,34 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                     <span className="docs-label">Statutory Deliverables:</span>
                     <div className="docs-tags-wrap">
                       {stage.requiredDocuments?.map((doc, dIdx) => (
-                        <span key={dIdx} className="doc-deliverable-chip">
-                          &bull; {doc}
+                        <span
+                          key={dIdx}
+                          className="doc-deliverable-chip"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <span>&bull; {doc}</span>
+                          {workflow.status !== 'ACTIVE' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveDocFromStage(stage.id, doc);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#dc2626',
+                                fontWeight: 700,
+                                padding: '0 2px',
+                                fontSize: '13px',
+                                lineHeight: 1,
+                              }}
+                              title={`Remove ${doc}`}
+                            >
+                              &times;
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -791,17 +961,15 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                     </button>
                   </div>
 
-                  {/* BOSS Actions: Modify Stage & Remove Stage */}
+                  {/* BOSS Actions: Add Document & Remove Stage */}
                   <div className="stage-edit-group">
                     <button
                       type="button"
-                      onClick={() => {
-                        setEditingStage({ ...stage });
-                        setIsAddingStage(false);
-                      }}
+                      onClick={() => handleOpenAddDocModal(stage)}
                       className="btn-stage-action btn-edit"
+                      title="Attach documents available for this project to this scrutiny stage"
                     >
-                      &#9998; Modify Stage
+                      &#43; Add Document
                     </button>
                     <button
                       type="button"
@@ -829,6 +997,307 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
           )}
         </div>
       </section>
+
+      {/* Small Window / Modal: Documents Available for Project (BOSS Action: Add Document) */}
+      {docModalStage && (
+        <div className="modal-backdrop-scrim">
+          <div
+            className="stage-modal-box"
+            style={{
+              maxWidth: '680px',
+              padding: '28px 32px',
+              border: '2px solid var(--color-carbon-ink)',
+              backgroundColor: '#fffcf7',
+              borderRadius: '0px',
+            }}
+          >
+            <div className="stage-modal-header" style={{ marginBottom: '16px', paddingBottom: '12px' }}>
+              <div>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: '#4338ca',
+                    marginBottom: '4px',
+                    fontFamily: 'var(--font-mono, monospace)',
+                  }}
+                >
+                  Statutory Deliverables &bull; Project Documents Vault
+                </span>
+                <h3 className="modal-title" style={{ fontSize: '20px', margin: 0, fontFamily: 'var(--font-copernicus, serif)' }}>
+                  Available Documents &mdash; {project?.code || 'Docket'}
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-fossil-gray)' }}>
+                  Attach statutory documents as mandatory deliverables for{' '}
+                  <strong style={{ color: 'var(--color-carbon-ink)' }}>
+                    Stage {docModalStage.order}: {docModalStage.name}
+                  </strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDocModalStage(null)}
+                className="modal-close-x"
+                style={{ fontSize: '24px', cursor: 'pointer', background: 'none', border: 'none', color: '#111827' }}
+                title="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Currently Attached Deliverables */}
+            <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: '#f5f0eb', border: '1px solid rgba(0,0,0,0.12)' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                Currently Attached Deliverables ({docModalStage.requiredDocuments?.length || 0}):
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {(docModalStage.requiredDocuments || []).length === 0 ? (
+                  <span style={{ fontSize: '12px', color: '#6b7280', fontStyle: 'italic' }}>
+                    No deliverables attached yet. Click &ldquo;+ Attach to Stage&rdquo; on any document below.
+                  </span>
+                ) : (
+                  docModalStage.requiredDocuments?.map((doc, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #10b981',
+                        padding: '4px 10px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: '#065f46',
+                      }}
+                    >
+                      <span>&bull; {doc}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAttachDoc(doc)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#dc2626',
+                          fontWeight: 700,
+                          fontSize: '15px',
+                          lineHeight: 1,
+                          padding: '0 2px',
+                        }}
+                        title="Detach document from stage"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Documents List */}
+            <div
+              style={{
+                maxHeight: '280px',
+                overflowY: 'auto',
+                marginBottom: '16px',
+                border: '1px solid rgba(0,0,0,0.18)',
+                backgroundColor: '#ffffff',
+              }}
+            >
+              {loadingProjectDocs ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280', fontSize: '13px' }}>
+                  Loading available project documents...
+                </div>
+              ) : availableProjectDocs.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280', fontSize: '13px' }}>
+                  No uploaded documents found for this project docket.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {availableProjectDocs.map((doc) => {
+                    const isAttached = (docModalStage.requiredDocuments || []).some(
+                      (d) => d.toLowerCase() === doc.title.toLowerCase()
+                    );
+                    return (
+                      <div
+                        key={doc.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          borderBottom: '1px solid rgba(0,0,0,0.08)',
+                          backgroundColor: isAttached ? '#f0fdf4' : '#ffffff',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, paddingRight: '12px' }}>
+                          <span style={{ fontSize: '18px' }}>&#128196;</span>
+                          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827', wordBreak: 'break-word' }}>
+                                {doc.title}
+                              </span>
+                              {doc.type && (
+                                <span
+                                  style={{
+                                    fontSize: '10px',
+                                    padding: '1px 6px',
+                                    backgroundColor: '#e0e7ff',
+                                    color: '#3730a3',
+                                    fontWeight: 600,
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  {doc.type}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
+                              {doc.size && <span>{doc.size}</span>}
+                              {doc.hash && (
+                                <>
+                                  <span>&bull;</span>
+                                  <span style={{ fontFamily: 'monospace' }}>{doc.hash.slice(0, 16)}...</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ flexShrink: 0 }}>
+                          {isAttached ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAttachDoc(doc.title)}
+                              style={{
+                                padding: '5px 12px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                color: '#b91c1c',
+                                backgroundColor: '#fee2e2',
+                                border: '1px solid #f87171',
+                                cursor: 'pointer',
+                                borderRadius: '0px',
+                              }}
+                              title="Click to remove from stage"
+                            >
+                              &#10005; Detach
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAttachDoc(doc.title)}
+                              style={{
+                                padding: '5px 12px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                color: '#ffffff',
+                                backgroundColor: '#1d4ed8',
+                                border: '1px solid #1e40af',
+                                cursor: 'pointer',
+                                borderRadius: '0px',
+                              }}
+                              title="Attach to stage deliverables"
+                            >
+                              &#43; Attach to Stage
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Suggestions & Custom Deliverable Input */}
+            <div style={{ borderTop: '1px solid rgba(0,0,0,0.15)', paddingTop: '12px', marginBottom: '16px' }}>
+              <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#374151', marginBottom: '6px' }}>
+                Quick Add Statutory Presets:
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                {[
+                  'Land Schedule',
+                  'Cadastral Survey Map',
+                  'Khasra/Khatauni',
+                  'SIA Clearance Report',
+                  'State Environmental NOC',
+                  'Joint Measurement Survey Log',
+                ].map((sug) => {
+                  const isAdded = (docModalStage.requiredDocuments || []).some(
+                    (d) => d.toLowerCase() === sug.toLowerCase()
+                  );
+                  return (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => handleToggleAttachDoc(sug)}
+                      style={{
+                        backgroundColor: isAdded ? '#f3f4f6' : '#ffffff',
+                        border: `1px dashed ${isAdded ? '#9ca3af' : 'rgba(0, 88, 254, 0.5)'}`,
+                        color: isAdded ? '#9ca3af' : '#1d4ed8',
+                        fontSize: '11px',
+                        padding: '3px 8px',
+                        cursor: 'pointer',
+                        borderRadius: '0px',
+                        textDecoration: isAdded ? 'line-through' : 'none',
+                      }}
+                    >
+                      {isAdded ? '✓ ' : '+ '}
+                      {sug}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#374151', marginBottom: '6px' }}>
+                Or Add Custom Deliverable Name:
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={customDocInput}
+                  onChange={(e) => setCustomDocInput(e.target.value)}
+                  placeholder="e.g. Valuation Ledger Extract, Form 11..."
+                  className="form-text-input"
+                  style={{ flex: 1, fontSize: '13px', padding: '6px 10px' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddCustomDeliverable();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCustomDeliverable}
+                  className="btn-cta-blue"
+                  style={{ padding: '6px 14px', fontSize: '12px', color: '#ffffff' }}
+                >
+                  &#43; Add
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setDocModalStage(null)}
+                className="btn-cta-blue"
+                style={{ backgroundColor: '#111827', color: '#ffffff', padding: '8px 24px', fontSize: '13px' }}
+              >
+                Done &bull; Close Window
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 6. Modal: Edit / Add Stage Parameters (BOSS Action: Modify Stage & Add Stage) */}
       {editingStage && (

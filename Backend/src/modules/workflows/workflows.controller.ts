@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { pool } from "../../config/db";
 import { ApiError } from "../../utils/apiError";
 import { createAuditEvent } from "../../utils/audit";
+import { NotificationService } from "../notifications/notifications.service";
 
 export const getTemplates = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -235,9 +236,9 @@ export const updateStage = async (req: Request, res: Response, next: NextFunctio
   try {
     const { projectId, stageId } = req.params;
     const { name, description, department, assignedRole, slaDays, requiredDocuments } = req.body;
-    let { assignedOfficerId } = req.body;
+    let assignedOfficerId = req.body.assignedOfficerId;
     
-    if (!assignedOfficerId && req.body.assignedOfficer?.id) {
+    if (assignedOfficerId === undefined && req.body.assignedOfficer?.id !== undefined) {
       assignedOfficerId = req.body.assignedOfficer.id;
     }
 
@@ -245,14 +246,48 @@ export const updateStage = async (req: Request, res: Response, next: NextFunctio
     if (wfRes.rows.length === 0) return next(new ApiError(404, "Workflow not found"));
     if (wfRes.rows[0].status !== 'DRAFT') return next(new ApiError(400, "Cannot modify active workflow"));
 
-    await pool.query(
-      `UPDATE workflow_instance_stages SET
-       name = COALESCE($1, name), description = COALESCE($2, description), department = COALESCE($3, department),
-       assigned_role = COALESCE($4, assigned_role), assigned_officer_id = $5, sla_days = COALESCE($6, sla_days),
-       required_documents = COALESCE($7, required_documents)
-       WHERE id = $8 AND workflow_id = $9`,
-      [name, description, department, assignedRole, assignedOfficerId, slaDays, requiredDocuments ? JSON.stringify(requiredDocuments) : null, stageId, wfRes.rows[0].id]
-    );
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(name);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(description);
+    }
+    if (department !== undefined) {
+      updates.push(`department = $${paramIndex++}`);
+      values.push(department);
+    }
+    if (assignedRole !== undefined) {
+      updates.push(`assigned_role = $${paramIndex++}`);
+      values.push(assignedRole);
+    }
+    if (assignedOfficerId !== undefined) {
+      updates.push(`assigned_officer_id = $${paramIndex++}`);
+      values.push(assignedOfficerId || null);
+    }
+    if (slaDays !== undefined) {
+      updates.push(`sla_days = $${paramIndex++}`);
+      values.push(slaDays);
+    }
+    if (requiredDocuments !== undefined) {
+      updates.push(`required_documents = $${paramIndex++}::jsonb`);
+      values.push(JSON.stringify(requiredDocuments));
+    }
+
+    if (updates.length > 0) {
+      values.push(stageId);
+      values.push(wfRes.rows[0].id);
+      await pool.query(
+        `UPDATE workflow_instance_stages SET ${updates.join(", ")}
+         WHERE id = $${paramIndex++} AND workflow_id = $${paramIndex++}`,
+        values
+      );
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -305,7 +340,7 @@ export const reorderWorkflow = async (req: Request, res: Response, next: NextFun
 
 export const activateWorkflow = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { projectId } = req.params;
+    const projectId = req.params.projectId as string;
 
     const wfRes = await pool.query(`SELECT id, status FROM workflow_instances WHERE project_id = $1`, [projectId]);
     if (wfRes.rows.length === 0) return next(new ApiError(404, "Workflow not found"));
@@ -348,6 +383,51 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
       entityId: projectId,
       projectId: projectId,
     });
+
+    // Phase 15: Trigger In-App Notifications
+    try {
+      const projQuery = await pool.query(`SELECT id, code, title, created_by FROM projects WHERE id = $1`, [projectId]);
+      const project = projQuery.rows[0];
+      const stageName = firstStage.rows.length > 0 ? firstStage.rows[0].name : "Stage 1";
+
+      if (project) {
+        // 1. Notify Requesting Authority
+        await NotificationService.createNotification({
+          userId: project.created_by || null,
+          role: "REQUESTING_AUTHORITY",
+          projectId,
+          type: "BOSS_APPROVED",
+          title: `Requisition Approved: ${project.title}`,
+          message: `Bureau of Sovereign Scrutiny (BOSS) has approved your requisition "${project.title}" (${project.code}). Statutory field workflow is activated and "${stageName}" has commenced.`,
+          link: `/projects/${projectId}`,
+          metadata: {
+            projectCode: project.code,
+            workflowId: wfId,
+            firstStage: stageName,
+          },
+        });
+      }
+
+      // 2. Notify Assigned Officer for Stage 1
+      if (firstStage.rows.length > 0 && firstStage.rows[0].assigned_officer_id) {
+        await NotificationService.createNotification({
+          userId: firstStage.rows[0].assigned_officer_id,
+          role: "PROCESSING_OFFICER",
+          projectId,
+          type: "TASK_ASSIGNED",
+          title: `New Statutory Stage Assigned: ${stageName}`,
+          message: `You have been assigned to review and process stage "${stageName}" for project "${project?.title || project?.code || projectId}".`,
+          link: `/officer/dashboard`,
+          metadata: {
+            stageId: firstStage.rows[0].id,
+            stageName,
+            projectCode: project?.code,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.error("[Notification] Error dispatching workflow activation notifications:", notifErr);
+    }
 
     res.json({ success: true, message: "Workflow activated" });
   } catch (error) {

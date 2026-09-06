@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
 import { bossService } from '../../services/api/boss.service';
+import { NotificationService, type NotificationItem } from '../../services/api/notification.service';
 import type { ProjectRequest } from '../../types/boss.types';
 import type { ProponentDashboardStats } from '../../types/proponent.types';
 
@@ -13,25 +14,39 @@ export const ProponentProjectsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [viewMode, setViewMode] = useState<'dockets' | 'compact'>('dockets');
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [projList, statsData, notifData] = await Promise.all([
+        bossService.getProjects(),
+        bossService.getProponentStats(),
+        NotificationService.getNotifications({ limit: 10 }).catch(() => ({ notifications: [], total: 0, unreadCount: 0 })),
+      ]);
+      setProjects(projList);
+      setStats(statsData);
+      setNotifications(notifData.notifications || []);
+    } catch (err) {
+      console.error('Failed to load proponent data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [projList, statsData] = await Promise.all([
-          bossService.getProjects(),
-          bossService.getProponentStats(),
-        ]);
-        setProjects(projList);
-        setStats(statsData);
-      } catch (err) {
-        console.error('Failed to load proponent data', err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadData();
   }, []);
+
+  const handleDismissNotification = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      await NotificationService.markAsRead(id);
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    } catch (err) {
+      console.error('Failed to mark notification read', err);
+    }
+  };
 
   const filteredProjects = projects.filter((p) => {
     const matchesStatus =
@@ -39,7 +54,8 @@ export const ProponentProjectsPage: React.FC = () => {
       (statusFilter === 'NEW_REQUEST' && p.status === 'NEW_REQUEST') ||
       (statusFilter === 'UNDER_REVIEW' && p.status === 'UNDER_REVIEW') ||
       (statusFilter === 'CONFIRMED' &&
-        (p.status === 'PARCELS_CONFIRMED' || p.status === 'WORKFLOW_CONFIGURED'));
+        (p.status === 'PARCELS_CONFIRMED' || p.status === 'WORKFLOW_CONFIGURED')) ||
+      (statusFilter === 'ACTION_REQUIRED' && p.hasPendingAction);
 
     const q = searchQuery.toLowerCase().trim();
     const matchesQuery =
@@ -52,6 +68,8 @@ export const ProponentProjectsPage: React.FC = () => {
 
     return matchesStatus && matchesQuery;
   });
+
+  const actionRequiredCount = projects.filter(p => p.hasPendingAction).length;
 
   return (
     <div className="boss-page-container">
@@ -157,7 +175,148 @@ export const ProponentProjectsPage: React.FC = () => {
         </div>
       </section>
 
-      <div className="hairline-fullwidth" style={{ margin: '32px 0' }} />
+      {/* 2.5. Statutory Protocol Notifications & Action Directives Bulletin */}
+      {notifications.length > 0 && (
+        <section className="boss-notifications-bulletin-section" style={{ marginBottom: '32px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '14px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '9px',
+                  height: '9px',
+                  borderRadius: '50%',
+                  backgroundColor: '#dc2626',
+                  animation: 'bell-pulse 2s infinite ease-in-out',
+                }}
+              />
+              <span className="editorial-section-tag" style={{ margin: 0, letterSpacing: '0.08em' }}>
+                STATUTORY PROTOCOL ALERTS &amp; NOTIFICATIONS ({notifications.filter((n) => !n.read).length} UNREAD)
+              </span>
+            </div>
+            <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+              Real-time Sovereign Directives from BOSS Scrutiny &amp; Field Officers
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
+            {notifications.map((notif) => {
+              const isRejected = notif.type === 'STAGE_REJECTED';
+              const isApproved = notif.type === 'BOSS_APPROVED' || notif.type === 'PROCESS_COMPLETED';
+              const isAccepted = notif.type === 'STAGE_ACCEPTED';
+
+              const accentBorder = isRejected ? '#ef4444' : isApproved ? '#10b981' : isAccepted ? '#3b82f6' : '#64748b';
+              const accentBg = isRejected ? '#fef2f2' : isApproved ? '#ecfdf5' : isAccepted ? '#eff6ff' : '#f8fafc';
+              const badgeText = isRejected
+                ? 'STAGE REMITTED / REJECTED'
+                : notif.type === 'BOSS_APPROVED'
+                ? 'BOSS SCRUTINY APPROVED'
+                : notif.type === 'PROCESS_COMPLETED'
+                ? 'PROCESS COMPLETED'
+                : isAccepted
+                ? 'STAGE CLEARED'
+                : 'PROTOCOL NOTICE';
+
+              return (
+                <div
+                  key={notif.id}
+                  style={{
+                    backgroundColor: notif.read ? '#ffffff' : '#fcfbf9',
+                    border: `1.5px solid ${accentBorder}`,
+                    borderLeft: `5px solid ${accentBorder}`,
+                    borderRadius: '4px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                    position: 'relative',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '2px 7px',
+                          backgroundColor: accentBg,
+                          color: accentBorder,
+                          borderRadius: '3px',
+                          border: `1px solid ${accentBorder}`,
+                          fontFamily: 'monospace',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {badgeText}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDismissNotification(notif.id, e)}
+                          title="Mark as read / dismiss"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            lineHeight: 1,
+                            padding: '2px',
+                          }}
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+
+                    <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px 0', color: '#0f172a' }}>
+                      {notif.title}
+                    </h4>
+
+                    <p style={{ fontSize: '12.5px', color: '#334155', margin: '0 0 14px 0', lineHeight: 1.45 }}>
+                      {notif.message}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px dashed #e2e8f0' }}>
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#64748b' }}>
+                      {notif.projectCode || notif.metadata?.projectCode || 'STATUTORY DOCKET'}
+                    </span>
+                    {notif.link && (
+                      <Link
+                        to={notif.link}
+                        onClick={() => handleDismissNotification(notif.id)}
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          color: isRejected ? '#dc2626' : isApproved ? '#059669' : '#2563eb',
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span>{isRejected ? 'Resubmit Corrective Evidence &rarr;' : 'Open Project Dossier &rarr;'}</span>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* 3. Requisition Controls & Filter Strip */}
       <section className="boss-ledger-section">
@@ -236,6 +395,13 @@ export const ProponentProjectsPage: React.FC = () => {
               onClick={() => setStatusFilter('CONFIRMED')}
             >
               Parcels Confirmed
+            </button>
+            <button
+              type="button"
+              className={`filter-tab-pill ${statusFilter === 'ACTION_REQUIRED' ? 'active' : ''} ${actionRequiredCount > 0 ? 'filter-tab-urgent' : ''}`}
+              onClick={() => setStatusFilter('ACTION_REQUIRED')}
+            >
+              ⚠ Action Required {actionRequiredCount > 0 ? `(${actionRequiredCount})` : ''}
             </button>
           </div>
         </div>
@@ -347,12 +513,55 @@ export const ProponentProjectsPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Phase 11: Workflow Progress Indicator */}
+                    {project.workflowProgress && project.workflowProgress.totalStages > 0 && (
+                      <div className="docket-progress-strip">
+                        <div className="docket-progress-label">
+                          <span>Workflow: Stage {project.workflowProgress.completedStages}/{project.workflowProgress.totalStages}</span>
+                          <span className="docket-progress-pct">{project.workflowProgress.percentage}%</span>
+                        </div>
+                        <div className="docket-progress-track">
+                          <div
+                            className="docket-progress-fill"
+                            style={{ width: `${project.workflowProgress.percentage}%` }}
+                          />
+                        </div>
+                        {project.currentStage && (
+                          <span className="docket-current-stage">Current: {project.currentStage}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Phase 11: Pending Action Alert */}
+                    {project.hasPendingAction && project.pendingAction && (
+                      <div className="docket-action-alert">
+                        <span className="action-alert-icon">⚠</span>
+                        <div className="action-alert-body">
+                          <span className="action-alert-title">Action Required — {project.pendingAction.stageName} Rejected</span>
+                          <span className="action-alert-desc">{project.pendingAction.reason}</span>
+                        </div>
+                        <Link
+                          to={`/projects/${project.id}`}
+                          className="btn-cta-danger-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Resolve →
+                        </Link>
+                      </div>
+                    )}
+
                     {/* Action Bar */}
                     <div className="docket-action-bar">
                       <div className="docket-timestamp-meta">
                         <span>Submitted: {project.submissionDate}</span>
                         <span>&bull;</span>
                         <span>Statutory SLA: {project.slaDeadline}</span>
+                        {project.updatedAt && (
+                          <>
+                            <span>&bull;</span>
+                            <span>Updated: {new Date(project.updatedAt).toLocaleDateString('en-IN')}</span>
+                          </>
+                        )}
                       </div>
 
                       <div className="docket-buttons">
@@ -372,24 +581,26 @@ export const ProponentProjectsPage: React.FC = () => {
             })}
           </div>
         ) : (
-          /* View Mode B: Compact Gazette Tabular Register */
+          /* View Mode B: Phase 11 Compact Gazette Tabular Register with Tracking Columns */
           <div className="boss-table-container">
             <table className="boss-broadsheet-table">
               <thead>
                 <tr>
-                  <th style={{ width: '18%' }}>Docket Reference &amp; Agency</th>
-                  <th style={{ width: '32%' }}>Corridor Title &amp; Statutory Scope</th>
-                  <th style={{ width: '14%' }}>Jurisdiction</th>
-                  <th style={{ width: '14%' }}>Requisition Area</th>
-                  <th style={{ width: '12%' }}>Status</th>
-                  <th style={{ width: '10%', textAlign: 'right' }}>Action</th>
+                  <th style={{ width: '14%' }}>Docket Reference</th>
+                  <th style={{ width: '22%' }}>Corridor Title</th>
+                  <th style={{ width: '12%' }}>Current Stage</th>
+                  <th style={{ width: '14%' }}>Workflow Progress</th>
+                  <th style={{ width: '10%' }}>Parcels</th>
+                  <th style={{ width: '10%' }}>Status</th>
+                  <th style={{ width: '12%' }}>Pending Action</th>
+                  <th style={{ width: '6%', textAlign: 'right' }}>Track</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProjects.map((project) => (
                   <tr
                     key={project.id}
-                    className="boss-table-row"
+                    className={`boss-table-row ${project.hasPendingAction ? 'row-action-required' : ''}`}
                     onClick={() => navigate(`/projects/${project.id}`)}
                   >
                     <td>
@@ -401,16 +612,39 @@ export const ProponentProjectsPage: React.FC = () => {
                     <td>
                       <div className="table-title-cell">
                         <span className="table-title">{project.title}</span>
-                        <span className="table-scope">{project.scope}</span>
+                        <span className="table-scope">{project.district}, {project.state}</span>
                       </div>
                     </td>
                     <td>
-                      <span className="table-geo">{project.district}, {project.state}</span>
+                      <span className="table-stage-name">
+                        {project.currentStage || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      {project.workflowProgress && project.workflowProgress.totalStages > 0 ? (
+                        <div className="table-progress-cell">
+                          <div className="table-progress-track">
+                            <div
+                              className="table-progress-fill"
+                              style={{ width: `${project.workflowProgress.percentage}%` }}
+                            />
+                          </div>
+                          <span className="table-progress-text">
+                            {project.workflowProgress.completedStages}/{project.workflowProgress.totalStages}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="table-stage-name">—</span>
+                      )}
                     </td>
                     <td>
                       <div className="table-area-cell">
-                        <span className="table-area">{(project.requestedAreaAcres || 0).toFixed(1)} Ac</span>
-                        <span className="table-corridor">{project.corridorKm} km corridor</span>
+                        <span className="table-area">
+                          {project.parcelProgress
+                            ? `${project.parcelProgress.confirmedCount}/${project.parcelProgress.candidateCount}`
+                            : `${project.selectedParcelsCount || 0}/${project.candidateParcelsCount || 0}`}
+                        </span>
+                        <span className="table-corridor">{(project.requestedAreaAcres || 0).toFixed(0)} Ac</span>
                       </div>
                     </td>
                     <td>
@@ -422,6 +656,15 @@ export const ProponentProjectsPage: React.FC = () => {
                           : project.status.replace(/_/g, ' ')}
                       </span>
                     </td>
+                    <td>
+                      {project.hasPendingAction && project.pendingAction ? (
+                        <span className="status-pill pill-rejected" title={project.pendingAction.reason}>
+                          ⚠ {project.pendingAction.stageName}
+                        </span>
+                      ) : (
+                        <span className="table-stage-name" style={{ color: '#66bb6a' }}>✓ None</span>
+                      )}
+                    </td>
                     <td style={{ textAlign: 'right' }}>
                       <Link
                         to={`/projects/${project.id}`}
@@ -429,7 +672,7 @@ export const ProponentProjectsPage: React.FC = () => {
                         style={{ padding: '6px 12px', fontSize: '11.5px' }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        Track &rarr;
+                        Track →
                       </Link>
                     </td>
                   </tr>

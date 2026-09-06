@@ -1395,169 +1395,820 @@ Request
 
 without database manipulation.
 
----
-
-# 20. Phase 13 — WhatsApp Citizen Integration
+# 20. Phase 13 — WhatsApp Interactive Citizen Grievance Bot
 
 ## Objective
 
-Connect a citizen to a real project through Meta WhatsApp Business Cloud API.
+Build a fully interactive, menu-driven WhatsApp conversation flow using the Meta WhatsApp Business Cloud API so that an affected citizen (landowner) can:
 
-### Backend webhook
+1. Initiate a conversation by messaging the BhoomiNexus WhatsApp Business number.
+2. See a greeting and a dropdown menu of available actions (for now, only **"File a Grievance"**).
+3. Select "File a Grievance" → see a list of all projects that have completed at least one pipeline stage (i.e. `status IN ('WORKFLOW_ACTIVE', 'COMPLETED')`).
+4. Select a project → see a list of confirmed land parcels belonging to that project (from `project_parcels` + `land_parcels` tables).
+5. Select a parcel → see a dropdown of grievance categories (matching the existing `grievance_type` enum: `COMPENSATION_VALUATION`, `BOUNDARY_DISPUTE`, `REHABILITATION_RESETTLEMENT`, `TITLE_OWNERSHIP`, `ENVIRONMENTAL_CONCERN`, `OTHER`).
+6. Select a category → be asked to type a free-text description of their complaint.
+7. Confirm → backend creates a `grievance` row in PostgreSQL with `source = 'WHATSAPP'`, and the citizen receives an acknowledgement message containing the reference number.
+8. That grievance immediately appears in the Requesting Authority's project detail page under the **Statutory Grievances & Citizen Objection Record** section (already built in Phase 12).
 
-```http
-POST /api/v1/integrations/whatsapp/webhook
-```
+### Why this matters
 
-### Internal service
+- The grievance record created via WhatsApp is **the same database row** that the Requesting Authority sees on their dashboard. There is no separate "WhatsApp grievance" table.
+- When WhatsApp notifications are enabled in a later prototype revision, resolution updates will flow back to the citizen on the same phone number, completing the loop.
+- The `wa_message_id` column provides idempotency; the `citizen_phone` and `citizen_phone_hash` columns enable future two-way reply threads.
 
-```text
-WhatsAppService
-```
+---
 
-### First supported interaction
-
-Citizen:
-
-```text
-STATUS MH-PN-004821
-```
-
-Backend:
+## 13.1 Architecture Overview
 
 ```text
-Find Parcel
-→ Find Project
-→ Determine allowed public information
-→ Generate response
-```
-
-Example response:
-
-```text
-Parcel: MH-PN-004821
-
-Project:
-Highway Expansion Phase 2
-
-Current Status:
-Document Verificati
-on
-
-Project Progress:
-50%
-
-For assistance, reference:
-PRJ-2026-0012
+┌─────────────────────────┐
+│   Citizen WhatsApp      │
+│   (Mobile Phone)        │
+└──────────┬──────────────┘
+           │ sends message
+           ▼
+┌─────────────────────────┐
+│ Meta WhatsApp Cloud API │
+│ graph.facebook.com/v20  │
+└──────────┬──────────────┘
+           │ POST /webhook
+           ▼
+┌────────────────────────────────────────────────┐
+│  Backend: whatsapp.controller.ts               │
+│  POST /api/v1/integrations/whatsapp/webhook    │
+│                                                │
+│  → Parses Meta webhook payload                 │
+│  → Extracts message type (text / interactive)  │
+│  → Delegates to whatsappConversation.service.ts│
+└──────────┬─────────────────────────────────────┘
+           │
+           ▼
+┌────────────────────────────────────────────────┐
+│  whatsappConversation.service.ts               │
+│                                                │
+│  Manages per-phone session state via Redis:    │
+│   - IDLE → AWAITING_ACTION                     │
+│   - AWAITING_ACTION → AWAITING_PROJECT         │
+│   - AWAITING_PROJECT → AWAITING_PARCEL         │
+│   - AWAITING_PARCEL → AWAITING_CATEGORY        │
+│   - AWAITING_CATEGORY → AWAITING_DESCRIPTION   │
+│   - AWAITING_DESCRIPTION → CONFIRMED           │
+│                                                │
+│  At each step:                                 │
+│   1. Read session from Redis                   │
+│   2. Process the incoming reply                │
+│   3. Query Postgres for dynamic data           │
+│   4. Send next WhatsApp Interactive Message    │
+│   5. Update session in Redis                   │
+└──────────┬─────────────────────────────────────┘
+           │ On CONFIRMED
+           ▼
+┌────────────────────────────────────────────────┐
+│  grievances table (PostgreSQL)                 │
+│                                                │
+│  INSERT with:                                  │
+│   - reference_number: GRV-2026-PRJMH4421-03   │
+│   - project_id: (selected project UUID)        │
+│   - parcel_id: (selected parcel UUID)          │
+│   - citizen_name: (WhatsApp profile name)      │
+│   - citizen_phone: (phone from webhook)        │
+│   - citizen_phone_hash: SHA-256(phone)         │
+│   - survey_number: (from land_parcels table)   │
+│   - grievance_type: (selected category)        │
+│   - subject: auto-generated from type+parcel   │
+│   - description: (free text from citizen)       │
+│   - status: 'OPEN'                             │
+│   - source: 'WHATSAPP'                         │
+│   - wa_message_id: (Meta message ID)           │
+│   - sla_days: 15                               │
+│   - metadata: { full webhook context }         │
+└────────────────────────────────────────────────┘
 ```
 
 ---
 
-# 21. Phase 14 — WhatsApp Objection / Grievance
+## 13.2 Conversation Flow — Step-by-Step
 
-## Objective
+Below is the exact conversation the citizen experiences. The developer must implement each step precisely as described.
 
-Demonstrate two-way citizen communication.
+### Step 0 — Citizen sends ANY first message
 
-Citizen:
+The citizen opens the BhoomiNexus WhatsApp number and types anything (e.g. "Hi", "Hello", "I need help").
 
-```text
-I want to submit an objection.
+**Backend action:**
+1. Read session from Redis key `wa:session:{phone}`. If no session exists, this is a new conversation.
+2. Send a WhatsApp **Interactive List Message** (see Meta API docs for `type: "interactive"`, `interactive.type: "list"`).
+
+**Outgoing message:**
+
+```
+🏛️ *BhoomiNexus — Government of India*
+*Land Acquisition Grievance & Information Portal*
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Welcome, {contactName}. This is the official statutory
+communication channel under RFCTLARR Act 2013.
+
+How can we assist you today?
+
+Please select an option below 👇
 ```
 
-System asks for:
+**Interactive List payload:**
 
-```text
-Project / Parcel Reference
+```json
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "to": "{phone}",
+  "type": "interactive",
+  "interactive": {
+    "type": "list",
+    "header": { "type": "text", "text": "BhoomiNexus Services" },
+    "body": { "text": "Welcome! Please select what you would like to do." },
+    "footer": { "text": "RFCTLARR Act 2013 • Statutory Portal" },
+    "action": {
+      "button": "Select an Option",
+      "sections": [
+        {
+          "title": "Available Services",
+          "rows": [
+            {
+              "id": "ACTION_FILE_GRIEVANCE",
+              "title": "File a Grievance",
+              "description": "Submit a statutory objection or complaint"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
 ```
 
-Then:
+**Redis session update:**
 
-```text
-Describe your objection
+```json
+{
+  "phone": "919876543210",
+  "contactName": "Ramesh Kumar",
+  "state": "AWAITING_ACTION",
+  "createdAt": "2026-09-07T10:00:00Z"
+}
 ```
 
-Then:
+---
 
-```text
-Upload supporting document
+### Step 1 — Citizen selects "File a Grievance"
+
+The citizen taps the interactive list and selects "File a Grievance". Meta sends a webhook with:
+
+```json
+{
+  "type": "interactive",
+  "interactive": {
+    "type": "list_reply",
+    "list_reply": { "id": "ACTION_FILE_GRIEVANCE", "title": "File a Grievance" }
+  }
+}
 ```
 
-Backend creates:
+**Backend action:**
+1. Verify session state is `AWAITING_ACTION`.
+2. Query PostgreSQL for projects that have progressed through the pipeline:
 
-```text
-grievance
+```sql
+SELECT p.id, p.code, p.title, p.district, p.state
+FROM projects p
+WHERE p.status IN ('WORKFLOW_ACTIVE', 'COMPLETED', 'PARCELS_CONFIRMED', 'PENDING_CONFIGURATION')
+ORDER BY p.created_at DESC
+LIMIT 10
 ```
 
-and returns:
+3. Send a WhatsApp **Interactive List Message** with each project as a selectable row.
 
-```text
-Your grievance has been registered.
+**Outgoing Interactive List:**
 
-Reference:
-GRV-1029
+```json
+{
+  "type": "interactive",
+  "interactive": {
+    "type": "list",
+    "body": { "text": "The following infrastructure projects are currently active in the acquisition pipeline.\n\nPlease select the project related to your grievance:" },
+    "action": {
+      "button": "Select a Project",
+      "sections": [
+        {
+          "title": "Active Projects",
+          "rows": [
+            {
+              "id": "PROJECT_{uuid}",
+              "title": "PRJ-MH-4421",
+              "description": "Mumbai-Pune Expressway Expansion - Phase 3"
+            },
+            {
+              "id": "PROJECT_{uuid}",
+              "title": "PRJ-KA-8890",
+              "description": "Bengaluru Suburban Rail Corridor"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
 ```
 
-The Requesting Authority sees the grievance on:
+**Important constraints:**
+- Meta allows a maximum of **10 rows** in a list message. If there are more than 10 projects, paginate or show only the 10 most recent active ones.
+- Each row `id` must be ≤ 200 characters. Use format `PROJECT_{uuid}`.
+- Each row `title` must be ≤ 24 characters. Use the project `code`.
+- Each row `description` must be ≤ 72 characters. Use the project `title` truncated.
 
-```text
-/grievances
+**Redis session update:**
+
+```json
+{
+  "state": "AWAITING_PROJECT",
+  "projects": [ { "id": "...", "code": "PRJ-MH-4421", "title": "..." }, ... ]
+}
 ```
+
+---
+
+### Step 2 — Citizen selects a project
+
+Citizen taps a project. Webhook delivers:
+
+```json
+{
+  "interactive": {
+    "type": "list_reply",
+    "list_reply": { "id": "PROJECT_e3783bd0-efb4-453f-8e54-89a36a14bdaf", "title": "PRJ-MH-4421" }
+  }
+}
+```
+
+**Backend action:**
+1. Extract UUID from `id` field (strip `PROJECT_` prefix).
+2. Query confirmed parcels for this project:
+
+```sql
+SELECT lp.id, lp.survey_number, lp.ulpin, lp.owner_reference, lp.village,
+       lp.area_acres, pp.status
+FROM land_parcels lp
+JOIN project_parcels pp ON pp.parcel_id = lp.id
+WHERE pp.project_id = $1
+  AND pp.status = 'CONFIRMED'
+ORDER BY lp.survey_number
+LIMIT 10
+```
+
+3. Send Interactive List of parcels.
+
+**Outgoing message body:**
+
+```
+📍 *Project: {projectCode}*
+{projectTitle}
+
+The following confirmed land parcels are associated with this project.
+
+Select the parcel related to your grievance:
+```
+
+**Interactive List rows:**
+
+```json
+{
+  "rows": [
+    {
+      "id": "PARCEL_{parcel_uuid}",
+      "title": "SV-142 • 3.2 acres",
+      "description": "ULPIN: ULPIN-482913 • Owner-234"
+    },
+    {
+      "id": "PARCEL_{parcel_uuid}",
+      "title": "SV-301 • 5.7 acres",
+      "description": "ULPIN: ULPIN-119204 • Owner-891"
+    }
+  ]
+}
+```
+
+**Redis session update:**
+
+```json
+{
+  "state": "AWAITING_PARCEL",
+  "selectedProjectId": "e3783bd0-...",
+  "selectedProjectCode": "PRJ-MH-4421"
+}
+```
+
+---
+
+### Step 3 — Citizen selects a parcel
+
+Webhook delivers:
+
+```json
+{
+  "interactive": {
+    "type": "list_reply",
+    "list_reply": { "id": "PARCEL_a1b2c3d4-...", "title": "SV-142 • 3.2 acres" }
+  }
+}
+```
+
+**Backend action:**
+1. Extract parcel UUID from `id` field (strip `PARCEL_` prefix).
+2. Send Interactive List of grievance categories.
+
+**Outgoing message:**
+
+```
+📋 *Grievance Category*
+
+Parcel: SV-142 (3.2 acres)
+Project: PRJ-MH-4421
+
+What is the nature of your complaint?
+
+Select the most appropriate category:
+```
+
+**Interactive List rows (hardcoded — these match the DB enum):**
+
+```json
+{
+  "rows": [
+    {
+      "id": "CATEGORY_COMPENSATION_VALUATION",
+      "title": "Compensation Issue",
+      "description": "Valuation dispute, delayed payment, rate objection"
+    },
+    {
+      "id": "CATEGORY_BOUNDARY_DISPUTE",
+      "title": "Boundary Dispute",
+      "description": "Demarcation error, encroachment, survey mismatch"
+    },
+    {
+      "id": "CATEGORY_REHABILITATION_RESETTLEMENT",
+      "title": "R&R / Rehabilitation",
+      "description": "Resettlement package, tenant rights, R&R plan"
+    },
+    {
+      "id": "CATEGORY_TITLE_OWNERSHIP",
+      "title": "Title / Ownership",
+      "description": "Khasra dispute, mutation, co-owner claims"
+    },
+    {
+      "id": "CATEGORY_ENVIRONMENTAL_CONCERN",
+      "title": "Environmental Concern",
+      "description": "Tree felling, water body impact, access road"
+    },
+    {
+      "id": "CATEGORY_OTHER",
+      "title": "Other",
+      "description": "Any other issue not covered above"
+    }
+  ]
+}
+```
+
+**Redis session update:**
+
+```json
+{
+  "state": "AWAITING_CATEGORY",
+  "selectedParcelId": "a1b2c3d4-...",
+  "selectedSurveyNumber": "SV-142"
+}
+```
+
+---
+
+### Step 4 — Citizen selects a category
+
+Webhook delivers:
+
+```json
+{
+  "interactive": {
+    "type": "list_reply",
+    "list_reply": { "id": "CATEGORY_COMPENSATION_VALUATION", "title": "Compensation Issue" }
+  }
+}
+```
+
+**Backend action:**
+1. Extract category from `id` field (strip `CATEGORY_` prefix).
+2. Send a plain text message asking for the description.
+
+**Outgoing message (plain text, NOT interactive):**
+
+```
+✍️ *Describe Your Grievance*
+
+Category: Compensation Issue
+Parcel: SV-142
+Project: PRJ-MH-4421
+
+Please type a detailed description of your grievance below.
+
+Include specific details such as:
+• What happened
+• When it happened
+• What resolution you are seeking
+
+Your message will be recorded as a statutory representation
+under RFCTLARR Act 2013.
+```
+
+**Redis session update:**
+
+```json
+{
+  "state": "AWAITING_DESCRIPTION",
+  "selectedCategory": "COMPENSATION_VALUATION"
+}
+```
+
+---
+
+### Step 5 — Citizen types their grievance description
+
+The citizen sends a free-text message like:
+
+```
+I have not received the compensation amount that was promised
+during the hearing. The collector's office said Rs 12 lakh per
+acre but I only received Rs 8 lakh. My plot is SV-142 near
+Wagholi village. Please look into this urgently.
+```
+
+**Backend action:**
+1. Verify session state is `AWAITING_DESCRIPTION`.
+2. Read the text body as the grievance description.
+3. Insert into `grievances` table:
+
+```sql
+INSERT INTO grievances
+  (reference_number, project_id, parcel_id, citizen_name, citizen_phone,
+   citizen_phone_hash, survey_number, grievance_type, subject, description,
+   status, sla_days, source, wa_message_id, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'OPEN', 15, 'WHATSAPP', $11, $12)
+RETURNING *
+```
+
+Where:
+- `reference_number` = `GRV-{year}-{projectCode}-{seq}` (same format as existing code)
+- `project_id` = from session `selectedProjectId`
+- `parcel_id` = from session `selectedParcelId`
+- `citizen_name` = from session `contactName` (WhatsApp profile name)
+- `citizen_phone` = from session `phone`
+- `citizen_phone_hash` = `SHA256(phone)`
+- `survey_number` = from session `selectedSurveyNumber`
+- `grievance_type` = from session `selectedCategory`
+- `subject` = auto-generated: `"WhatsApp Grievance: {categoryLabel} — {surveyNumber} under {projectCode}"`
+- `description` = the raw text the citizen typed
+- `wa_message_id` = the Meta message ID from the webhook
+- `metadata` = JSON containing all session context and the raw webhook payload
+
+4. Send confirmation message back to citizen.
+5. Clear session from Redis.
+
+**Outgoing confirmation message:**
+
+```
+✅ *Grievance Registered Successfully*
+━━━━━━━━━━━━━━━━━━━━━━━
+
+📌 *Reference No:* GRV-2026-PRJMH4421-03
+🏗️ *Project:* PRJ-MH-4421 — Mumbai-Pune Expressway
+📍 *Parcel:* SV-142
+📋 *Category:* Compensation Issue
+⚖️ *Statutory SLA:* 15 Days per RFCTLARR Act 2013
+📊 *Status:* OPEN — Pending Supervising Officer Review
+
+You will receive updates on this channel once your grievance
+is reviewed by the competent authority.
+
+To check status later, reply: STATUS GRV-2026-PRJMH4421-03
+
+Thank you for using the BhoomiNexus Statutory Portal.
+🏛️ Government of India
+```
+
+**Redis session update:** DELETE the key `wa:session:{phone}`.
+
+---
+
+## 13.3 Backend Implementation — File-by-File Instructions
+
+### File 1: `Backend/src/modules/whatsapp/whatsappConversation.service.ts` [NEW]
+
+This is the core new file. Create it with the following structure:
+
+```typescript
+// File: Backend/src/modules/whatsapp/whatsappConversation.service.ts
+
+import crypto from 'crypto';
+import { pool } from '../../config/db';
+import { logger } from '../../utils/logger';
+import { whatsappService, WhatsAppIncomingMessage } from './whatsapp.service';
+import Redis from 'ioredis'; // Use the existing Redis connection from config
+
+// Session states
+type ConversationState =
+  | 'IDLE'
+  | 'AWAITING_ACTION'
+  | 'AWAITING_PROJECT'
+  | 'AWAITING_PARCEL'
+  | 'AWAITING_CATEGORY'
+  | 'AWAITING_DESCRIPTION';
+
+interface ConversationSession {
+  phone: string;
+  contactName: string;
+  state: ConversationState;
+  selectedProjectId?: string;
+  selectedProjectCode?: string;
+  selectedProjectTitle?: string;
+  selectedParcelId?: string;
+  selectedSurveyNumber?: string;
+  selectedCategory?: string;
+  selectedCategoryLabel?: string;
+  createdAt: string;
+}
+```
+
+**Key methods to implement:**
+
+1. `getSession(phone: string): Promise<ConversationSession | null>` — GET from Redis key `wa:session:{phone}`, parse JSON.
+2. `setSession(session: ConversationSession): Promise<void>` — SET to Redis with TTL of 30 minutes (1800 seconds). This auto-expires stale conversations.
+3. `clearSession(phone: string): Promise<void>` — DEL the Redis key.
+4. `handleMessage(msg: WhatsAppIncomingMessage, contactName?: string): Promise<any>` — Main router. Reads session, determines current state, calls the appropriate step handler.
+5. `handleStep0_SendWelcome(phone, contactName)` — Sends the welcome interactive list.
+6. `handleStep1_SelectProject(phone, session)` — Queries projects, sends project list.
+7. `handleStep2_SelectParcel(phone, session, projectId)` — Queries parcels, sends parcel list.
+8. `handleStep3_SelectCategory(phone, session)` — Sends hardcoded category list.
+9. `handleStep4_CollectDescription(phone, session)` — Sends text prompt.
+10. `handleStep5_CreateGrievance(phone, session, description, messageId)` — INSERT into grievances, sends confirmation, clears session.
+
+**Interactive message helper:**
+
+Create a helper method `sendInteractiveList(to, body, buttonText, sections)` in `whatsapp.service.ts` that wraps the Meta API call for interactive list messages. The existing `sendMessage` only sends plain text. You need a new method:
+
+```typescript
+async sendInteractiveList(
+  to: string,
+  bodyText: string,
+  buttonText: string,
+  sections: Array<{
+    title: string;
+    rows: Array<{ id: string; title: string; description?: string }>;
+  }>,
+  headerText?: string,
+  footerText?: string
+): Promise<boolean>
+```
+
+This method sends:
+
+```json
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "to": "{to}",
+  "type": "interactive",
+  "interactive": {
+    "type": "list",
+    "header": { "type": "text", "text": "{headerText}" },
+    "body": { "text": "{bodyText}" },
+    "footer": { "text": "{footerText}" },
+    "action": {
+      "button": "{buttonText}",
+      "sections": [ ... ]
+    }
+  }
+}
+```
+
+to the Meta endpoint `https://graph.facebook.com/{version}/{phoneNumberId}/messages`.
+
+---
+
+### File 2: Modify `Backend/src/modules/whatsapp/whatsapp.service.ts` [MODIFY]
+
+Add the `sendInteractiveList` method to the existing `whatsappService` object. Keep all existing methods (`sendMessage`, `processIncomingMessage`) intact. The old `processIncomingMessage` becomes the fallback for non-conversational messages (e.g. `STATUS GRV-...` queries).
+
+---
+
+### File 3: Modify `Backend/src/modules/whatsapp/whatsapp.controller.ts` [MODIFY]
+
+In `handleWebhook`, change the message processing to:
+
+```typescript
+// Inside the message loop:
+for (const msg of value.messages) {
+  // Check if it's an interactive reply (list_reply or button_reply)
+  const isInteractive = msg.type === 'interactive';
+  const isText = msg.type === 'text';
+
+  if (isInteractive || isText) {
+    // Route through conversation state machine
+    await conversationService.handleMessage(msg, contactName);
+  }
+}
+```
+
+The old direct `whatsappService.processIncomingMessage(msg)` call should be replaced with the new conversation handler. The conversation handler itself will call the old `processIncomingMessage` as a fallback if the text looks like a direct `STATUS {ref}` query.
+
+---
+
+### File 4: Modify `Backend/src/modules/whatsapp/whatsapp.controller.ts` — simulateIncomingWhatsApp [MODIFY]
+
+Update the `/simulate` endpoint to support simulating interactive replies (not just text). Add an optional `interactiveReply` field:
+
+```typescript
+const { phone, name, text, interactiveReply } = req.body;
+// interactiveReply: { type: "list_reply", id: "ACTION_FILE_GRIEVANCE", title: "File a Grievance" }
+```
+
+This lets you test the entire conversation flow from a REST client (Postman/curl) without an actual WhatsApp phone.
+
+---
+
+### File 5: Redis connection — `Backend/src/config/redis.ts` [VERIFY/CREATE]
+
+Ensure there is a Redis client exported. If one already exists, use it. If not, create:
+
+```typescript
+import Redis from 'ioredis';
+import { env } from './env';
+
+export const redis = new Redis(env.REDIS_URL);
+```
+
+The conversation service uses this for session storage.
+
+---
+
+## 13.4 Real Meta Credentials & Webhook Configuration
+
+Configure the real Meta WhatsApp Business Cloud API credentials in `Backend/.env`. These credentials are provided from the **Meta for Developers App Dashboard** (under your App → WhatsApp → API Setup):
+
+```env
+# Meta WhatsApp Business Cloud API (Live Credentials)
+WHATSAPP_API_TOKEN=EAAxxxxxxx          # Permanent System User Access Token with whatsapp_business_messaging permission
+WHATSAPP_PHONE_NUMBER_ID=1234567890    # Phone Number ID from WhatsApp App Dashboard
+WHATSAPP_BUSINESS_ACCOUNT_ID=9876543   # WhatsApp Business Account ID (WABA ID)
+WHATSAPP_VERIFY_TOKEN=bhoomi_nexus_wa_webhook_verify_token_2026 # Webhook challenge verification secret
+WHATSAPP_API_VERSION=v21.0             # Meta Graph API version
+
+# Redis Session Store
+REDIS_URL=redis://localhost:6379
+```
+
+### Meta Webhook Live Setup:
+1. In **Meta for Developers > WhatsApp > Configuration**:
+   - Set **Callback URL**: `https://<your-public-domain-or-tunnel>/api/v1/integrations/whatsapp/webhook`
+   - Set **Verify Token**: Exactly matches `WHATSAPP_VERIFY_TOKEN` (`bhoomi_nexus_wa_webhook_verify_token_2026`)
+   - Meta executes a `GET` handshake with `hub.mode=subscribe` and `hub.challenge`. The existing controller verifies the token and responds with the challenge token automatically.
+2. In **Webhook Fields**:
+   - Subscribe to the `messages` event.
+3. Outgoing interactive lists and acknowledgements are posted directly to `https://graph.facebook.com/${env.WHATSAPP_API_VERSION}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages` with `Bearer ${env.WHATSAPP_API_TOKEN}`.
+
+---
+
+## 13.5 Testing the Flow: Live WhatsApp & Local Developer Simulation
+
+### 1. Live WhatsApp Verification (Real Device)
+1. Send a greeting ("Hi" or "Hello") from a physical WhatsApp mobile account to the registered BhoomiNexus WhatsApp Business phone number.
+2. The phone immediately receives the interactive list with the "File a Grievance" action button.
+3. Select "File a Grievance" → receive the list of active pipeline projects.
+4. Select a project → receive the list of confirmed land parcels.
+5. Select a parcel → receive the grievance category list.
+6. Select a category → receive the prompt to type the grievance description.
+7. Type and send the description → receive the statutory registration receipt with reference number (e.g. `GRV-2026-PRJMH4421-03`).
+
+### 2. Fast Local Simulation via curl (Developer Convenience)
+To accelerate development and run automated integration tests without picking up a physical phone on every code iteration, use the `/simulate` endpoint:
+
+```bash
+# Step 0: Citizen sends "Hi"
+curl -X POST http://localhost:5000/api/v1/integrations/whatsapp/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"919876543210","name":"Ramesh Kumar","text":"Hi"}'
+
+# Step 1: Citizen selects "File a Grievance"
+curl -X POST http://localhost:5000/api/v1/integrations/whatsapp/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"919876543210","name":"Ramesh Kumar","interactiveReply":{"type":"list_reply","id":"ACTION_FILE_GRIEVANCE","title":"File a Grievance"}}'
+
+# Step 2: Citizen selects a project (use actual UUID from Step 1 response)
+curl -X POST http://localhost:5000/api/v1/integrations/whatsapp/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"919876543210","name":"Ramesh Kumar","interactiveReply":{"type":"list_reply","id":"PROJECT_e3783bd0-efb4-453f-8e54-89a36a14bdaf","title":"PRJ-MH-4421"}}'
+
+# Step 3: Citizen selects a parcel (use actual UUID from Step 2 response)
+curl -X POST http://localhost:5000/api/v1/integrations/whatsapp/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"919876543210","name":"Ramesh Kumar","interactiveReply":{"type":"list_reply","id":"PARCEL_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","title":"SV-142 • 3.2 acres"}}'
+
+# Step 4: Citizen selects a category
+curl -X POST http://localhost:5000/api/v1/integrations/whatsapp/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"919876543210","name":"Ramesh Kumar","interactiveReply":{"type":"list_reply","id":"CATEGORY_COMPENSATION_VALUATION","title":"Compensation Issue"}}'
+
+# Step 5: Citizen types their grievance
+curl -X POST http://localhost:5000/api/v1/integrations/whatsapp/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"919876543210","name":"Ramesh Kumar","text":"I have not received compensation for my 3.2 acre plot SV-142 near Wagholi. The collector said Rs 12 lakh per acre but I only got Rs 8 lakh."}'
+```
+
+Verify grievance record creation in PostgreSQL:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:5000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"requestor@bhoomi.gov.in","password":"demo"}' | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+
+curl -s http://localhost:5000/api/v1/projects/e3783bd0-efb4-453f-8e54-89a36a14bdaf/grievances \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 13.6 Verification Checklist
+
+- [ ] Real Meta credentials (`WHATSAPP_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`) configured in `Backend/.env`
+- [ ] Meta webhook verification handshake (`GET /api/v1/integrations/whatsapp/webhook`) responds with challenge token
+- [ ] Outgoing Interactive List messages successfully delivered via Meta Graph API v21.0
+- [ ] Live WhatsApp message from physical device triggers Step 0 interactive greeting
+- [ ] `whatsappConversation.service.ts` created with full state machine
+- [ ] `whatsapp.service.ts` updated with `sendInteractiveList` method
+- [ ] `whatsapp.controller.ts` routes messages through conversation service
+- [ ] `/simulate` endpoint supports `interactiveReply` field for fast local testing
+- [ ] Redis sessions created/read/deleted correctly with 30-minute TTL
+- [ ] Projects query returns only pipeline-active projects
+- [ ] Parcels query returns only CONFIRMED parcels for selected project
+- [ ] Category list matches existing `grievance_type` enum exactly
+- [ ] Grievance INSERT includes `parcel_id`, `source='WHATSAPP'`
+- [ ] Confirmation message includes reference number sent to citizen's WhatsApp
+- [ ] Grievance appears in Requesting Authority project details under grievances section with WHATSAPP source badge
+- [ ] `npm run build` passes on Backend (no TypeScript errors)
+
+---
+
+# 21. Phase 14 — In-App Notifications ✅ COMPLETED
+
+## Status: Already Implemented in Phase 15 (renumbered)
+
+In-app notifications were implemented ahead of schedule. The following is now live:
+
+### Backend
+
+- **Table:** `notifications` (PostgreSQL) with columns: `id`, `user_id`, `role`, `project_id`, `task_id`, `type`, `title`, `message`, `link`, `read`, `metadata`, `created_at`, `read_at`
+- **Service:** `Backend/src/modules/notifications/notifications.service.ts` — `createNotification`, `getNotifications`, `markAsRead`, `markAllAsRead`
+- **Controller:** `Backend/src/modules/notifications/notifications.controller.ts`
+- **Route:** `GET /api/v1/notifications`, `PATCH /api/v1/notifications/:id/read`, `POST /api/v1/notifications/mark-all-read`, `DELETE /api/v1/notifications/:id`
+
+### Triggers
+
+Notifications are automatically created when:
+
+| Event | Notified Roles | Type |
+|-------|---------------|------|
+| BOSS activates workflow | `REQUESTING_AUTHORITY`, `PROCESSING_OFFICER` | `BOSS_APPROVED`, `TASK_ASSIGNED` |
+| Officer accepts stage | `REQUESTING_AUTHORITY`, `PROCESSING_OFFICER` (next) | `STAGE_ACCEPTED`, `TASK_ASSIGNED` |
+| Officer rejects stage | `REQUESTING_AUTHORITY`, `BOSS` | `STAGE_REJECTED` |
+| All stages completed | `REQUESTING_AUTHORITY`, `BOSS` | `PROCESS_COMPLETED` |
+| Stage resubmitted | `PROCESSING_OFFICER` | `STAGE_RESUBMITTED` |
+
+### Frontend
+
+- **Service:** `Frontend/src/services/api/notification.service.ts`
+- **Component:** `Frontend/src/components/common/NotificationBell.tsx` — Bell icon with unread badge, popover drawer with filter tabs, click-to-navigate
+- **Layout Integration:** Mounted in `GovernmentLayout.tsx` masthead (visible on all authenticated pages)
+- **In-Page Bulletin:** Embedded in `ProponentProjectsPage.tsx` as a Statutory Protocol Alerts section
 
 ### APIs
 
 ```http
-GET  /api/v1/grievances
-GET  /api/v1/grievances/:id
-POST /api/v1/grievances/:id/respond
-POST /api/v1/grievances/:id/close
+GET    /api/v1/notifications
+PATCH  /api/v1/notifications/:id/read
+POST   /api/v1/notifications/mark-all-read
+DELETE /api/v1/notifications/:id
 ```
 
-This follows the TRD's WhatsApp citizen interaction requirements.
+Email and WhatsApp notification channels are deferred until after the prototype demonstration.
 
 ---
 
-# 22. Phase 15 — Notifications
-
-## Objective
-
-Make workflow movement visible.
-
-Build a notification abstraction:
-
-```text
-Notification Service
-       |
-       +--- In-App
-       +--- Email
-       +--- WhatsApp
-```
-
-Prototype triggers:
-
-```text
-Project Submitted
-Workflow Activated
-Task Assigned
-Stage Accepted
-Stage Rejected
-Correction Required
-Project Approved
-Grievance Received
-```
-
-### APIs
-
-```http
-GET /api/v1/notifications
-POST /api/v1/notifications/:id/read
-```
-
-Do not implement SMS because it is not currently required by the TRD.
-
----
-
-# 23. Phase 16 — Prototype Polish and Demonstration Readiness
+# 22. Phase 15 — Prototype Polish and Demonstration Readiness
 
 ## Objective
 

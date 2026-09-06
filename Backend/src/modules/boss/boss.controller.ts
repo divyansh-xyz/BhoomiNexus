@@ -8,7 +8,7 @@ export const fetchLandRecords = async (req: Request, res: Response, next: NextFu
     const { projectId } = req.params;
 
     const projResult = await pool.query(
-      `SELECT state, district, ST_AsGeoJSON(geometry)::jsonb as geojson FROM projects p
+      `SELECT p.id, p.state, p.district, pg.corridor_coordinates, ST_AsGeoJSON(pg.geometry)::jsonb as geojson FROM projects p
        LEFT JOIN project_geometry pg ON p.id = pg.project_id
        WHERE p.id = $1`,
       [projectId]
@@ -17,26 +17,79 @@ export const fetchLandRecords = async (req: Request, res: Response, next: NextFu
     if (projResult.rows.length === 0) return next(new ApiError(404, "Project not found"));
     const proj = projResult.rows[0];
 
-    // Mock logic to generate random intersecting parcels
-    const count = Math.floor(10 + Math.random() * 20); // 10-30 parcels
+    // Determine anchor coordinates for generating parcel polygons
+    let waypoints: [number, number][] = [];
+    if (proj.corridor_coordinates) {
+      waypoints = typeof proj.corridor_coordinates === "string"
+        ? JSON.parse(proj.corridor_coordinates)
+        : proj.corridor_coordinates;
+    }
+
+    let baseLat = 28.6139;
+    let baseLon = 77.2090;
+    if (waypoints.length > 0) {
+      baseLat = waypoints[0][0];
+      baseLon = waypoints[0][1];
+    } else if (proj.district === "Agra" || proj.state === "Uttar Pradesh") {
+      baseLat = 27.1767;
+      baseLon = 78.0081;
+    } else if (proj.district === "Pune" || proj.state === "Maharashtra") {
+      baseLat = 18.5204;
+      baseLon = 73.8567;
+    } else if (proj.district?.includes("Bengaluru") || proj.state === "Karnataka") {
+      baseLat = 12.9716;
+      baseLon = 77.5946;
+    }
+
+    const count = Math.floor(15 + Math.random() * 15); // 15-30 parcels
     
     // Clear old candidate parcels for this project
     await pool.query(`DELETE FROM project_parcels WHERE project_id = $1`, [projectId]);
 
     for (let i = 0; i < count; i++) {
-      const area = Math.round(1 + Math.random() * 10 * 100) / 100; // 1-10 acres
+      const area = Math.round((1 + Math.random() * 9) * 100) / 100; // 1-10 acres
       
+      // Determine center point for this parcel
+      let ptLat = baseLat;
+      let ptLon = baseLon;
+      if (waypoints.length > 1) {
+        const wpIdx = i % (waypoints.length - 1);
+        const frac = ((i * 7) % 10) / 10;
+        ptLat = waypoints[wpIdx][0] + (waypoints[wpIdx + 1][0] - waypoints[wpIdx][0]) * frac;
+        ptLon = waypoints[wpIdx][1] + (waypoints[wpIdx + 1][1] - waypoints[wpIdx][1]) * frac;
+        ptLat += (Math.sin(i) * 0.004);
+        ptLon += (Math.cos(i) * 0.004);
+      } else {
+        ptLat += (Math.sin(i * 1.3) * 0.012) + (Math.random() - 0.5) * 0.004;
+        ptLon += (Math.cos(i * 1.3) * 0.012) + (Math.random() - 0.5) * 0.004;
+      }
+
+      const dLat = 0.0018 + Math.random() * 0.0012;
+      const dLon = 0.0018 + Math.random() * 0.0012;
+      // GeoJSON Polygon coordinates are [[[lon, lat], ...], closed ring]
+      const polygonGeoJson = {
+        type: "Polygon",
+        coordinates: [[
+          [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
+          [parseFloat((ptLon + dLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
+          [parseFloat((ptLon + dLon).toFixed(6)), parseFloat((ptLat + dLat).toFixed(6))],
+          [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat + dLat).toFixed(6))],
+          [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
+        ]],
+      };
+
       const pResult = await pool.query(
-        `INSERT INTO land_parcels (ulpin, survey_number, owner_reference, village, district, state, area_acres, area_ha, land_type, market_rate_per_acre)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        `INSERT INTO land_parcels (ulpin, survey_number, owner_reference, village, district, state, area_acres, area_ha, land_type, market_rate_per_acre, geometry)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ST_SetSRID(ST_GeomFromGeoJSON($11), 4326)) RETURNING id`,
         [
           `ULPIN-${Math.floor(100000 + Math.random() * 900000)}`,
           `SV-${Math.floor(100 + Math.random() * 900)}`,
           `Owner-${Math.floor(Math.random() * 1000)}`,
           "Sample Village", proj.district, proj.state,
-          area, area * 0.404686,
+          area, parseFloat((area * 0.404686).toFixed(4)),
           Math.random() > 0.3 ? "AGRICULTURAL" : "COMMERCIAL",
-          Math.round(500000 + Math.random() * 5000000)
+          Math.round(500000 + Math.random() * 5000000),
+          JSON.stringify(polygonGeoJson)
         ]
       );
       
@@ -74,8 +127,11 @@ export const getLandRecords = async (req: Request, res: Response, next: NextFunc
 
     let query = `
       SELECT lp.id, lp.ulpin, lp.survey_number as "surveyNumber", lp.owner_reference as "ownerReference",
-             lp.village, lp.district, lp.state, lp.area_acres as "areaAcres", lp.area_ha as "areaHa",
-             lp.land_type as "landType", lp.market_rate_per_acre as "marketRatePerAcre",
+             lp.village, lp.district, lp.state, 
+             lp.area_acres::float as "areaAcres", 
+             lp.area_ha::float as "areaHa",
+             lp.land_type as "landType", 
+             lp.market_rate_per_acre::float as "marketRatePerAcre",
              ST_AsGeoJSON(lp.geometry)::jsonb as geometry,
              pp.status, pp.intersect_percent as "intersectPercent"
       FROM land_parcels lp

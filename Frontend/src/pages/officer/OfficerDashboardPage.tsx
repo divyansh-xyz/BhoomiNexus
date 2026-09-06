@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { taskService } from '../../services/api/task.service';
 import type { WorkflowTask } from '../../types/task.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
 
 export const OfficerDashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -26,11 +28,12 @@ export const OfficerDashboardPage: React.FC = () => {
   };
   
   const isOverdue = (task: WorkflowTask) => {
-    return new Date(task.dueDate) < new Date() && task.status !== 'ACCEPTED';
+    return new Date(task.dueDate) < new Date() && task.status !== 'ACCEPTED' && task.status !== 'REJECTED';
   };
 
   const getMappedStatus = (task: WorkflowTask) => {
     if (task.status === 'ACCEPTED') return 'COMPLETED';
+    if (task.status === 'REJECTED') return 'REJECTED';
     if (isOverdue(task)) return 'OVERDUE';
     return 'PENDING';
   };
@@ -43,6 +46,7 @@ export const OfficerDashboardPage: React.FC = () => {
   const pendingCount = tasks.filter(t => getMappedStatus(t) === 'PENDING').length;
   const overdueCount = tasks.filter(t => getMappedStatus(t) === 'OVERDUE').length;
   const completedCount = tasks.filter(t => getMappedStatus(t) === 'COMPLETED').length;
+  const rejectedCount = tasks.filter(t => getMappedStatus(t) === 'REJECTED').length;
 
   const premiumCardStyle: React.CSSProperties = {
     backgroundColor: '#ffffff',
@@ -111,17 +115,17 @@ export const OfficerDashboardPage: React.FC = () => {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
             <span style={{ color: '#bfdbfe' }}>Officer:</span>
-            <span style={{ fontWeight: 600, color: '#ffffff' }}>R. K. Sharma (ID: 88412)</span>
+            <span style={{ fontWeight: 600, color: '#ffffff' }}>{user?.name || 'Ananya Patel'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
             <span style={{ color: '#bfdbfe' }}>Department:</span>
-            <span style={{ fontWeight: 600, color: '#ffffff' }}>Revenue &amp; Survey</span>
+            <span style={{ fontWeight: 600, color: '#ffffff' }}>{user?.department || 'Revenue & Land Records Branch'}</span>
           </div>
         </div>
       </header>
 
       {/* Triage Bar */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '40px' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '20px', marginBottom: '40px' }}>
         <div style={{ ...premiumCardStyle }}>
           <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Assigned Workload</div>
           <div style={{ fontSize: '42px', fontWeight: 700, color: '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{tasks.length}</div>
@@ -134,14 +138,20 @@ export const OfficerDashboardPage: React.FC = () => {
           <div style={{ fontSize: '13px', color: '#64748b' }}>Tasks Requiring Scrutiny</div>
         </div>
 
-        <div style={{ ...premiumCardStyle, borderBottom: overdueCount > 0 ? '4px solid #ef4444' : '1px solid #e2e8f0' }}>
+        <div style={{ ...premiumCardStyle, borderBottom: rejectedCount > 0 ? '4px solid #ef4444' : '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Rejected / Remitted</div>
+          <div style={{ fontSize: '42px', fontWeight: 700, color: rejectedCount > 0 ? '#dc2626' : '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{rejectedCount}</div>
+          <div style={{ fontSize: '13px', color: '#64748b' }}>Remitted to Proponent</div>
+        </div>
+
+        <div style={{ ...premiumCardStyle, borderBottom: overdueCount > 0 ? '4px solid #f59e0b' : '1px solid #e2e8f0' }}>
           <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>SLA Overdue</div>
-          <div style={{ fontSize: '42px', fontWeight: 700, color: overdueCount > 0 ? '#ef4444' : '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{overdueCount}</div>
+          <div style={{ fontSize: '42px', fontWeight: 700, color: overdueCount > 0 ? '#f59e0b' : '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{overdueCount}</div>
           <div style={{ fontSize: '13px', color: '#64748b' }}>Escalated Priority Items</div>
         </div>
 
         <div style={{ ...premiumCardStyle, borderBottom: completedCount > 0 ? '4px solid #10b981' : '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Completed Today</div>
+          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Completed</div>
           <div style={{ fontSize: '42px', fontWeight: 700, color: completedCount > 0 ? '#10b981' : '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{completedCount}</div>
           <div style={{ fontSize: '13px', color: '#64748b' }}>Stages Forwarded in Pipeline</div>
         </div>
@@ -192,7 +202,25 @@ export const OfficerDashboardPage: React.FC = () => {
               }}
               onClick={() => setStatusFilter('PENDING')}
             >
-              Pending
+              Pending ({pendingCount})
+            </button>
+            <button
+              type="button"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: 'none',
+                backgroundColor: statusFilter === 'REJECTED' ? '#ffffff' : 'transparent',
+                color: statusFilter === 'REJECTED' ? '#dc2626' : '#64748b',
+                boxShadow: statusFilter === 'REJECTED' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.2s'
+              }}
+              onClick={() => setStatusFilter('REJECTED')}
+            >
+              Rejected ({rejectedCount})
             </button>
             <button
               type="button"
@@ -210,7 +238,7 @@ export const OfficerDashboardPage: React.FC = () => {
               }}
               onClick={() => setStatusFilter('OVERDUE')}
             >
-              Overdue
+              Overdue ({overdueCount})
             </button>
             <button
               type="button"
@@ -228,7 +256,7 @@ export const OfficerDashboardPage: React.FC = () => {
               }}
               onClick={() => setStatusFilter('COMPLETED')}
             >
-              Completed
+              Completed ({completedCount})
             </button>
           </div>
         </div>
@@ -289,11 +317,16 @@ export const OfficerDashboardPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '20px' }}>
                       <span className={`status-pill pill-${mappedStatus.toLowerCase()}`} style={{ 
-                        padding: '4px 10px',
+                        padding: '5px 12px',
                         fontSize: '11px',
                         fontWeight: 700,
                         textTransform: 'uppercase',
-                        ...(mappedStatus === 'OVERDUE' ? { backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' } : {}) 
+                        borderRadius: '20px',
+                        display: 'inline-block',
+                        ...(mappedStatus === 'OVERDUE' ? { backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' } : {}),
+                        ...(mappedStatus === 'REJECTED' ? { backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' } : {}),
+                        ...(mappedStatus === 'COMPLETED' ? { backgroundColor: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' } : {}),
+                        ...(mappedStatus === 'PENDING' ? { backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' } : {})
                       }}>
                         {mappedStatus}
                       </span>

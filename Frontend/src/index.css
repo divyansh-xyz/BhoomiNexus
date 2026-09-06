@@ -5762,5 +5762,925 @@ svg.leaflet-zoom-animated path:focus {
   animation: modalPopIn 0.2s ease-out;
 }
 
+/* ============================================================
+   Phase 11 — Requesting Authority Tracking & Rejection Handling
+   ============================================================ */
+
+/* ---- Docket Card: Workflow Progress Strip ---- */
+.docket-progress-strip {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(0, 88, 254, 0.04);
+  border: 1px solid rgba(0, 88, 254, 0.12);
+  border-radius: 4px;
+}
+
+.docket-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.docket-progress-pct {
+  color: var(--color-signal-blue, #0058fe);
+  font-variant-numeric: tabular-nums;
+}
+
+.docket-progress-track {
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.docket-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0058fe, #38bdf8);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.docket-current-stage {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+/* ---- Docket Card: Pending Action Alert ---- */
+.docket-action-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(244, 67, 54, 0.06);
+  border: 1px solid rgba(244, 67, 54, 0.25);
+  border-left: 3px solid #f44336;
+  border-radius: 4px;
+}
+
+.action-alert-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.action-alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-alert-title {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #b71c1c;
+  letter-spacing: 0.02em;
+}
+
+.action-alert-desc {
+  display: block;
+  font-size: 11.5px;
+  color: #666;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-cta-danger-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  background: #d32f2f;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-cta-danger-sm:hover {
+  background: #b71c1c;
+}
+
+/* ---- Filter Tab: Action Required (urgent pulse) ---- */
+.filter-tab-urgent {
+  position: relative;
+}
+
+.filter-tab-urgent::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  background: #f44336;
+  border-radius: 50%;
+  animation: urgentPulse 1.5s ease infinite;
+}
+
+@keyframes urgentPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+/* ---- Table: Phase 11 Tracking Columns ---- */
+.table-stage-name {
+  font-size: 12px;
+  color: #555;
+  font-weight: 500;
+}
+
+.table-progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.table-progress-track {
+  height: 5px;
+  background: #e0e0e0;
+  border-radius: 2.5px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.table-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0058fe, #38bdf8);
+  border-radius: 2.5px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.table-progress-text {
+  font-size: 10.5px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.row-action-required {
+  background: rgba(244, 67, 54, 0.03) !important;
+}
+
+.row-action-required:hover {
+  background: rgba(244, 67, 54, 0.06) !important;
+}
+
+.status-pill.pill-rejected {
+  background: rgba(244, 67, 54, 0.12);
+  color: #c62828;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+/* ============================================================
+   Phase 11: Project Detail — Workflow Stage Tracker
+   ============================================================ */
+
+.phase11-workflow-tracker {
+  padding: 24px 0;
+}
+
+.phase11-progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.phase11-progress-bar-track {
+  flex: 1;
+  height: 8px;
+  background: #e8e8ec;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.phase11-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #38bdf8, #0058fe);
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  min-width: 4px;
+}
+
+.phase11-progress-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-signal-blue, #0058fe);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Stage Pipeline */
+.phase11-stage-pipeline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  padding: 20px 0;
+  overflow-x: auto;
+}
+
+.phase11-stage-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 110px;
+  max-width: 140px;
+  flex-shrink: 0;
+}
+
+.stage-node-indicator {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 2px solid #ccc;
+  background: #fff;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.stage-completed .stage-node-indicator {
+  background: #10b981;
+  border-color: #10b981;
+  color: #fff;
+}
+
+.stage-active .stage-node-indicator {
+  background: #0058fe;
+  border-color: #0058fe;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(0, 88, 254, 0.2);
+}
+
+.stage-rejected .stage-node-indicator {
+  background: #f44336;
+  border-color: #f44336;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(244, 67, 54, 0.2);
+}
+
+.stage-pending .stage-node-indicator {
+  background: #f5f5f5;
+  border-color: #ddd;
+  color: #aaa;
+}
+
+.stage-check {
+  font-size: 16px;
+}
+
+.stage-cross {
+  font-size: 16px;
+}
+
+.stage-pulse {
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  animation: stagePulse 1.5s ease infinite;
+}
+
+@keyframes stagePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.6; }
+}
+
+.stage-number {
+  font-size: 11px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.stage-node-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.stage-node-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #222;
+  line-height: 1.3;
+  max-width: 130px;
+}
+
+.stage-node-dept {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stage-node-officer {
+  font-size: 10.5px;
+  color: #666;
+  font-style: italic;
+}
+
+.stage-node-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.badge-completed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.badge-active {
+  background: rgba(0, 88, 254, 0.12);
+  color: #0058fe;
+}
+
+.badge-rejected {
+  background: rgba(244, 67, 54, 0.12);
+  color: #c62828;
+}
+
+.badge-pending {
+  background: rgba(0, 0, 0, 0.06);
+  color: #aaa;
+}
+
+.badge-skipped {
+  background: rgba(0, 0, 0, 0.06);
+  color: #999;
+}
+
+.phase11-stage-connector {
+  width: 32px;
+  height: 2px;
+  background: #ddd;
+  align-self: center;
+  margin-top: 18px;
+  flex-shrink: 0;
+}
+
+.connector-completed {
+  background: #10b981;
+}
+
+/* ============================================================
+   Phase 11: Pending Actions Section
+   ============================================================ */
+
+.phase11-actions-section {
+  padding: 24px 0;
+}
+
+.phase11-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.phase11-action-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(244, 67, 54, 0.04);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-left: 4px solid #f44336;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.phase11-action-card:hover {
+  background: rgba(244, 67, 54, 0.08);
+}
+
+.action-card-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.action-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #b71c1c;
+  margin: 0 0 4px 0;
+}
+
+.action-card-reason {
+  font-size: 12.5px;
+  color: #555;
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+.action-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: #888;
+}
+
+/* ============================================================
+   Phase 11: Audit Timeline
+   ============================================================ */
+
+.phase11-audit-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  padding-left: 20px;
+}
+
+.phase11-audit-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: #e0e0e0;
+}
+
+.audit-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  position: relative;
+}
+
+.audit-timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-signal-blue, #0058fe);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(0, 88, 254, 0.2);
+  flex-shrink: 0;
+  margin-top: 4px;
+  position: relative;
+  left: -19px;
+}
+
+.audit-timeline-content {
+  flex: 1;
+  margin-left: -7px;
+}
+
+.audit-timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.audit-action-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #222;
+  letter-spacing: 0.02em;
+}
+
+.audit-role-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: rgba(0, 88, 254, 0.08);
+  color: #0058fe;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.audit-timestamp {
+  font-size: 11px;
+  color: #999;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-metadata {
+  display: flex;
+  gap: 12px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #777;
+}
+
+/* ============================================================
+   Phase 11: Resubmit Modal
+   ============================================================ */
+
+.phase11-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease;
+}
+
+.phase11-modal {
+  background: #fff;
+  width: 100%;
+  max-width: 580px;
+  border: 1px solid #222;
+  border-radius: 0;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  animation: modalPopIn 0.2s ease-out;
+}
+
+.phase11-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.phase11-modal-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: #222;
+}
+
+.phase11-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #888;
+  padding: 0;
+  line-height: 1;
+}
+
+.phase11-modal-close:hover {
+  color: #222;
+}
+
+.phase11-modal-body {
+  padding: 24px;
+}
+
+.phase11-modal-info {
+  background: #f9f9fa;
+  border: 1px solid #e8e8ec;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.modal-info-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.modal-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.modal-info-label {
+  font-weight: 600;
+  color: #555;
+  min-width: 130px;
+}
+
+.modal-info-val {
+  color: #222;
+  flex: 1;
+}
+
+.phase11-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.phase11-modal-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.phase11-modal-field textarea,
+.phase11-modal-field input,
+.phase11-modal-field select {
+  width: 100%;
+  border: 1px solid #ccc;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease;
+}
+
+.phase11-modal-field textarea:focus,
+.phase11-modal-field input:focus,
+.phase11-modal-field select:focus {
+  outline: none;
+  border-color: var(--color-signal-blue, #0058fe);
+  box-shadow: 0 0 0 2px rgba(0, 88, 254, 0.12);
+}
+
+.phase11-modal-field textarea {
+  resize: vertical;
+}
+
+.stepper-node.rejected .node-step {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+/* ============================================================
+   Phase 12: Statutory Grievances & Citizen Objections Record
+   ============================================================ */
+
+.grievance-filters-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.grievance-filter-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.grievance-filter-pill {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: var(--font-copernicus, serif);
+  font-weight: 600;
+  border: 1px solid #d4d4d8;
+  background-color: #ffffff;
+  color: #3f3f46;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.grievance-filter-pill:hover {
+  border-color: #18181b;
+  background-color: #f4f4f5;
+}
+
+.grievance-filter-pill.active {
+  background-color: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
+}
+
+.grievance-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.grievance-card-item {
+  border: 1px solid #e4e4e7;
+  background-color: #ffffff;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-left: 4px solid #71717a;
+  transition: box-shadow 0.15s ease;
+}
+
+.grievance-card-item:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.grievance-card-item.status-open {
+  border-left-color: #ea580c;
+}
+
+.grievance-card-item.status-under_review {
+  border-left-color: #0284c7;
+}
+
+.grievance-card-item.status-resolved,
+.grievance-card-item.status-closed {
+  border-left-color: #16a34a;
+}
+
+.grievance-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.grievance-ref-tag {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #09090b;
+  background-color: #f4f4f5;
+  padding: 2px 8px;
+  border: 1px solid #e4e4e7;
+}
+
+.grievance-category-tag {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.grievance-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.grievance-status-badge.open {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
+.grievance-status-badge.under_review {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+}
+
+.grievance-status-badge.resolved {
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.grievance-subject-text {
+  font-family: var(--font-copernicus, serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: #09090b;
+  margin: 0;
+}
+
+.grievance-citizen-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: #52525b;
+}
+
+.grievance-citizen-bar span strong {
+  color: #18181b;
+}
+
+.grievance-desc-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #3f3f46;
+  margin: 0;
+}
+
+.grievance-resolution-callout {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: #166534;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.grievance-resolution-callout strong {
+  color: #14532d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grievance-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed #e4e4e7;
+}
+
+.grievance-meta-item {
+  font-size: 11.5px;
+  color: #71717a;
+}
+
+.btn-grievance-action {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border: 1px solid #18181b;
+  background-color: #ffffff;
+  color: #18181b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-grievance-action:hover {
+  background-color: #18181b;
+  color: #ffffff;
+}
+
+/* ============================================================
+   Phase 15: In-App Notification Bell & Drawer Styles
+   ============================================================ */
+
+@keyframes bell-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.35);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 8px rgba(220, 38, 38, 0.65);
+  }
+}
+
+.gov-notification-bell-btn:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.25) !important;
+}
+
+.gov-notification-popover {
+  animation: notification-slide-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes notification-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
 
 
