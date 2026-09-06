@@ -42,7 +42,7 @@ These decisions are locked.
 | OCR | Google Cloud Vision |
 | Structured AI Extraction | Gemini API |
 | Background Jobs | Redis + BullMQ |
-| Blockchain | Hyperledger Fabric |
+| Blockchain | Hyperledger Fabric (Deferred to Post-Prototype Expansion) |
 | Authentication | Government Identity Integration + RBAC |
 | Citizen Channel | Meta WhatsApp Business Cloud API |
 | Notifications | In-app + Email + WhatsApp |
@@ -190,8 +190,6 @@ WORKFLOW PIPELINE
         v
 FINAL APPROVAL
         |
-        +---- Audit
-        +---- Fabric Provenance
         +---- Notifications
         |
         v
@@ -402,7 +400,6 @@ PostgreSQL
 PostGIS
 Redis
 Object storage configuration
-Fabric development environment
 Environment-variable handling
 Docker Compose for local development
 ```
@@ -1294,140 +1291,7 @@ The uploaded physical hard-copy scan generates structured fields that auto-fill 
 
 ---
 
-# 18. Phase 11 — Audit Trail
-
-## Objective
-
-Make every important operation traceable.
-
-Create audit events for:
-
-```text
-PROJECT_SUBMITTED
-PARCELS_FETCHED
-PARCELS_CONFIRMED
-WORKFLOW_INITIALIZED
-WORKFLOW_ACTIVATED
-TASK_ASSIGNED
-DOCUMENT_UPLOADED
-OCR_COMPLETED
-AI_EXTRACTED
-DOCUMENT_VERIFIED
-STAGE_ACCEPTED
-STAGE_REJECTED
-STAGE_RESUBMITTED
-PROJECT_APPROVED
-GRIEVANCE_CREATED
-```
-
-Each event records:
-
-```text
-Actor
-Role
-Action
-Entity
-Old Value
-New Value
-Project
-Parcel
-Timestamp
-Source
-Metadata
-```
-
-The PRD explicitly requires this level of traceability.
-
-### API
-
-```http
-GET /api/v1/audit/projects/:projectId
-GET /api/v1/audit/documents/:documentId
-GET /api/v1/audit/events/:eventId
-```
-
-### Definition of Done
-
-Every important workflow action produces an auditable record.
-
----
-
-# 19. Phase 12 — Hyperledger Fabric Provenance
-
-## Objective
-
-Demonstrate real blockchain usage without making blockchain the database.
-
-### First Fabric events
-
-Anchor:
-
-```text
-WORKFLOW_ACTIVATED
-DOCUMENT_VERIFIED
-STAGE_ACCEPTED
-PROJECT_APPROVED
-```
-
-### Flow
-
-```text
-Business action
-      |
-      v
-PostgreSQL transaction
-      |
-      v
-Audit event
-      |
-      v
-Hash
-      |
-      v
-BullMQ provenance job
-      |
-      v
-Hyperledger Fabric
-      |
-      v
-Transaction ID
-```
-
-### UI
-
-```text
-Audit Trail
-
-Database Audit
-✓ Recorded
-
-Fabric Provenance
-✓ Anchored
-
-Transaction ID
-abc123...
-
-Hash
-74f1...
-
-Timestamp
-```
-
-Fabric stores provenance.
-
-PostgreSQL stores the detailed operational audit.
-
-Actual documents and sensitive information remain off-chain.
-
-This is exactly how the TRD separates PostgreSQL operational audit from Fabric provenance.
-
-### Definition of Done
-
-An actual workflow event produces a verifiable Fabric provenance record.
-
----
-
-# 20. Phase 13 — Requesting Authority Tracking and Rejection Handling
+# 18. Phase 11 — Requesting Authority Tracking and Rejection Handling
 
 ## Objective
 
@@ -1490,7 +1354,7 @@ The requesting authority can follow the project from submission until approval a
 
 ---
 
-# 21. Phase 14 — Final Approval
+# 19. Phase 12 — Final Approval
 
 ## Objective
 
@@ -1508,8 +1372,6 @@ Backend performs:
 ```text
 Stage complete
 Project status = APPROVED
-Audit event
-Fabric provenance
 Notification
 Dashboard update
 ```
@@ -1535,7 +1397,7 @@ without database manipulation.
 
 ---
 
-# 22. Phase 15 — WhatsApp Citizen Integration
+# 20. Phase 13 — WhatsApp Citizen Integration
 
 ## Objective
 
@@ -1579,7 +1441,8 @@ Project:
 Highway Expansion Phase 2
 
 Current Status:
-Document Verification
+Document Verificati
+on
 
 Project Progress:
 50%
@@ -1590,7 +1453,7 @@ PRJ-2026-0012
 
 ---
 
-# 23. Phase 16 — WhatsApp Objection / Grievance
+# 21. Phase 14 — WhatsApp Objection / Grievance
 
 ## Objective
 
@@ -1654,7 +1517,7 @@ This follows the TRD's WhatsApp citizen interaction requirements.
 
 ---
 
-# 24. Phase 17 — Notifications
+# 22. Phase 15 — Notifications
 
 ## Objective
 
@@ -1694,7 +1557,7 @@ Do not implement SMS because it is not currently required by the TRD.
 
 ---
 
-# 25. Phase 18 — Prototype Polish and Demonstration Readiness
+# 23. Phase 16 — Prototype Polish and Demonstration Readiness
 
 ## Objective
 
@@ -1730,14 +1593,13 @@ Seed:
 10–20 parcels/project
 1–2 document sets
 Sample grievances
-Sample audit events
 ```
 
 One project should be specifically prepared as the main demo.
 
 ---
 
-# 26. Prototype Completion Gate
+# 24. Prototype Completion Gate
 
 At this point Prototype V1 is officially complete.
 
@@ -1747,7 +1609,6 @@ The test must be:
 No manual database edits
 No fake UI state
 No static workflow transitions
-No fake blockchain screen
 No fake OCR output
 No fake WhatsApp backend
 ```
@@ -1811,10 +1672,6 @@ Resubmit
         ↓
 Final Approval
         ↓
-PostgreSQL Audit
-        ↓
-Hyperledger Fabric
-        ↓
 Requesting Authority Dashboard
         ↓
 Citizen WhatsApp Status
@@ -1828,7 +1685,7 @@ This is the first major demonstration milestone.
 
 ---
 
-# 27. Part II — Expansion After Prototype
+# 25. Part II — Expansion After Prototype
 
 The prototype is now treated as the permanent foundation.
 
@@ -1836,7 +1693,7 @@ Do not restart development.
 
 ---
 
-# 28. Phase 19 — Full Acquisition Lifecycle
+# 26. Phase 17 — Full Acquisition Lifecycle
 
 Expand the workflow with:
 
@@ -1862,7 +1719,7 @@ The PRD defines the complete lifecycle from project proposal through acquisition
 
 ---
 
-# 29. Phase 20 — Compensation
+# 27. Phase 18 — Compensation
 
 Create full compensation tracking.
 
@@ -1890,7 +1747,7 @@ The system tracks compensation but does not become the payment engine itself.
 
 ---
 
-# 30. Phase 21 — Possession
+# 28. Phase 19 — Possession
 
 Create:
 
@@ -1912,7 +1769,7 @@ Connect possession records to parcels and supporting evidence.
 
 ---
 
-# 31. Phase 22 — R&R
+# 29. Phase 20 — R&R
 
 Create:
 
@@ -1939,7 +1796,7 @@ The PRD explicitly treats R&R as a full acquisition lifecycle component rather t
 
 ---
 
-# 32. Phase 23 — Parcel Passport
+# 30. Phase 21 — Parcel Passport
 
 Expand:
 
@@ -1978,7 +1835,7 @@ with only authorized/public-safe information.
 
 ---
 
-# 33. Phase 24 — National / State / District Dashboards
+# 31. Phase 22 — National / State / District Dashboards
 
 Build the hierarchical monitoring system.
 
@@ -2023,7 +1880,7 @@ These correspond to the PRD's multi-level dashboard requirements.
 
 ---
 
-# 34. Phase 25 — Advanced GIS
+# 32. Phase 23 — Advanced GIS
 
 Move from project monitoring to richer national GIS.
 
@@ -2048,7 +1905,7 @@ The PRD specifically defines these GIS monitoring layers.
 
 ---
 
-# 35. Phase 26 — Real Government Land-Record Integration
+# 33. Phase 24 — Real Government Land-Record Integration
 
 Replace:
 
@@ -2084,7 +1941,7 @@ AI does not become the legal authority deciding ownership.
 
 ---
 
-# 36. Phase 27 — Government Integration Gateway
+# 34. Phase 25 — Government Integration Gateway
 
 Add connectors for:
 
@@ -2106,7 +1963,7 @@ The TRD explicitly requires this isolation and controlled write-back model.
 
 ---
 
-# 37. Phase 28 — Advanced Risk Engine
+# 35. Phase 26 — Advanced Risk Engine
 
 Start with rules.
 
@@ -2136,7 +1993,7 @@ The risk model must remain explainable.
 
 ---
 
-# 38. Phase 29 — Anomaly Detection
+# 36. Phase 27 — Anomaly Detection
 
 Add detection for:
 
@@ -2161,7 +2018,7 @@ Never automatically label something as fraud.
 
 ---
 
-# 39. Phase 30 — Delay Prediction
+# 37. Phase 28 — Delay Prediction
 
 Only after enough historical data exists.
 
@@ -2185,23 +2042,19 @@ No local LLM and no autonomous decision-making.
 
 ---
 
-# 40. Phase 31 — Advanced Hyperledger Fabric Network
+# 38. Phase 29 — Hyperledger Fabric Blockchain & Audit Provenance
 
-Prototype:
-
-```text
-Development Fabric Network
-```
-
-Later:
+Full National Architecture:
 
 ```text
-Central Organization
+Central Ministry Organization
        |
-State Organization
+State Revenue Organization
        |
 District Organization
 ```
+
+Note: Skipped for the Prototype V1 demonstration; deployed during full enterprise national expansion to anchor irreversible milestones into a verifiable distributed ledger alongside PostgreSQL operational audit.
 
 Important events/documents continue to be anchored.
 
@@ -2211,7 +2064,7 @@ This matches the TRD's intended multi-organization provenance structure.
 
 ---
 
-# 41. Phase 32 — Production Security
+# 39. Phase 30 — Production Security
 
 Expand prototype controls into:
 
@@ -2235,7 +2088,7 @@ The TRD requires server-side authorization, protected storage, input validation,
 
 ---
 
-# 42. Phase 33 — Mobile / Field Experience
+# 40. Phase 31 — Mobile / Field Experience
 
 Once the workflow is stable:
 
@@ -2255,7 +2108,7 @@ Do not create an entirely separate backend for the mobile interface.
 
 ---
 
-# 43. Phase 34 — Reports
+# 41. Phase 32 — Reports
 
 Add:
 
@@ -2284,7 +2137,7 @@ The PRD requires filtered and downloadable reports where appropriate.
 
 ---
 
-# 44. Phase 35 — Production WhatsApp Expansion
+# 42. Phase 33 — Production WhatsApp Expansion
 
 Expand the WhatsApp channel to:
 
@@ -2303,7 +2156,7 @@ Continue using the same WhatsApp service created in the prototype.
 
 ---
 
-# 45. Phase 36 — National Scalability
+# 43. Phase 34 — National Scalability
 
 Expand deployment from:
 
@@ -2323,7 +2176,7 @@ The PRD explicitly defines this scaling path.
 
 ---
 
-# 46. Final System Module Tree
+# 44. Final System Module Tree
 
 At maturity:
 
@@ -2391,7 +2244,7 @@ TRUST
 
 ---
 
-# 47. Final Database Architecture
+# 45. Final Database Architecture
 
 The database should grow from the prototype toward:
 
@@ -2450,7 +2303,7 @@ This directly extends the data domains already defined by the TRD rather than re
 
 ---
 
-# 48. Final Frontend Route Architecture
+# 46. Final Frontend Route Architecture
 
 ```text
 PUBLIC
@@ -2494,7 +2347,7 @@ Routes must be protected server-side and frontend route guards must only improve
 
 ---
 
-# 49. Final REST API Architecture
+# 47. Final REST API Architecture
 
 ```text
 /api/v1/auth
@@ -2538,7 +2391,7 @@ This follows the TRD's REST resource structure.
 
 ---
 
-# 50. Final Architecture Rule
+# 48. Final Architecture Rule
 
 The entire system should maintain this separation:
 
@@ -2591,7 +2444,7 @@ The TRD explicitly places authentication, RBAC, workflow, project/parcel managem
 
 ---
 
-# 51. What Gets Built First
+# 49. What Gets Built First
 
 The actual immediate development target is therefore:
 
@@ -2630,30 +2483,24 @@ PHASE 10
 OCR + Gemini Document Intelligence & Auto-Fill
         ↓
 PHASE 11
-Audit
-        ↓
-PHASE 12
-Hyperledger Fabric
-        ↓
-PHASE 13
 Requesting Authority Tracking/Rejection
         ↓
-PHASE 14
+PHASE 12
 Final Approval
         ↓
-PHASE 15
+PHASE 13
 WhatsApp Status
         ↓
-PHASE 16
+PHASE 14
 WhatsApp Grievance
         ↓
-PHASE 17
+PHASE 15
 Notifications
         ↓
-PHASE 18
+PHASE 16
 Prototype Polish
 ```
 
-**Only after Phase 18 do we start the broader national-system expansion.**
+**Only after Phase 16 do we start the broader national-system expansion.**
 
 That ordering is intentional: the PRD says the prototype should prove a complete believable workflow, and the TRD says the system should be expanded after the core workflow is stable rather than replacing it.
