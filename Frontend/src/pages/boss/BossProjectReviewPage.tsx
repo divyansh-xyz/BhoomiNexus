@@ -68,7 +68,7 @@ export const BossProjectReviewPage: React.FC = () => {
       setAvailableTemplates(templates);
       if (wf) {
         setSelectedTemplateId(wf.templateId);
-      } else if (templates.length > 0) {
+      } else if ((templates || []).length > 0) {
         setSelectedTemplateId(templates[0].id);
       }
     } catch (err) {
@@ -79,7 +79,7 @@ export const BossProjectReviewPage: React.FC = () => {
   };
 
   const isProjectApproved =
-    workflow?.status === 'ACTIVATED' ||
+    workflow?.status === 'ACTIVE' ||
     project?.status === 'PROJECT_APPROVED' ||
     project?.status === 'WORKFLOW_ACTIVE';
 
@@ -109,7 +109,7 @@ export const BossProjectReviewPage: React.FC = () => {
   // PHASE 6 TASK ENGINE ACTIONS
   const activeTask = tasks.find(
     (t) => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'REJECTED'
-  ) || tasks[tasks.length - 1];
+  ) || (tasks && tasks.length > 0 ? tasks[tasks.length - 1] : undefined);
 
   const handleStartTask = async (taskId: string) => {
     if (!projectId) return;
@@ -331,7 +331,7 @@ export const BossProjectReviewPage: React.FC = () => {
               className="btn-cta-outline"
               style={{ fontSize: '14px', padding: '11px 20px' }}
             >
-              Manage Pipeline ({workflow.stages.length} Stages) &rarr;
+              Manage Pipeline ({(workflow.stages || []).length} Stages) &rarr;
             </button>
           ) : (
             <button
@@ -439,7 +439,7 @@ export const BossProjectReviewPage: React.FC = () => {
         <div className="boss-kpi-item">
           <span className="kpi-label">Requested Land Area</span>
           <div className="kpi-value text-signal-blue">
-            {project.requestedAreaAcres.toLocaleString()}<span className="kpi-unit"> Acres</span>
+            {(project.requestedAreaAcres ?? 0).toLocaleString()}<span className="kpi-unit"> Acres</span>
           </div>
           <span className="kpi-sub">{project.requestedAreaHa} Hectares Statutory Metric</span>
         </div>
@@ -455,7 +455,7 @@ export const BossProjectReviewPage: React.FC = () => {
         <div className="boss-kpi-item">
           <span className="kpi-label">Estimated Capital Outlay</span>
           <div className="kpi-value">
-            &#8377;{project.estimatedBudgetCr.toLocaleString()}<span className="kpi-unit"> Cr</span>
+            &#8377;{(project.estimatedBudgetCr ?? 0).toLocaleString()}<span className="kpi-unit"> Cr</span>
           </div>
           <span className="kpi-sub">Sponsoring: {project.ministry}</span>
         </div>
@@ -522,31 +522,31 @@ export const BossProjectReviewPage: React.FC = () => {
           <div className="boss-card-body">
             <div className="boss-officer-profile-box">
               <div className="officer-initials-badge">
-                {project.nodalOfficer.name
+                {(project.nodalOfficer?.name ?? 'Unassigned')
                   .split(' ')
                   .map((n) => n[0])
                   .slice(0, 2)
                   .join('')}
               </div>
               <div>
-                <h4 className="officer-name">{project.nodalOfficer.name}</h4>
-                <span className="officer-role">{project.nodalOfficer.designation}</span>
-                <span className="officer-dept">{project.nodalOfficer.department}</span>
+                <h4 className="officer-name">{project.nodalOfficer?.name ?? 'Unassigned'}</h4>
+                <span className="officer-role">{project.nodalOfficer?.designation ?? 'Pending'}</span>
+                <span className="officer-dept">{project.nodalOfficer?.department ?? 'Pending'}</span>
               </div>
             </div>
 
             <div className="boss-contact-details">
               <div className="contact-row">
                 <span className="contact-label">Official Email:</span>
-                <span className="contact-value">{project.nodalOfficer.email}</span>
+                <span className="contact-value">{project.nodalOfficer?.email ?? 'N/A'}</span>
               </div>
               <div className="contact-row">
                 <span className="contact-label">Official Phone:</span>
-                <span className="contact-value">{project.nodalOfficer.phone}</span>
+                <span className="contact-value">{project.nodalOfficer?.phone ?? 'N/A'}</span>
               </div>
               <div className="contact-row">
                 <span className="contact-label">Registered Office:</span>
-                <span className="contact-value">{project.nodalOfficer.officeAddress}</span>
+                <span className="contact-value">{project.nodalOfficer?.officeAddress ?? 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -591,7 +591,7 @@ export const BossProjectReviewPage: React.FC = () => {
           </div>
           <div className="boss-card-body">
             <div className="boss-documents-list">
-              {project.initialDocuments.map((doc) => (
+              {project.initialDocuments?.map((doc) => (
                 <div key={doc.id} className="boss-doc-item">
                   <div className="doc-icon-col">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -675,7 +675,7 @@ export const BossProjectReviewPage: React.FC = () => {
                       Approve Project Forward to Activate Clearance Pipeline
                     </h4>
                     <p style={{ margin: 0, fontSize: '13px', color: '#374151', lineHeight: '1.4' }}>
-                      Corridor alignment, parcel schedule ({project.selectedParcelsCount || 0} parcels), and {workflow.stages.length}-stage scrutiny parameters are configured. Approve to dispatch Stage 1 task to <strong>{workflow.stages[0]?.assignedOfficer?.name}</strong> ({workflow.stages[0]?.department}). BOSS involvement terminates upon approval.
+                      Corridor alignment, parcel schedule ({project.selectedParcelsCount || 0} parcels), and {(workflow.stages || []).length}-stage scrutiny parameters are configured. Approve to dispatch Stage 1 task to <strong>{workflow.stages[0]?.assignedOfficer?.name}</strong> ({workflow.stages[0]?.department}). BOSS involvement terminates upon approval.
                     </p>
                   </div>
                   <button
@@ -715,9 +715,9 @@ export const BossProjectReviewPage: React.FC = () => {
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '16px', fontFamily: 'monospace', fontSize: '12.5px', fontWeight: 600 }}>
-                  <span>{workflow.stages.length} Scrutiny Stages</span>
+                  <span>{(workflow.stages || []).length} Scrutiny Stages</span>
                   <span>&bull;</span>
-                  <span style={{ color: '#10b981' }}>{workflow.stages.reduce((s, stg) => s + stg.slaDays, 0)} Days Total Binding SLA</span>
+                  <span style={{ color: '#10b981' }}>{(workflow.stages || []).reduce((s, stg) => s + stg.slaDays, 0)} Days Total Binding SLA</span>
                 </div>
               </div>
 
@@ -783,7 +783,7 @@ export const BossProjectReviewPage: React.FC = () => {
 
               {/* Sequential Scrutiny Gates List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {workflow.stages.map((stage, idx) => {
+                {workflow.stages?.map((stage, idx) => {
                   const isCurrentActive = stage.status === 'ACTIVE';
                   const isRejected = stage.status === 'REJECTED';
                   const isCompleted = stage.status === 'COMPLETED';
@@ -833,7 +833,7 @@ export const BossProjectReviewPage: React.FC = () => {
                             )}
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--color-fossil-gray)', marginTop: '2px' }}>
-                            {stage.department} &bull; Officer: <strong>{stage.assignedOfficer.name}</strong> ({stage.assignedOfficer.designation.split('&')[0].trim()})
+                            {stage.department} &bull; Officer: <strong>{stage.assignedOfficer?.name ?? 'Unassigned'}</strong> ({stage.assignedOfficer?.designation?.split('&')[0]?.trim() ?? 'Pending'})
                           </div>
                         </div>
                       </div>
@@ -908,7 +908,7 @@ export const BossProjectReviewPage: React.FC = () => {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ fontSize: '13px', color: 'var(--color-carbon-ink)' }}>
-                      <div><strong>Responsible Officer:</strong> {activeTask.assignedOfficer.name} ({activeTask.assignedOfficer.designation})</div>
+                      <div><strong>Responsible Officer:</strong> {activeTask.assignedOfficer?.name ?? 'Unassigned'} ({activeTask.assignedOfficer?.designation ?? 'Pending'})</div>
                       <div style={{ marginTop: '3px' }}><strong>Department:</strong> {activeTask.department}</div>
                       <div style={{ marginTop: '3px' }}><strong>Statutory SLA:</strong> {activeTask.slaDays} Days &bull; Target Due: {new Date(activeTask.dueDate).toLocaleDateString('en-IN')}</div>
                     </div>
@@ -917,7 +917,7 @@ export const BossProjectReviewPage: React.FC = () => {
                         Required Statutory Deliverables:
                       </span>
                       <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '4px' }}>
-                        {activeTask.requiredDocuments.map((doc, dIdx) => (
+                        {activeTask.requiredDocuments?.map((doc, dIdx) => (
                           <span key={dIdx} style={{ fontSize: '11px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.15)', padding: '2px 7px' }}>
                             {doc}
                           </span>
@@ -999,18 +999,18 @@ export const BossProjectReviewPage: React.FC = () => {
               )}
 
               {/* Statutory Audit Timeline & Transition Trail */}
-              {auditEvents.length > 0 && (
+              {(auditEvents || []).length > 0 && (
                 <div style={{ marginTop: '20px', padding: '16px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.12)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <span style={{ fontFamily: 'var(--font-copernicus)', fontSize: '14px', fontWeight: 700, color: '#000000' }}>
-                      Statutory Audit Trail &bull; Task Transition History ({auditEvents.length} Events)
+                      Statutory Audit Trail &bull; Task Transition History ({(auditEvents || []).length} Events)
                     </span>
                     <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--color-fossil-gray)' }}>
                       RFCTLARR Section 11 Compliance Log
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
-                    {auditEvents.map((evt) => (
+                    {auditEvents?.map((evt) => (
                       <div
                         key={evt.id}
                         style={{
@@ -1297,7 +1297,7 @@ export const BossProjectReviewPage: React.FC = () => {
                     <span style={{ color: 'var(--color-fossil-gray)', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'monospace' }}>
                       Requisition Scope
                     </span>
-                    <strong style={{ color: '#0058fe' }}>{project.requestedAreaAcres.toLocaleString()} Acres</strong> &bull; {project.corridorKm} km RoW
+                    <strong style={{ color: '#0058fe' }}>{(project.requestedAreaAcres ?? 0).toLocaleString()} Acres</strong> &bull; {project.corridorKm} km RoW
                   </div>
                   <div>
                     <span style={{ color: 'var(--color-fossil-gray)', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'monospace' }}>
@@ -1318,11 +1318,11 @@ export const BossProjectReviewPage: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <strong style={{ color: '#0058fe', fontSize: '14px' }}>{workflow.templateName}</strong>
                       <span style={{ fontFamily: 'monospace', fontSize: '11px', background: '#ffffff', padding: '2px 6px', border: '1px solid #93c5fd', fontWeight: 700 }}>
-                        {workflow.stages.length} Stages &bull; {workflow.stages.reduce((s, stg) => s + stg.slaDays, 0)} Days Total SLA
+                        {(workflow.stages || []).length} Stages &bull; {(workflow.stages || []).reduce((s, stg) => s + stg.slaDays, 0)} Days Total SLA
                       </span>
                     </div>
                     <div style={{ fontSize: '12.5px', color: '#1e3a8a' }}>
-                      &bull; Stage 1 (<strong>{workflow.stages[0]?.name}</strong>) will be instantiated immediately and assigned to <strong>{workflow.stages[0]?.assignedOfficer.name}</strong> ({workflow.stages[0]?.department}).
+                      &bull; Stage 1 (<strong>{workflow.stages[0]?.name}</strong>) will be instantiated immediately and assigned to <strong>{workflow.stages[0]?.assignedOfficer?.name ?? 'Unassigned'}</strong> ({workflow.stages[0]?.department}).
                     </div>
                   </div>
                 ) : (
@@ -1335,7 +1335,7 @@ export const BossProjectReviewPage: React.FC = () => {
                     >
                       {availableTemplates.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name} ({t.defaultStages.length} Stages &bull; {t.category})
+                          {t.name} ({(t.defaultStages || []).length} Stages &bull; {t.category})
                         </option>
                       ))}
                     </select>

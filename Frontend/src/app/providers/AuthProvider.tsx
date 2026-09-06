@@ -3,14 +3,7 @@ import type { User, UserRole, AuthContextType } from '../../types/auth.types';
 import { authService } from '../../services/api/auth.service';
 import { AuthContext } from './AuthContext';
 
-const DEFAULT_PROTOTYPE_USER: User = {
-  id: 'usr-boss-01',
-  name: 'Dr. Vikramaditya Sen',
-  email: 'boss.oversight@gov.demo',
-  role: 'BOSS',
-  department: 'National Land Acquisition Authority',
-  designation: 'Central Nodal Officer & Bureau Supervisor',
-};
+// Removed DEFAULT_PROTOTYPE_USER mock for Phase 2 integration
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -26,12 +19,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(stored);
       }
 
-      // Default to active BOSS session for prototype ease of access
-      localStorage.setItem('bhoomi_auth_token', 'mock_jwt_boss_prototype_token');
-      localStorage.setItem('bhoomi_user', JSON.stringify(DEFAULT_PROTOTYPE_USER));
-      return DEFAULT_PROTOTYPE_USER;
+      return null;
     } catch {
-      return DEFAULT_PROTOTYPE_USER;
+      return null;
     }
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -48,11 +38,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = useCallback(async (email: string, role?: UserRole) => {
+  const login = useCallback(async (email: string, password?: string, role?: UserRole) => {
     setIsLoading(true);
     sessionStorage.removeItem('bhoomi_explicit_logout');
     try {
-      const response = await authService.login({ email, role });
+      const response = await authService.login({ email, password, role });
       localStorage.setItem('bhoomi_auth_token', response.token);
       localStorage.setItem('bhoomi_user', JSON.stringify(response.user));
       setUser(response.user);

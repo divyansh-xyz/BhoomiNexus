@@ -1949,6 +1949,7 @@ svg.leaflet-zoom-animated path:focus {
   z-index: 20;
   display: flex;
   align-items: center;
+  pointer-events: auto;
 }
 
 .login-pwd-toggle-btn {
@@ -1960,6 +1961,9 @@ svg.leaflet-zoom-animated path:focus {
   color: var(--color-fossil-gray);
   cursor: pointer;
   padding: 2px 4px;
+  pointer-events: auto;
+  position: relative;
+  z-index: 50;
 }
 
 .login-options-row {

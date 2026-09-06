@@ -166,7 +166,7 @@ export const BossDashboardPage: React.FC = () => {
     });
 
     const activeProject = projects.find((p) => p.id === selectedProjectId);
-    if (activeProject && activeProject.corridorCoordinates.length > 0) {
+    if (activeProject && activeProject.corridorCoordinates?.length > 0) {
       const bounds = L.latLngBounds(activeProject.corridorCoordinates);
       mapRef.current.flyToBounds(bounds.pad(0.4), { duration: 0.8 });
     }
@@ -490,7 +490,7 @@ export const BossDashboardPage: React.FC = () => {
                       <div className="spec-cell">
                         <span className="spec-label">Requisition Land Area:</span>
                         <div className="spec-val-primary">
-                          {project.requestedAreaAcres.toLocaleString()}<span className="spec-unit"> Acres</span>
+                          {(project.requestedAreaAcres ?? 0).toLocaleString()}<span className="spec-unit"> Acres</span>
                           <span className="spec-secondary">({project.requestedAreaHa} Ha)</span>
                         </div>
                       </div>
@@ -513,8 +513,8 @@ export const BossDashboardPage: React.FC = () => {
 
                       <div className="spec-cell">
                         <span className="spec-label">Statutory Nodal Officer:</span>
-                        <div className="spec-val text-truncate">{project.nodalOfficer.name}</div>
-                        <span className="spec-secondary text-truncate">{project.nodalOfficer.designation}</span>
+                        <div className="spec-val text-truncate">{project.nodalOfficer?.name ?? 'Unassigned'}</div>
+                        <span className="spec-secondary text-truncate">{project.nodalOfficer?.designation ?? 'Pending Assignment'}</span>
                       </div>
                     </div>
 
@@ -686,7 +686,7 @@ export const BossDashboardPage: React.FC = () => {
                     </td>
                     <td>
                       <div className="boss-area-cell">
-                        <span className="boss-area-acres">{project.requestedAreaAcres.toLocaleString()} Acres</span>
+                        <span className="boss-area-acres">{(project.requestedAreaAcres ?? 0).toLocaleString()} Acres</span>
                         <span className="boss-area-ha">({project.requestedAreaHa} Ha)</span>
                       </div>
                     </td>

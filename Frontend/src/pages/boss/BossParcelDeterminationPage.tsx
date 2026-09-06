@@ -411,7 +411,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
           <div className="telemetry-card">
             <span className="telemetry-eyebrow">Requested Land Area</span>
             <div className="telemetry-value">
-              {metrics.requestedArea.toFixed(1)}<span className="telemetry-unit"> Acres</span>
+              {(metrics?.requestedArea || 0).toFixed(1)}<span className="telemetry-unit"> Acres</span>
             </div>
             <span className="telemetry-desc">Proponent Requisition</span>
           </div>
@@ -419,10 +419,10 @@ export const BossParcelDeterminationPage: React.FC = () => {
           <div className="telemetry-card highlight-card">
             <span className="telemetry-eyebrow">Selected Land Area</span>
             <div className="telemetry-value text-signal-blue">
-              {metrics.selectedArea.toFixed(1)}<span className="telemetry-unit"> Acres</span>
+              {(metrics?.selectedArea || 0).toFixed(1)}<span className="telemetry-unit"> Acres</span>
             </div>
             <span className="telemetry-desc">
-              {(metrics.selectedArea * 0.404686).toFixed(1)} Hectares Determined
+              {((metrics?.selectedArea || 0) * 0.404686).toFixed(1)} Hectares Determined
             </span>
           </div>
 
@@ -670,7 +670,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="meta-label">Circle Rate:</span>
-                  <span className="meta-value">&#8377;{activeParcel.marketRatePerAcre.toLocaleString()} / Acre</span>
+                  <span className="meta-value">&#8377;{(activeParcel.marketRatePerAcre ?? 0).toLocaleString()} / Acre</span>
                 </div>
               </div>
             </div>
@@ -717,7 +717,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
               <div className="modal-summary-item">
                 <span className="item-label">Total Confirmed Area:</span>
                 <span className="item-value font-mono">
-                  {metrics.selectedArea} Acres ({((metrics.selectedArea) * 0.404686).toFixed(2)} Ha)
+                  {(metrics?.selectedArea || 0)} Acres ({(((metrics?.selectedArea || 0)) * 0.404686).toFixed(2)} Ha)
                 </span>
               </div>
               <div className="modal-summary-item">

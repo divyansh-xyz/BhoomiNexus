@@ -15,6 +15,8 @@ import CreateProjectPage from '../pages/proponent/CreateProjectPage';
 import ProponentProjectDetailPage from '../pages/proponent/ProponentProjectDetailPage';
 import OfficerDashboardPage from '../pages/officer/OfficerDashboardPage';
 import OfficerTaskDetailPage from '../pages/officer/OfficerTaskDetailPage';
+import DocumentListPage from '../pages/documents/DocumentListPage';
+import DocumentDetailPage from '../pages/documents/DocumentDetailPage';
 
 const AdminOnlyPlaceholder: React.FC = () => (
   <div style={{ padding: '2rem' }}>
@@ -41,7 +43,14 @@ export const AppRoutes: React.FC = () => {
 
           {/* Phase 3 — Requesting Authority / Proponent Routes */}
           <Route path="/projects" element={<ProponentProjectsPage />} />
-          <Route path="/projects/new" element={<CreateProjectPage />} />
+          <Route 
+            path="/projects/new" 
+            element={
+              <RoleGuard allowedRoles={['REQUESTING_AUTHORITY']}>
+                <CreateProjectPage />
+              </RoleGuard>
+            } 
+          />
           <Route path="/projects/:projectId" element={<ProponentProjectDetailPage />} />
           
           {/* Phase 4 & Phase 5 — BOSS Scrutiny, Cadastral Determination & Workflow Config */}
@@ -62,6 +71,10 @@ export const AppRoutes: React.FC = () => {
               </RoleGuard>
             }
           />
+
+          {/* Phase 8 — Global Document Repository */}
+          <Route path="/documents" element={<DocumentListPage />} />
+          <Route path="/documents/:documentId" element={<DocumentDetailPage />} />
         </Route>
       </Route>
 

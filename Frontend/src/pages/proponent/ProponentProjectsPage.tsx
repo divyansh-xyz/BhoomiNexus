@@ -313,7 +313,7 @@ export const ProponentProjectsPage: React.FC = () => {
                       <div className="spec-cell">
                         <span className="spec-label">Requisition Land Area:</span>
                         <div className="spec-val-primary">
-                          {project.requestedAreaAcres.toLocaleString()}
+                          {(project.requestedAreaAcres ?? 0).toLocaleString()}
                           <span className="spec-unit"> Acres</span>
                           <span className="spec-secondary">({project.requestedAreaHa} Ha)</span>
                         </div>
@@ -342,8 +342,8 @@ export const ProponentProjectsPage: React.FC = () => {
 
                       <div className="spec-cell">
                         <span className="spec-label">Statutory Nodal Officer:</span>
-                        <div className="spec-val text-truncate">{project.nodalOfficer.name}</div>
-                        <span className="spec-secondary text-truncate">{project.nodalOfficer.designation}</span>
+                        <div className="spec-val text-truncate">{project.nodalOfficer?.name ?? 'Unassigned'}</div>
+                        <span className="spec-secondary text-truncate">{project.nodalOfficer?.designation ?? 'Pending Assignment'}</span>
                       </div>
                     </div>
 
@@ -409,7 +409,7 @@ export const ProponentProjectsPage: React.FC = () => {
                     </td>
                     <td>
                       <div className="table-area-cell">
-                        <span className="table-area">{project.requestedAreaAcres.toFixed(1)} Ac</span>
+                        <span className="table-area">{(project.requestedAreaAcres || 0).toFixed(1)} Ac</span>
                         <span className="table-corridor">{project.corridorKm} km corridor</span>
                       </div>
                     </td>
