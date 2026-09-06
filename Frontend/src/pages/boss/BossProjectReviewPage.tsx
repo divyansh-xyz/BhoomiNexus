@@ -79,7 +79,7 @@ export const BossProjectReviewPage: React.FC = () => {
   };
 
   const isProjectApproved =
-    workflow?.status === 'ACTIVATED' ||
+    workflow?.status === 'ACTIVE' ||
     project?.status === 'PROJECT_APPROVED' ||
     project?.status === 'WORKFLOW_ACTIVE';
 

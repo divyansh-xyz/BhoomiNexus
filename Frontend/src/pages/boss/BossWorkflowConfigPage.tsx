@@ -291,13 +291,14 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
     if (!projectId || !workflow) return;
     try {
       setSaving(true);
-      if (workflow.status !== 'ACTIVATED') {
+      if (workflow.status !== 'ACTIVE') {
         await workflowService.activateWorkflow(projectId);
       }
       navigate(`/boss/projects/${projectId}`);
     } catch (err: any) {
       console.error('Failed to activate workflow', err);
-      alert(`Activation failed: ${err?.message || 'Please check stage parameters.'}`);
+      const apiMessage = err.response?.data?.message || err.message;
+      alert(`Activation failed: ${apiMessage || 'Please check stage parameters.'}`);
     } finally {
       setSaving(false);
     }
@@ -537,7 +538,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
               <span className="editorial-tag">{project.proponentAuthority}</span>
               <span className="boss-code-tag">{project.code}</span>
               <span className="boss-status-tag">
-                {workflow.status === 'ACTIVATED' ? 'WORKFLOW ACTIVE' : 'PARCELS CONFIRMED'}
+                {workflow.status === 'ACTIVE' ? 'WORKFLOW ACTIVE' : 'PARCELS CONFIRMED'}
               </span>
             </div>
             <h1 className="masthead-headline" style={{ fontSize: '28px' }}>
@@ -551,7 +552,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
           <div className="masthead-stamp-box">
             <div className="stamp-header">
               <span className="status-dot-pulse" />
-              <span>Pipeline Status: {workflow.status === 'ACTIVATED' ? 'ACTIVE PIPELINE' : 'CONFIGURATION DRAFT'}</span>
+              <span>Pipeline Status: {workflow.status === 'ACTIVE' ? 'ACTIVE PIPELINE' : 'CONFIGURATION DRAFT'}</span>
             </div>
             <div className="stamp-details">
               <div className="stamp-row">
@@ -623,26 +624,30 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
           <span style={{ fontFamily: 'var(--font-copernicus)', fontSize: '15px', fontWeight: 700, color: 'var(--color-carbon-ink)' }}>
             {workflow.templateName}
           </span>
-          <button
-            type="button"
-            onClick={() => setIsSelectingTemplate(true)}
-            className="btn-cta-outline"
-            style={{ fontSize: '12px', padding: '5px 12px' }}
-            title="Redirect to master templates selection page"
-          >
-            &#8635; Choose / Switch Master Template
-          </button>
+          {workflow.status !== 'ACTIVE' && (
+            <button
+              type="button"
+              onClick={() => setIsSelectingTemplate(true)}
+              className="btn-cta-outline"
+              style={{ fontSize: '12px', padding: '5px 12px' }}
+              title="Redirect to master templates selection page"
+            >
+              &#8635; Choose / Switch Master Template
+            </button>
+          )}
         </div>
 
         <div className="selector-right" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={handleOpenAddStage}
-            className="btn-cta-outline"
-            style={{ fontSize: '13px', padding: '7px 16px' }}
-          >
-            + Add Statutory Stage
-          </button>
+          {workflow.status !== 'ACTIVE' && (
+            <button
+              type="button"
+              onClick={handleOpenAddStage}
+              className="btn-cta-outline"
+              style={{ fontSize: '13px', padding: '7px 16px' }}
+            >
+              + Add Statutory Stage
+            </button>
+          )}
 
           <button
             type="button"
@@ -653,7 +658,7 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
           >
             {saving
               ? 'Activating Pipeline...'
-              : workflow.status === 'ACTIVATED'
+              : workflow.status === 'ACTIVE'
               ? '\u2713 Workflow Active \u2014 Return to Project \u2192'
               : 'Activate Sovereign Workflow \u2192'}
           </button>
@@ -737,11 +742,12 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                     </div>
                   </div>
 
-                  <div className="officer-reassign-col">
-                    <label className="reassign-label">Assign Officer:</label>
+                  <div className="officer-select-wrapper">
+                    <span className="officer-select-label">Assign Officer:</span>
                     <select
                       value={stage.assignedOfficer?.id ?? ''}
                       onChange={(e) => handleDirectAssignOfficer(stage.id, e.target.value)}
+                      disabled={workflow.status === 'ACTIVE'}
                       className="inline-officer-select"
                       title="Directly reassign competent officer"
                     >
@@ -761,9 +767,10 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                 </div>
 
                 {/* Stage Controls: Reorder, Modify, Remove */}
-                <div className="stage-card-footer">
-                  {/* BOSS Action: Reorder Stage */}
-                  <div className="reorder-btn-group">
+                {workflow.status !== 'ACTIVE' && (
+                  <div className="stage-card-footer">
+                    {/* BOSS Action: Reorder Stage */}
+                    <div className="reorder-btn-group">
                     <button
                       type="button"
                       disabled={isFirst}
@@ -805,18 +812,21 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                     </button>
                   </div>
                 </div>
+                )}
               </div>
             );
           })}
 
           {/* Dotted Add Stage Block at bottom of pipeline */}
-          <button
-            type="button"
-            onClick={handleOpenAddStage}
-            className="btn-add-stage-card"
-          >
-            &#43; Add Another Statutory Scrutiny Stage to Sequence
-          </button>
+          {workflow.status !== 'ACTIVE' && (
+            <button
+              type="button"
+              onClick={handleOpenAddStage}
+              className="btn-add-stage-card"
+            >
+              &#43; Add Another Statutory Scrutiny Stage to Sequence
+            </button>
+          )}
         </div>
       </section>
 

@@ -5,7 +5,7 @@
  * ============================================================
  */
 
-import type { ProjectDocument } from './boss.types';
+
 
 export type InfrastructureType =
   | 'HIGHWAY_CORRIDOR'

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { OfficerService, type OfficerTask } from '../../services/OfficerService';
+import { taskService } from '../../services/api/task.service';
+import type { WorkflowTask } from '../../types/task.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
 
 export const OfficerDashboardPage: React.FC = () => {
-  const [tasks, setTasks] = useState<OfficerTask[]>([]);
+  const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   
@@ -15,7 +16,7 @@ export const OfficerDashboardPage: React.FC = () => {
   const loadTasks = async () => {
     setLoading(true);
     try {
-      const data = await OfficerService.getAssignedTasks();
+      const data = await taskService.getTasks('me');
       setTasks(data);
     } catch (err) {
       console.error('Failed to load officer tasks', err);
@@ -24,14 +25,24 @@ export const OfficerDashboardPage: React.FC = () => {
     }
   };
   
+  const isOverdue = (task: WorkflowTask) => {
+    return new Date(task.dueDate) < new Date() && task.status !== 'ACCEPTED';
+  };
+
+  const getMappedStatus = (task: WorkflowTask) => {
+    if (task.status === 'ACCEPTED') return 'COMPLETED';
+    if (isOverdue(task)) return 'OVERDUE';
+    return 'PENDING';
+  };
+
   const filteredTasks = tasks.filter(task => {
     if (statusFilter === 'ALL') return true;
-    return task.status === statusFilter;
+    return getMappedStatus(task) === statusFilter;
   });
 
-  const pendingCount = tasks.filter(t => t.status === 'PENDING').length;
-  const overdueCount = tasks.filter(t => t.status === 'OVERDUE').length;
-  const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
+  const pendingCount = tasks.filter(t => getMappedStatus(t) === 'PENDING').length;
+  const overdueCount = tasks.filter(t => getMappedStatus(t) === 'OVERDUE').length;
+  const completedCount = tasks.filter(t => getMappedStatus(t) === 'COMPLETED').length;
 
   const premiumCardStyle: React.CSSProperties = {
     backgroundColor: '#ffffff',
@@ -245,18 +256,20 @@ export const OfficerDashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTasks.map((task) => (
+                {filteredTasks.map((task) => {
+                  const mappedStatus = getMappedStatus(task);
+                  return (
                   <tr key={task.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                     <td style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontWeight: 600, color: '#0f172a', fontFamily: 'monospace', fontSize: '14px' }}>{task.id}</span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>Assigned: {task.assignedDate}</span>
+                        <span style={{ fontWeight: 600, color: '#0f172a', fontFamily: 'monospace', fontSize: '14px' }}>{task.id.split('-').pop()}</span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>Assigned: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : ''}</span>
                       </div>
                     </td>
                     <td style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{task.projectName}</span>
-                        <span style={{ fontSize: '13px', color: '#64748b', fontFamily: 'monospace' }}>{task.projectId}</span>
+                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{task.projectTitle}</span>
+                        <span style={{ fontSize: '13px', color: '#64748b', fontFamily: 'monospace' }}>{task.projectCode}</span>
                       </div>
                     </td>
                     <td style={{ padding: '20px' }}>
@@ -267,22 +280,22 @@ export const OfficerDashboardPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '20px' }}>
                        <span style={{ 
-                         color: task.status === 'OVERDUE' ? '#ef4444' : '#0f172a', 
-                         fontWeight: task.status === 'OVERDUE' ? 700 : 500,
+                         color: mappedStatus === 'OVERDUE' ? '#ef4444' : '#0f172a', 
+                         fontWeight: mappedStatus === 'OVERDUE' ? 700 : 500,
                          fontSize: '14px'
                        }}>
-                         {task.dueDate}
+                         {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}
                        </span>
                     </td>
                     <td style={{ padding: '20px' }}>
-                      <span className={`status-pill pill-${task.status.toLowerCase()}`} style={{ 
+                      <span className={`status-pill pill-${mappedStatus.toLowerCase()}`} style={{ 
                         padding: '4px 10px',
                         fontSize: '11px',
                         fontWeight: 700,
                         textTransform: 'uppercase',
-                        ...(task.status === 'OVERDUE' ? { backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' } : {}) 
+                        ...(mappedStatus === 'OVERDUE' ? { backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' } : {}) 
                       }}>
-                        {task.status}
+                        {mappedStatus}
                       </span>
                     </td>
                     <td style={{ padding: '20px', textAlign: 'right' }}>
@@ -306,7 +319,8 @@ export const OfficerDashboardPage: React.FC = () => {
                       </Link>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

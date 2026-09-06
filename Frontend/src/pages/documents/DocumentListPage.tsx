@@ -206,13 +206,13 @@ export const DocumentListPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{doc.documentType.replace(/_/g, ' ')}</span>
+                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{doc.title || doc.documentType.replace(/_/g, ' ')}</span>
                         <span style={{ fontSize: '13px', color: '#64748b' }}>{doc.workflowStage || 'N/A'}</span>
                       </div>
                     </td>
                     <td style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{doc.projectRef}</span>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{doc.projectTitle || doc.projectRef}</span>
                         {doc.parcelRef && <span style={{ fontSize: '13px', color: '#64748b', fontFamily: 'monospace' }}>{doc.parcelRef}</span>}
                       </div>
                     </td>

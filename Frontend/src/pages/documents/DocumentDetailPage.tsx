@@ -167,10 +167,10 @@ export const DocumentDetailPage: React.FC = () => {
             </span>
           </div>
           <h1 style={{ fontSize: '36px', fontWeight: 700, margin: '0 0 12px 0', letterSpacing: '-0.02em', lineHeight: '1.2' }}>
-            {doc.documentType.replace(/_/g, ' ')}
+            {doc.title || doc.documentType.replace(/_/g, ' ')}
           </h1>
           <p style={{ margin: 0, fontSize: '15px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '8px' }}>
-             Project: <strong style={{ color: '#ffffff' }}>{doc.projectRef}</strong>
+             Project: <strong style={{ color: '#ffffff' }}>{doc.projectTitle || doc.projectRef}</strong>
              {doc.parcelRef && (
                <>
                  <span style={{ opacity: 0.5 }}>|</span>
@@ -256,7 +256,7 @@ export const DocumentDetailPage: React.FC = () => {
                         </td>
                         <td style={{ padding: '16px', borderBottom: '1px solid #f1f5f9', textAlign: 'right' }}>
                           <button 
-                            onClick={() => alert(`Initiating secure download from Object Storage: ${v.fileReference}`)}
+                            onClick={() => DocumentService.downloadDocument(doc.id, doc.title || 'document.pdf')}
                             style={{ 
                               padding: '6px 12px',
                               borderRadius: '6px',

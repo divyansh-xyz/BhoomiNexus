@@ -70,7 +70,26 @@ export const getTaskById = async (req: Request, res: Response, next: NextFunctio
 
     if (result.rows.length === 0) return next(new ApiError(404, "Task not found"));
 
-    res.json(mapTaskRow(result.rows[0]));
+    const taskRow = result.rows[0];
+    const task = mapTaskRow(taskRow);
+
+    // Fetch parcels for this project to attach as relevantParcels
+    const parcelsResult = await pool.query(
+      `SELECT lp.id, lp.survey_number, lp.village, lp.area_acres
+       FROM project_parcels pp
+       JOIN land_parcels lp ON lp.id = pp.parcel_id
+       WHERE pp.project_id = $1`,
+      [taskRow.project_id]
+    );
+
+    task.relevantParcels = parcelsResult.rows.map((p: any) => ({
+      id: p.id,
+      surveyNumber: p.survey_number,
+      village: p.village,
+      area: `${p.area_acres} Acres`
+    }));
+
+    res.json(task);
   } catch (error) {
     next(error);
   }
@@ -170,7 +189,7 @@ export const acceptTask = async (req: Request, res: Response, next: NextFunction
          (project_id, workflow_id, stage_id, stage_order, stage_name,
           assigned_officer_id, department, sla_days, due_date, status, required_documents)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'ASSIGNED',$10) RETURNING *`,
-        [task.project_id, task.workflow_id, ns.id, ns.stage_order, ns.name, ns.assigned_officer_id, ns.department, ns.sla_days, dueDate.toISOString(), ns.required_documents || "[]"]
+        [task.project_id, task.workflow_id, ns.id, ns.stage_order, ns.name, ns.assigned_officer_id, ns.department, ns.sla_days, dueDate.toISOString(), JSON.stringify(ns.required_documents || [])]
       );
 
       nextTask = ntResult.rows[0];
@@ -350,7 +369,17 @@ function mapTaskRow(row: any): any {
     startedAt: row.started_at,
     completedAt: row.completed_at,
     rejectionReason: row.rejection_reason,
-    requiredDocuments: row.required_documents || [],
+    requiredDocuments: (row.required_documents || []).map((doc: any, i: number) => {
+      if (typeof doc === 'string') {
+        return {
+          id: `doc-${i}`,
+          name: doc,
+          type: 'Statutory Document',
+          status: 'MISSING'
+        };
+      }
+      return doc;
+    }),
     evidenceDocuments: row.evidence_documents || [],
     createdAt: row.created_at,
   };

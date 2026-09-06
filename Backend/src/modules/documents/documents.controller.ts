@@ -10,7 +10,17 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
   try {
     if (!req.file) return next(new ApiError(400, "No file uploaded"));
 
-    const { projectId, taskId, parcelId, title, documentType, workflowStage } = req.body;
+    let { projectId, taskId, parcelId, title, documentType, workflowStage } = req.body;
+
+    if (!projectId && taskId) {
+      const taskRes = await pool.query(`SELECT project_id, stage_name FROM tasks WHERE id = $1`, [taskId]);
+      if (taskRes.rows.length > 0) {
+        projectId = taskRes.rows[0].project_id;
+        if (!workflowStage) {
+          workflowStage = taskRes.rows[0].stage_name;
+        }
+      }
+    }
 
     const fileBuffer = fs.readFileSync(req.file.path);
     const hash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
@@ -66,9 +76,10 @@ export const getDocumentById = async (req: Request, res: Response, next: NextFun
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT d.*, u.name AS uploader_name
+      `SELECT d.*, u.name AS uploader_name, p.title AS project_title
        FROM documents d
        LEFT JOIN users u ON u.id = d.uploader_id
+       LEFT JOIN projects p ON p.id = d.project_id
        WHERE d.id = $1`,
       [id]
     );
@@ -79,6 +90,7 @@ export const getDocumentById = async (req: Request, res: Response, next: NextFun
     res.json({
       id: d.id,
       projectId: d.project_id,
+      projectTitle: d.project_title,
       taskId: d.task_id,
       title: d.title,
       documentType: d.document_type,
@@ -160,6 +172,77 @@ export const createDocumentVersion = async (req: Request, res: Response, next: N
     );
 
     res.json({ success: true, version: newVersion });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDocuments = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { projectId, taskId, parcelId } = req.query;
+
+    let query = `
+      SELECT d.*, u.name AS uploader_name, p.code AS project_code, p.title AS project_title
+      FROM documents d
+      LEFT JOIN users u ON u.id = d.uploader_id
+      LEFT JOIN projects p ON p.id = d.project_id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (projectId) {
+      params.push(projectId);
+      query += ` AND d.project_id = $${params.length}`;
+    }
+    if (taskId) {
+      params.push(taskId);
+      query += ` AND d.task_id = $${params.length}`;
+    }
+    if (parcelId) {
+      params.push(parcelId);
+      query += ` AND d.parcel_id = $${params.length}`;
+    }
+
+    query += ` ORDER BY d.created_at DESC`;
+
+    const result = await pool.query(query, params);
+
+    const documents = await Promise.all(result.rows.map(async (d) => {
+      // Fetch versions for each document
+      const versionsRes = await pool.query(
+        `SELECT dv.id, dv.version_number, dv.hash, u.name AS uploaded_by, dv.created_at, dv.file_path, d.processing_status, d.verification_status 
+         FROM document_versions dv
+         LEFT JOIN users u ON u.id = dv.uploader_id
+         LEFT JOIN documents d ON d.id = dv.document_id
+         WHERE dv.document_id = $1
+         ORDER BY dv.version_number DESC`,
+        [d.id]
+      );
+
+      return {
+        id: d.id,
+        documentType: d.document_type || 'OTHER',
+        projectRef: d.project_code || 'UNASSIGNED',
+        parcelRef: d.parcel_id,
+        workflowStage: d.workflow_stage,
+        currentVersion: d.current_version,
+        latestProcessingStatus: d.processing_status || 'PENDING',
+        latestVerificationStatus: d.verification_status || 'PENDING',
+        title: d.title,
+        versions: versionsRes.rows.map((v) => ({
+          id: v.id,
+          versionNumber: v.version_number,
+          hash: v.hash || 'N/A',
+          uploadedBy: v.uploaded_by || 'Unknown',
+          uploadedAt: v.created_at,
+          fileReference: v.file_path,
+          processingStatus: v.processing_status || 'PENDING',
+          verificationStatus: v.verification_status || 'PENDING'
+        }))
+      };
+    }));
+
+    res.json(documents);
   } catch (error) {
     next(error);
   }

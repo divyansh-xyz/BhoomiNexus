@@ -1,3 +1,5 @@
+import { apiClient } from './api/client';
+
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 export interface OfficerTask {
@@ -145,9 +147,24 @@ export const OfficerService = {
     });
   },
   
-  // Phase 9 & 10: Real AI Document Parser Integration
+  // Phase 9 & 10: Real AI Document Parser Integration + Document Vault Integration
   uploadEvidence: async (taskId: string, file: File): Promise<{ success: boolean; documentId?: string }> => {
     try {
+      // 1. Upload to Node Backend (so it appears in Document Vault)
+      const vaultFormData = new FormData();
+      vaultFormData.append('file', file);
+      vaultFormData.append('taskId', taskId);
+      
+      try {
+        await apiClient.post('/documents/upload', vaultFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } catch (vaultError) {
+        console.error('Failed to upload to Document Vault:', vaultError);
+        // Continue anyway to not break OCR
+      }
+
+      // 2. Upload to AI Document Parser (for OCR extraction)
       const formData = new FormData();
       formData.append('file', file);
       formData.append('taskId', taskId);
@@ -157,7 +174,7 @@ export const OfficerService = {
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) throw new Error('Upload to AI Parser failed');
       const data = await response.json();
       
       // Backend returns document_id upon 201 Created or 202 Accepted

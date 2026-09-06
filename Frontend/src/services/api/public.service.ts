@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { nationalOverview, findStateData } from '../../data/india-states';
+
 
 /**
  * ============================================================
@@ -119,7 +119,7 @@ export const publicService = {
    * Section 6.3: GET /api/v1/public/states/:stateId
    * Returns aggregate data for one state for the public map & state side panel.
    */
-  async getStateOverview(stateId: string, stateNameHint?: string): Promise<StateOverviewAPIResponse> {
+  async getStateOverview(stateId: string, _stateNameHint?: string): Promise<StateOverviewAPIResponse> {
     const response = await apiClient.get<StateOverviewAPIResponse>(`/public/states/${stateId}`);
     if (!response.data || typeof response.data !== 'object' || typeof (response.data as any).activeProjects !== 'number') {
       throw new Error('Invalid state overview response from backend');
@@ -131,7 +131,7 @@ export const publicService = {
    * Section 6.4: GET /api/v1/public/states/:stateId/projects
    * Returns public-safe project-level information for public state exploration.
    */
-  async getStateProjects(stateId: string, stateNameHint?: string): Promise<PublicProjectAPIResponse[]> {
+  async getStateProjects(stateId: string, _stateNameHint?: string): Promise<PublicProjectAPIResponse[]> {
     const response = await apiClient.get<PublicProjectAPIResponse[]>(`/public/states/${stateId}/projects`);
     if (!Array.isArray(response.data)) {
       throw new Error('Invalid projects response from backend');

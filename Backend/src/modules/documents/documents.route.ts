@@ -3,12 +3,15 @@ import multer from "multer";
 import path from "path";
 import {
   uploadDocument, getDocumentById, downloadDocument,
-  getDocumentVersions, createDocumentVersion
+  getDocumentVersions, createDocumentVersion, getDocuments
 } from "./documents.controller";
 import { authenticate } from "../../middlewares/auth.middleware";
 
 const router = Router();
 router.use(authenticate);
+
+// GET /api/v1/documents
+router.get("/", getDocuments);
 
 // Configure multer for local file storage
 const storage = multer.diskStorage({
