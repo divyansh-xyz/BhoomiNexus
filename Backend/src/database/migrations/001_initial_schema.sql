@@ -309,3 +309,11 @@ CREATE TABLE IF NOT EXISTS document_versions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_doc_versions_document ON document_versions(document_id);
+
+-- Fix missing UNIQUE constraint for seeding
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wf_templates_name_unique') THEN
+        ALTER TABLE workflow_templates ADD CONSTRAINT wf_templates_name_unique UNIQUE(name);
+    END IF;
+END $$;
