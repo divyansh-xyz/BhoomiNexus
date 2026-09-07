@@ -56,7 +56,7 @@ model Document {
   reviews          ExtractionReview[]
   evidences        StageEvidence[]
 
-  @@map("documents")
+  @@map("ai_parsed_documents")
 }
 
 model DocumentPage {
