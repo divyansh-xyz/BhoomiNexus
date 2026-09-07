@@ -241,7 +241,7 @@ export const BossProjectReviewPage: React.FC = () => {
       setSelectedDocFile(null);
     } catch (err: any) {
       console.error('Failed to upload statutory document', err);
-      setUploadDocError(err.response?.data?.message || err.message || 'Failed to upload document');
+      setUploadDocError(err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Failed to upload document');
     } finally {
       setUploadingDoc(false);
     }

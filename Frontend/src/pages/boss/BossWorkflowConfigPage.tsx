@@ -441,7 +441,10 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
       navigate(`/boss/projects/${projectId}`);
     } catch (err: any) {
       console.error('Failed to activate workflow', err);
-      const apiMessage = err.response?.data?.message || err.message;
+      const apiMessage =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        err.message;
       alert(`Activation failed: ${apiMessage || 'Please check stage parameters.'}`);
     } finally {
       setSaving(false);
@@ -921,6 +924,9 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                       className="inline-officer-select"
                       title="Directly reassign competent officer"
                     >
+                      {!stage.assignedOfficer?.id && (
+                        <option value="" disabled>-- Select Competent Officer --</option>
+                      )}
                       {officers.length > 0 ? (
                         officers.map((off) => (
                           <option key={off.id} value={off.id}>
@@ -1385,6 +1391,9 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
                   }}
                   className="form-select-input"
                 >
+                  {!editingStage.assignedOfficer?.id && (
+                    <option value="" disabled>-- Select Competent Officer --</option>
+                  )}
                   {officers.length > 0 ? (
                     officers.map((off) => (
                       <option key={off.id} value={off.id}>

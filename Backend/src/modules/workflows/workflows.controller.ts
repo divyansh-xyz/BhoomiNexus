@@ -89,11 +89,30 @@ export const initializeWorkflow = async (req: Request, res: Response, next: Next
     const stagesRes = await pool.query(`SELECT * FROM workflow_template_stages WHERE template_id = $1 ORDER BY stage_order`, [templateId]);
     
     for (const stage of stagesRes.rows) {
+      let officerId: string | null = null;
+      if (stage.department) {
+        const offRes = await pool.query(
+          `SELECT id FROM users WHERE role_id = 'PROCESSING_OFFICER' AND is_active = true AND (department = $1 OR department ILIKE '%' || $1 || '%') LIMIT 1`,
+          [stage.department]
+        );
+        if (offRes.rows.length > 0) {
+          officerId = offRes.rows[0].id;
+        }
+      }
+      if (!officerId) {
+        const anyOff = await pool.query(
+          `SELECT id FROM users WHERE role_id = 'PROCESSING_OFFICER' AND is_active = true LIMIT 1`
+        );
+        if (anyOff.rows.length > 0) {
+          officerId = anyOff.rows[0].id;
+        }
+      }
+
       await pool.query(
         `INSERT INTO workflow_instance_stages
-         (workflow_id, stage_order, name, description, department, assigned_role, sla_days, is_mandatory, required_documents)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [wfId, stage.stage_order, stage.name, stage.description, stage.department, stage.assigned_role, stage.default_sla_days, stage.is_mandatory, JSON.stringify(stage.required_documents)]
+         (workflow_id, stage_order, name, description, department, assigned_role, assigned_officer_id, sla_days, is_mandatory, required_documents)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [wfId, stage.stage_order, stage.name, stage.description, stage.department, stage.assigned_role, officerId, stage.default_sla_days, stage.is_mandatory, JSON.stringify(stage.required_documents)]
       );
     }
 
@@ -347,10 +366,35 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
     if (wfRes.rows[0].status !== 'DRAFT') return next(new ApiError(400, "Workflow already active"));
     const wfId = wfRes.rows[0].id;
 
-    // Verify all stages have officers
-    const stages = await pool.query(`SELECT id, assigned_officer_id FROM workflow_instance_stages WHERE workflow_id = $1`, [wfId]);
+    // Verify all stages have officers or auto-assign fallback if missing
+    const stages = await pool.query(`SELECT id, assigned_officer_id, department, name FROM workflow_instance_stages WHERE workflow_id = $1 ORDER BY stage_order`, [wfId]);
     for (const s of stages.rows) {
-      if (!s.assigned_officer_id) return next(new ApiError(400, "All stages must have an assigned officer before activation"));
+      if (!s.assigned_officer_id) {
+        let officerId: string | null = null;
+        if (s.department) {
+          const offRes = await pool.query(
+            `SELECT id FROM users WHERE role_id = 'PROCESSING_OFFICER' AND is_active = true AND (department = $1 OR department ILIKE '%' || $1 || '%') LIMIT 1`,
+            [s.department]
+          );
+          if (offRes.rows.length > 0) {
+            officerId = offRes.rows[0].id;
+          }
+        }
+        if (!officerId) {
+          const anyOff = await pool.query(
+            `SELECT id FROM users WHERE role_id = 'PROCESSING_OFFICER' AND is_active = true LIMIT 1`
+          );
+          if (anyOff.rows.length > 0) {
+            officerId = anyOff.rows[0].id;
+          }
+        }
+        if (officerId) {
+          await pool.query(`UPDATE workflow_instance_stages SET assigned_officer_id = $1 WHERE id = $2`, [officerId, s.id]);
+          s.assigned_officer_id = officerId;
+        } else {
+          return next(new ApiError(400, `Stage "${s.name}" must have an assigned officer before activation`));
+        }
+      }
     }
 
     // Activate workflow
@@ -359,6 +403,9 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
 
     // Set first stage to ACTIVE
     const firstStage = await pool.query(`SELECT * FROM workflow_instance_stages WHERE workflow_id = $1 ORDER BY stage_order LIMIT 1`, [wfId]);
+    let createdTaskId: string | null = null;
+    let assignedOfficerName = 'Assigned Processing Officer';
+
     if (firstStage.rows.length > 0) {
       const fs = firstStage.rows[0];
       await pool.query(`UPDATE workflow_instance_stages SET status = 'ACTIVE' WHERE id = $1`, [fs.id]);
@@ -367,13 +414,26 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + (fs.sla_days || 7));
 
-      await pool.query(
+      const taskRes = await pool.query(
         `INSERT INTO tasks
          (project_id, workflow_id, stage_id, stage_order, stage_name, assigned_officer_id, department, sla_days, due_date, status, required_documents)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ASSIGNED', $10)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ASSIGNED', $10)
+         RETURNING id`,
         [projectId, wfId, fs.id, fs.stage_order, fs.name, fs.assigned_officer_id, fs.department, fs.sla_days, dueDate.toISOString(), JSON.stringify(fs.required_documents || [])]
       );
+      if (taskRes.rows.length > 0) {
+        createdTaskId = taskRes.rows[0].id;
+      }
+
+      if (fs.assigned_officer_id) {
+        const offUser = await pool.query(`SELECT name FROM users WHERE id = $1`, [fs.assigned_officer_id]);
+        if (offUser.rows.length > 0) {
+          assignedOfficerName = offUser.rows[0].name;
+        }
+      }
     }
+
+    const auditTimestamp = new Date().toISOString();
 
     await createAuditEvent({
       userId: req.user!.id,
@@ -429,7 +489,15 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
       console.error("[Notification] Error dispatching workflow activation notifications:", notifErr);
     }
 
-    res.json({ success: true, message: "Workflow activated" });
+    res.json({
+      success: true,
+      projectId,
+      workflowStatus: 'ACTIVATED',
+      activeStageId: firstStage.rows.length > 0 ? firstStage.rows[0].id : null,
+      firstTaskId: createdTaskId,
+      assignedOfficerName,
+      auditTimestamp,
+    });
   } catch (error) {
     next(error);
   }
