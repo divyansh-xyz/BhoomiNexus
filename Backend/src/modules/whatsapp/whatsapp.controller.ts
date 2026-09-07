@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { whatsappService } from './whatsapp.service';
+import { conversationService } from './whatsappConversation.service';
 
 /**
  * GET /api/v1/integrations/whatsapp/webhook
@@ -50,7 +51,12 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
             const contactName = contacts[0]?.profile?.name;
 
             for (const msg of value.messages) {
-              await whatsappService.processIncomingMessage(msg, contactName);
+              const isInteractive = msg.type === 'interactive';
+              const isText = msg.type === 'text';
+
+              if (isInteractive || isText) {
+                await conversationService.handleMessage(msg, contactName);
+              }
             }
           }
         }
@@ -108,26 +114,35 @@ export const sendManualMessage = async (req: Request, res: Response): Promise<vo
  */
 export const simulateIncomingWhatsApp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { phone = '919876543210', name = 'Kisan Citizen', text, projectId } = req.body;
+    const { phone = '919876543210', name = 'Kisan Citizen', text, interactiveReply } = req.body;
 
-    if (!text) {
-      res.status(400).json({ success: false, error: { message: '"text" message body is required' } });
+    if (!text && !interactiveReply) {
+      res.status(400).json({ success: false, error: { message: '"text" or "interactiveReply" is required' } });
       return;
     }
 
     const fakeMsgId = `wamid.SIMULATED_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const result = await whatsappService.processIncomingMessage(
-      {
-        from: phone,
-        id: fakeMsgId,
-        timestamp: String(Math.floor(Date.now() / 1000)),
-        type: 'text',
-        text: { body: text },
-      },
-      name
-    );
+    
+    const msgPayload: any = {
+      from: phone,
+      id: fakeMsgId,
+      timestamp: String(Math.floor(Date.now() / 1000)),
+    };
 
-    res.status(201).json({ success: true, data: result });
+    if (interactiveReply) {
+      msgPayload.type = 'interactive';
+      msgPayload.interactive = {
+        type: interactiveReply.type || 'list_reply',
+        list_reply: interactiveReply
+      };
+    } else {
+      msgPayload.type = 'text';
+      msgPayload.text = { body: text };
+    }
+
+    await conversationService.handleMessage(msgPayload, name);
+
+    res.status(201).json({ success: true, message: 'Message simulated and processed successfully' });
   } catch (error: any) {
     logger.error('[WhatsApp] Error in simulateIncomingWhatsApp:', error);
     res.status(500).json({ success: false, error: { message: 'Simulation failed' } });
