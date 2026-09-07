@@ -192,9 +192,9 @@ export const OfficerTaskDetailPage: React.FC = () => {
       setShowOcrModal(true);
 
       const pollForExtraction = async (attempts = 0) => {
-        if (attempts > 15) {
-          console.warn("Polling timed out");
-          setOcrStatus(prev => prev ? { ...prev, status: 'COMPLETED' } : null);
+        if (attempts > 30) {
+          console.warn('OCR polling timed out');
+          setOcrStatus(prev => prev ? { ...prev, status: 'FAILED' } : null);
           return;
         }
 
@@ -204,17 +204,18 @@ export const OfficerTaskDetailPage: React.FC = () => {
           }
 
           const result = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
-          
-          if (result.status === 'PENDING' || result.status === 'OCR_PROCESSING' || result.status === 'GEMINI_EXTRACTING' || !result.extractedData) {
+
+          if (result.status === 'PENDING' || result.status === 'OCR_PROCESSING' || result.status === 'GEMINI_EXTRACTING') {
             // Still processing, try again in 3 seconds
             setTimeout(() => pollForExtraction(attempts + 1), 3000);
             return;
           }
 
+          // COMPLETED, EMPTY or FAILED are all terminal.
           result.backendDocId = realDocId;
           result.docId = targetDocId;
           setOcrStatus(result);
-          setOcrData(result.extractedData);
+          setOcrData(result.extractedData || null);
         } catch (err) {
           console.error("Polling error", err);
           setTimeout(() => pollForExtraction(attempts + 1), 3000);
@@ -1132,6 +1133,43 @@ export const OfficerTaskDetailPage: React.FC = () => {
                     <div style={{ padding: '32px 24px', backgroundColor: 'var(--color-blush-paper)', border: '1px solid #000000', textAlign: 'center', borderRadius: '0px' }}>
                       <div style={{ color: '#000000', fontWeight: 600, marginBottom: '8px', fontSize: '15px' }}>Gemini LLM Structuring Data...</div>
                       <div style={{ fontSize: '13px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Populating soft copy form filling suggestions from scanned evidence.</div>
+                    </div>
+                  )}
+
+                  {(ocrStatus.status === 'EMPTY' || ocrStatus.status === 'FAILED') && (
+                    <div style={{ padding: '28px 24px', backgroundColor: 'var(--color-blush-paper)', border: '1px solid #000000', borderRadius: '0px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '18px' }}>&#9888;</span>
+                        <span style={{ fontWeight: 600, fontSize: '15px', color: '#000000', fontFamily: 'var(--font-copernicus)' }}>
+                          {ocrStatus.status === 'EMPTY' ? 'No Statutory Fields Could Be Read' : 'AI Extraction Unavailable'}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '13.5px', color: '#000000', lineHeight: 1.6, margin: '0 0 8px 0' }}>
+                        {ocrStatus.status === 'EMPTY'
+                          ? <>The AI classified this scan{ocrStatus.documentType ? <> as <strong>{ocrStatus.documentType.replace(/_/g, ' ')}</strong></> : null} but could not extract any field values from it. This usually means the scan is too faint, skewed, or handwritten.</>
+                          : 'The AI parser could not be reached, or it did not respond in time. No values have been auto-filled.'}
+                      </p>
+                      {ocrStatus.missingFields && ocrStatus.missingFields.length > 0 && (
+                        <p style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', margin: '0 0 8px 0', fontStyle: 'italic' }}>
+                          Expected but not found: {ocrStatus.missingFields.join(', ')}
+                        </p>
+                      )}
+                      <p style={{ fontSize: '13px', color: '#000000', margin: '0 0 18px 0', lineHeight: 1.6 }}>
+                        Nothing has been pre-filled, since affirming unverified values would enter them into the statutory registry. Re-upload a clearer scan to try again.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const docId = ocrStatus.docId;
+                          setShowOcrModal(false);
+                          setOcrStatus(null);
+                          handleUploadClick(docId);
+                        }}
+                        className="btn-cta-black"
+                        style={{ width: '100%', padding: '12px', fontSize: '13.5px', borderRadius: '0px', cursor: 'pointer' }}
+                      >
+                        &#128247; Re-upload Scan &amp; Retry AI Extraction
+                      </button>
                     </div>
                   )}
 
