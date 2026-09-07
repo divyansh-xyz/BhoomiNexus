@@ -205,7 +205,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
           const result = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
           
-          if (result.status === 'PENDING' || result.status === 'PROCESSING' || !result.extractedData) {
+          if (result.status === 'PENDING' || result.status === 'OCR_PROCESSING' || result.status === 'GEMINI_EXTRACTING' || !result.extractedData) {
             // Still processing, try again in 3 seconds
             setTimeout(() => pollForExtraction(attempts + 1), 3000);
             return;
