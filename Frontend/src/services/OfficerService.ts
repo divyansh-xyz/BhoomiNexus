@@ -1,6 +1,6 @@
 import { apiClient } from './api/client';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_PARSER_URL || 'http://localhost:8000/api/v1';
 
 export interface OfficerTask {
   id: string;
