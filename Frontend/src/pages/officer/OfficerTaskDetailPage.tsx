@@ -185,25 +185,44 @@ export const OfficerTaskDetailPage: React.FC = () => {
       );
       setTask({ ...task, requiredDocuments: updatedDocs });
 
-      // Phase 9: Real Asynchronous Backend Integration
       const realDocId = uploadResult.documentId || `DOC-${Date.now()}`;
+      // Smooth step-by-step AI extraction experience
       setOcrStatus({ docId: targetDocId, backendDocId: realDocId, status: 'OCR_PROCESSING' });
       setIsOcrVerified(false);
       setShowOcrModal(true);
 
-      // Smooth step-by-step AI extraction experience
-      setTimeout(() => {
-        setOcrStatus(prev => prev ? { ...prev, status: 'GEMINI_EXTRACTING' } : null);
+      const pollForExtraction = async (attempts = 0) => {
+        if (attempts > 15) {
+          console.warn("Polling timed out");
+          setOcrStatus(prev => prev ? { ...prev, status: 'COMPLETED' } : null);
+          return;
+        }
 
-        setTimeout(async () => {
+        try {
+          if (attempts === 1) {
+            setOcrStatus(prev => prev ? { ...prev, status: 'GEMINI_EXTRACTING' } : null);
+          }
+
           const result = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
+          
+          if (result.status === 'PENDING' || result.status === 'PROCESSING' || !result.extractedData) {
+            // Still processing, try again in 3 seconds
+            setTimeout(() => pollForExtraction(attempts + 1), 3000);
+            return;
+          }
+
           result.backendDocId = realDocId;
           result.docId = targetDocId;
-
           setOcrStatus(result);
           setOcrData(result.extractedData);
-        }, 1200);
-      }, 1200);
+        } catch (err) {
+          console.error("Polling error", err);
+          setTimeout(() => pollForExtraction(attempts + 1), 3000);
+        }
+      };
+
+      // Start polling
+      setTimeout(() => pollForExtraction(0), 2000);
 
     } catch (err) {
       console.error('Failed to upload file', err);
