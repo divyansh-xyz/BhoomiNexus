@@ -6,6 +6,56 @@ import { pool } from "../../config/db";
 import { ApiError } from "../../utils/apiError";
 import { createAuditEvent } from "../../utils/audit";
 
+const AI_PARSER_URL = process.env.AI_PARSER_URL || "http://localhost:8000/api/v1";
+
+const resolvePhysicalFilePath = (filePath: string | null): string | null => {
+  if (!filePath) return null;
+  const candidatePaths = [
+    filePath,
+    path.join(process.cwd(), "uploads", path.basename(filePath)),
+    path.join(__dirname, "../../../uploads", path.basename(filePath)),
+    path.join(__dirname, "../../../", filePath),
+  ];
+  for (const p of candidatePaths) {
+    if (p && fs.existsSync(p)) {
+      try {
+        if (fs.statSync(p).isFile()) return p;
+      } catch {}
+    }
+  }
+  return null;
+};
+
+const forwardToAiParser = async (docId: string, filePath: string, originalName: string, mimeType: string) => {
+  try {
+    const resolvedPath = resolvePhysicalFilePath(filePath);
+    if (!resolvedPath) {
+      return null;
+    }
+    const fileBuffer = fs.readFileSync(resolvedPath);
+    const blob = new Blob([fileBuffer], { type: mimeType || "application/pdf" });
+    const formData = new FormData();
+    formData.append("file", blob, originalName);
+    formData.append("id", docId);
+    formData.append("document_id", docId);
+
+    const res = await fetch(`${AI_PARSER_URL}/documents/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      console.warn(`[AiParser] Upload failed with status ${res.status}: ${await res.text()}`);
+      return null;
+    }
+    const data: any = await res.json();
+    return data.id || data.document_id || docId;
+  } catch (err) {
+    console.warn(`[AiParser] Could not connect to AI Document Parser at ${AI_PARSER_URL}:`, err);
+    return null;
+  }
+};
+
 export const uploadDocument = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) return next(new ApiError(400, "No file uploaded"));
@@ -41,6 +91,20 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
 
     const doc = result.rows[0];
 
+    // Forward uploaded physical document to AI Parser microservice (port 8000)
+    let aiParserId: string | null = null;
+    if (req.file) {
+      try {
+        aiParserId = await forwardToAiParser(doc.id, req.file.path, req.file.originalname, req.file.mimetype);
+        if (aiParserId) {
+          await pool.query(`UPDATE documents SET ai_parser_id = $1 WHERE id = $2`, [aiParserId, doc.id]);
+          doc.ai_parser_id = aiParserId;
+        }
+      } catch (err) {
+        console.warn("[uploadDocument] Forwarding to AI Parser failed:", err);
+      }
+    }
+
     await pool.query(
       `INSERT INTO document_versions (document_id, version_number, file_path, file_size, hash, uploader_id)
        VALUES ($1, 1, $2, $3, $4, $5)`,
@@ -60,6 +124,7 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
     res.status(201).json({
       id: doc.id,
       document_id: doc.id,
+      aiParserId: doc.ai_parser_id || null,
       title: doc.title,
       documentType: doc.document_type,
       fileSize: doc.file_size,
@@ -350,17 +415,36 @@ const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4
 export const getDocumentProcessingStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    if (!isUuid(id)) {
-      return res.json({
-        overall_status: 'completed',
-        ocr_status: 'completed',
-        llm_status: 'completed',
-        document_id: id,
-      });
+    let parserId = id;
+
+    if (isUuid(id)) {
+      const docRes = await pool.query(
+        `SELECT id, ai_parser_id, file_path, title, mime_type, processing_status FROM documents WHERE id = $1`,
+        [id]
+      );
+      if (docRes.rows.length === 0) return next(new ApiError(404, "Document not found"));
+      const doc = docRes.rows[0];
+
+      if (doc.ai_parser_id) {
+        parserId = doc.ai_parser_id;
+      } else if (doc.file_path && fs.existsSync(doc.file_path)) {
+        const newParserId = await forwardToAiParser(doc.id, doc.file_path, doc.title || 'document.pdf', doc.mime_type || 'application/pdf');
+        if (newParserId) {
+          parserId = newParserId;
+          await pool.query(`UPDATE documents SET ai_parser_id = $1 WHERE id = $2`, [newParserId, doc.id]);
+        }
+      }
     }
 
-    const docRes = await pool.query(`SELECT id, processing_status FROM documents WHERE id = $1`, [id]);
-    if (docRes.rows.length === 0) return next(new ApiError(404, "Document not found"));
+    try {
+      const parserRes = await fetch(`${AI_PARSER_URL}/documents/${parserId}/processing`);
+      if (parserRes.ok) {
+        const data = await parserRes.json();
+        return res.json(data);
+      }
+    } catch (e) {
+      console.warn('[getDocumentProcessingStatus] Failed to query AI parser:', e);
+    }
 
     res.json({
       overall_status: 'completed',
@@ -376,86 +460,69 @@ export const getDocumentProcessingStatus = async (req: Request, res: Response, n
 export const getDocumentExtraction = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    let doc: any = null;
-    let sampleParcel: any = null;
+    let parserId = id;
 
     if (isUuid(id)) {
       const docRes = await pool.query(
-        `SELECT d.*, p.code AS project_code, p.title AS project_title, p.state, p.district
-         FROM documents d
-         LEFT JOIN projects p ON p.id = d.project_id
-         WHERE d.id = $1`,
+        `SELECT id, ai_parser_id, file_path, title, mime_type, processing_status
+         FROM documents
+         WHERE id = $1`,
         [id]
       );
-      if (docRes.rows.length > 0) {
-        doc = docRes.rows[0];
-        if (doc.project_id) {
-          const pRes = await pool.query(
-            `SELECT lp.survey_number, lp.village, lp.area_acres, lp.land_type, lp.owner_reference
-             FROM project_parcels pp
-             JOIN land_parcels lp ON lp.id = pp.parcel_id
-             WHERE pp.project_id = $1
-             ORDER BY lp.survey_number
-             LIMIT 1`,
-            [doc.project_id]
-          );
-          if (pRes.rows.length > 0) sampleParcel = pRes.rows[0];
+      if (docRes.rows.length === 0) {
+        return next(new ApiError(404, "Document not found"));
+      }
+
+      const doc = docRes.rows[0];
+      if (doc.ai_parser_id) {
+        parserId = doc.ai_parser_id;
+      } else if (doc.file_path && fs.existsSync(doc.file_path)) {
+        const newParserId = await forwardToAiParser(doc.id, doc.file_path, doc.title || 'document.pdf', doc.mime_type || 'application/pdf');
+        if (newParserId) {
+          parserId = newParserId;
+          await pool.query(`UPDATE documents SET ai_parser_id = $1 WHERE id = $2`, [newParserId, doc.id]);
         }
       }
     }
 
-    if (!sampleParcel) {
-      const fallbackP = await pool.query(
-        `SELECT lp.survey_number, lp.village, lp.area_acres, lp.land_type, lp.owner_reference, p.code AS project_code, p.state, p.district
-         FROM land_parcels lp
-         LEFT JOIN project_parcels pp ON pp.parcel_id = lp.id
-         LEFT JOIN projects p ON p.id = pp.project_id
-         ORDER BY lp.survey_number
-         LIMIT 1`
-      );
-      if (fallbackP.rows.length > 0) sampleParcel = fallbackP.rows[0];
+    // Query real AI parser extraction endpoint
+    try {
+      const parserRes = await fetch(`${AI_PARSER_URL}/documents/${parserId}/extraction`);
+
+      if (parserRes.status === 202) {
+        const inProgressData: any = await parserRes.json();
+        return res.status(202).json({
+          docId: id,
+          document_id: id,
+          status: inProgressData.status || 'PROCESSING',
+          message: 'Document extraction is in progress',
+        });
+      }
+
+      if (parserRes.ok) {
+        const parsedData: any = await parserRes.json();
+        return res.json({
+          docId: id,
+          document_id: id,
+          status: 'COMPLETED',
+          document_type: parsedData.document_type || 'unknown',
+          extracted_data: parsedData.extracted_data || {},
+          confidence_scores: parsedData.field_confidence || {},
+          missing_fields: parsedData.missing_fields || [],
+          pii_redaction_count: parsedData.pii_redaction_count || 0,
+        });
+      }
+    } catch (err) {
+      console.warn(`[getDocumentExtraction] Could not fetch extraction from AI parser for ${parserId}:`, err);
     }
 
-    const surveyNo = sampleParcel?.survey_number || 'SV-117/2';
-    const village = sampleParcel?.village || 'Revenue Circle 2, Khalapur';
-    const district = doc?.district || sampleParcel?.district || 'Pune';
-    const state = doc?.state || sampleParcel?.state || 'Maharashtra';
-    const area = sampleParcel?.area_acres ? `${sampleParcel.area_acres} Acres` : '3.40 Acres';
-    const landType = sampleParcel?.land_type === 'AGRICULTURAL'
-      ? 'Irrigated Agricultural Land (First Schedule Slab)'
-      : 'Commercial / Industrial Development Corridor';
-    const notifNo = `MoRTH/LA/2026/04/${doc?.project_code || sampleParcel?.project_code || 'MH-4421'}`;
-
-    res.json({
+    return res.status(202).json({
       docId: id,
       document_id: id,
-      status: 'COMPLETED',
-      extracted_data: {
-        surveyNumber: surveyNo,
-        village: village,
-        district: district,
-        state: state,
-        area: area,
-        landClassification: landType,
-        khatedarOwner: sampleParcel?.owner_reference
-          ? `Owner Ref ${sampleParcel.owner_reference} (Kisan Ramchandra Patil & Co-sharers)`
-          : 'Kisan Ramchandra Patil & Co-sharers',
-        notificationNo: notifNo,
-        notificationDate: '2026-08-15',
-        statutoryAuthority: 'Competent Authority for Land Acquisition (CALA)',
-        evidenceSealVerified: 'Official Government Seal & Sub-Divisional Officer Stamp Verified',
-      },
-      confidence_scores: {
-        surveyNumber: 97,
-        village: 95,
-        district: 99,
-        state: 99,
-        area: 96,
-        landClassification: 92,
-        khatedarOwner: 94,
-        notificationNo: 98,
-        notificationDate: 96,
-      },
+      status: 'PROCESSING',
+      message: 'Document is undergoing AI OCR extraction',
+      extracted_data: {},
+      confidence_scores: {},
     });
   } catch (error) {
     next(error);
@@ -476,6 +543,25 @@ export const verifyDocumentExtraction = async (req: Request, res: Response, next
          WHERE id = $1`,
         [id]
       );
+
+      // Forward review/verification state to AI parser if registered
+      const docRes = await pool.query(`SELECT ai_parser_id FROM documents WHERE id = $1`, [id]);
+      const parserId = docRes.rows[0]?.ai_parser_id || id;
+      try {
+        await fetch(`${AI_PARSER_URL}/documents/${parserId}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId,
+            action: 'approve',
+            status: 'approved',
+            corrected_fields,
+            reviewer_id: req.user?.id || 'Officer',
+          }),
+        });
+      } catch (err) {
+        console.warn(`[verifyDocumentExtraction] AI parser verification forward failed:`, err);
+      }
     }
 
     if (taskId && isUuid(taskId)) {

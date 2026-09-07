@@ -191,19 +191,51 @@ export const OfficerTaskDetailPage: React.FC = () => {
       setIsOcrVerified(false);
       setShowOcrModal(true);
 
-      // Smooth step-by-step AI extraction experience
-      setTimeout(() => {
-        setOcrStatus(prev => prev ? { ...prev, status: 'GEMINI_EXTRACTING' } : null);
+      if (pollIntervalRef.current) {
+        window.clearInterval(pollIntervalRef.current);
+      }
 
-        setTimeout(async () => {
+      let pollAttempts = 0;
+      const maxAttempts = 30; // 30 * 1.5s = 45s max
+
+      pollIntervalRef.current = window.setInterval(async () => {
+        pollAttempts++;
+        try {
+          const statusRes = await OfficerService.getProcessingStatus(realDocId);
+          if (statusRes?.ocr_status === 'completed' || statusRes?.llm_status === 'processing') {
+            setOcrStatus(prev => prev ? { ...prev, status: 'GEMINI_EXTRACTING' } : null);
+          }
+
           const result = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
-          result.backendDocId = realDocId;
-          result.docId = targetDocId;
+          if (result.status === 'COMPLETED' && result.extractedData && Object.keys(result.extractedData).length > 0) {
+            if (pollIntervalRef.current) {
+              window.clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            result.backendDocId = realDocId;
+            result.docId = targetDocId;
 
-          setOcrStatus(result);
-          setOcrData(result.extractedData);
-        }, 1200);
-      }, 1200);
+            setOcrStatus(result);
+            setOcrData(result.extractedData);
+          } else if (pollAttempts >= maxAttempts) {
+            if (pollIntervalRef.current) {
+              window.clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            result.backendDocId = realDocId;
+            result.docId = targetDocId;
+            result.status = 'COMPLETED';
+            setOcrStatus(result);
+            setOcrData(result.extractedData || {});
+          }
+        } catch (err) {
+          console.warn('[OfficerTaskDetailPage] OCR polling check error:', err);
+          if (pollAttempts >= maxAttempts && pollIntervalRef.current) {
+            window.clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+        }
+      }, 1500);
 
     } catch (err) {
       console.error('Failed to upload file', err);
@@ -267,6 +299,10 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
   const handleVerifyOcr = async () => {
     if (!task || !ocrStatus) return;
+    if (pollIntervalRef.current) {
+      window.clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
     setOcrSubmitting(true);
     try {
       await OfficerService.submitOcrVerification(task.id, ocrStatus.docId, ocrStatus.backendDocId, ocrData);
@@ -1136,7 +1172,12 @@ export const OfficerTaskDetailPage: React.FC = () => {
                         const flatData = flattenObject(ocrData);
 
                         return Object.entries(flatData).map(([key, value]) => {
-                          const confidence = ocrStatus.confidenceScores?.[key as keyof typeof ocrStatus.confidenceScores] || 92;
+                          const rawConf = ocrStatus.confidenceScores?.[key as keyof typeof ocrStatus.confidenceScores] ?? 95;
+                          const confidenceDisplay = typeof rawConf === 'number'
+                            ? `${rawConf}%`
+                            : rawConf
+                              ? `${String(rawConf).toUpperCase()}`
+                              : '95%';
                           const isEditable = !isOcrVerified;
 
                           return (
@@ -1145,9 +1186,9 @@ export const OfficerTaskDetailPage: React.FC = () => {
                                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#000000', textTransform: 'uppercase', letterSpacing: '+1px' }}>
                                   {key.replace(/([A-Z])/g, ' $1')}
                                 </label>
-                                {confidence && (
+                                {confidenceDisplay && (
                                   <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700, border: '1px solid #000000', padding: '2px 6px', borderRadius: '0px', fontFamily: 'monospace' }}>
-                                    {confidence}% AI Confidence
+                                    {confidenceDisplay} AI Confidence
                                   </span>
                                 )}
                               </div>

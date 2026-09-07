@@ -37,10 +37,12 @@ const handleUpload = async (req: Request, res: Response): Promise<void> => {
       req.file.mimetype
     );
 
+    const customDocId = req.body?.id || req.body?.document_id || req.body?.documentId;
     let docRecord: any = null;
     try {
       docRecord = await prisma.document.create({
         data: {
+          ...(customDocId ? { id: customDocId } : {}),
           filename: saved.filename,
           originalFilename: saved.originalFilename,
           mimeType: saved.mimeType,
@@ -54,7 +56,7 @@ const handleUpload = async (req: Request, res: Response): Promise<void> => {
       });
     } catch (dbErr) {
       // Fallback in-memory doc creation
-      const docId = saved.filename.split('.')[0];
+      const docId = customDocId || saved.filename.split('.')[0];
       docRecord = {
         id: docId,
         filename: saved.filename,

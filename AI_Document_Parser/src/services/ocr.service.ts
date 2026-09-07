@@ -35,6 +35,29 @@ export class OcrService {
 
   public async processDocument(storagePath: string, mimeType: string): Promise<OcrPageResult[]> {
     const isPdf = mimeType.toLowerCase() === 'application/pdf' || storagePath.endsWith('.pdf');
+    const isText = mimeType.toLowerCase().startsWith('text/') ||
+      storagePath.endsWith('.txt') ||
+      storagePath.endsWith('.md') ||
+      storagePath.endsWith('.csv') ||
+      storagePath.endsWith('.json');
+
+    if (isText) {
+      try {
+        const fileBuffer = await fs.promises.readFile(storagePath);
+        const text = fileBuffer.toString('utf-8');
+        const cleaned = cleanOcrText(text);
+        return [
+          {
+            pageNumber: 1,
+            rawText: text,
+            cleanedText: cleaned,
+            confidence: 0.99,
+          },
+        ];
+      } catch (err) {
+        console.warn('Direct text read failed:', err);
+      }
+    }
 
     if (isPdf) {
       // Extract embedded text first
@@ -118,17 +141,16 @@ export class OcrService {
     }
 
     // Ultimate fallback if no API key is set or offline
-    let fallbackText = "OCR processing failed for this document.";
-    if (isPdf) {
-      const fileBuffer = await fs.promises.readFile(storagePath);
-      fallbackText = fileBuffer.toString('utf-8').slice(0, 1000);
-    }
+    const fallbackMessage = isPdf
+      ? "Scanned image-only PDF detected without an embedded digital text layer. To extract handwritten or photo scans, configure GEMINI_API_KEY in AI_Document_Parser/.env."
+      : "Scanned image file detected. To run OCR on photos/scans, configure GEMINI_API_KEY in AI_Document_Parser/.env.";
+
     return [
       {
         pageNumber: 1,
-        rawText: fallbackText,
-        cleanedText: cleanOcrText(fallbackText),
-        confidence: 0.5,
+        rawText: fallbackMessage,
+        cleanedText: fallbackMessage,
+        confidence: 0.1,
       },
     ];
   }

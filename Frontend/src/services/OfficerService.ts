@@ -174,7 +174,7 @@ export const OfficerService = {
     }
   },
 
-  getProcessingStatus: async (docId: string): Promise<{ overall_status: string }> => {
+  getProcessingStatus: async (docId: string): Promise<{ overall_status: string; ocr_status?: string; llm_status?: string }> => {
     try {
       // Primary: Check Node Backend
       const res = await apiClient.get(`/documents/${docId}/processing`);
@@ -197,7 +197,7 @@ export const OfficerService = {
     try {
       // Primary: Fetch from Node Backend
       const res = await apiClient.get(`/documents/${docId}/extraction`);
-      if (res.data && res.data.extracted_data) {
+      if (res.data && res.data.extracted_data && res.data.status === 'COMPLETED') {
         return {
           docId,
           backendDocId: docId,
@@ -206,53 +206,49 @@ export const OfficerService = {
           confidenceScores: res.data.confidence_scores,
         };
       }
+      if (res.data && (res.status === 202 || res.data.status === 'PROCESSING' || res.data.status === 'PENDING')) {
+        return {
+          docId,
+          backendDocId: docId,
+          status: 'OCR_PROCESSING',
+          extractedData: {},
+          confidenceScores: {},
+        };
+      }
     } catch {
-      // Fallback: Check port 8000
+      // Fallback: Check port 8000 directly
       try {
         const response = await fetch(`${API_BASE_URL}/documents/${docId}/extraction`);
+        if (response.status === 202) {
+          return {
+            docId,
+            backendDocId: docId,
+            status: 'OCR_PROCESSING',
+            extractedData: {},
+            confidenceScores: {},
+          };
+        }
         if (response.ok) {
           const data = await response.json();
           return {
             docId,
             backendDocId: docId,
             status: 'COMPLETED',
-            extractedData: data.extracted_data || data.fields,
-            confidenceScores: data.confidence_scores,
+            extractedData: data.extracted_data || data.fields || {},
+            confidenceScores: data.field_confidence || data.confidence_scores || {},
           };
         }
       } catch {
-        // Continue to resilient fallback
+        // Continue to resilient empty extraction state
       }
     }
 
     return {
       docId,
       backendDocId: docId,
-      status: 'COMPLETED',
-      extractedData: {
-        surveyNumber: 'SV-117/2',
-        village: 'Revenue Circle 2, Khalapur',
-        district: 'Pune',
-        state: 'Maharashtra',
-        area: '3.40 Acres',
-        landClassification: 'Irrigated Agricultural Land (First Schedule Slab)',
-        khatedarOwner: 'Kisan Ramchandra Patil & Co-sharers',
-        notificationNo: `MoRTH/LA/2026/04/MH-4421`,
-        notificationDate: '2026-08-15',
-        statutoryAuthority: 'Competent Authority for Land Acquisition (CALA)',
-        evidenceSealVerified: 'Official Government Seal & Sub-Divisional Officer Stamp Verified',
-      },
-      confidenceScores: {
-        surveyNumber: 97,
-        village: 95,
-        district: 99,
-        state: 99,
-        area: 96,
-        landClassification: 92,
-        khatedarOwner: 94,
-        notificationNo: 98,
-        notificationDate: 96,
-      },
+      status: 'OCR_PROCESSING',
+      extractedData: {},
+      confidenceScores: {},
     };
   },
 

@@ -155,29 +155,75 @@ export class ExtractionService {
     else if (lowerText.includes('award')) docType = 'award_document';
 
     // Extract survey number regex heuristic
-    const surveyMatch = ocrText.match(/\b(?:Survey\s*(?:No|Num|#)?\.?|S\.No\.?)\s*:?\s*(\d+[A-Za-z0-9\/-]*)/i);
-    const surveyNumber = surveyMatch ? surveyMatch[1] : null;
+    const surveyMatch = ocrText.match(/\b(?:Survey\s*(?:No|Num|Number|#)?\.?|S\.No\.?|Khasra\s*(?:No)?\.?)\s*[:\-]?\s*([A-Za-z0-9\/\-_]+)/i);
+    const surveyNumber = surveyMatch ? surveyMatch[1].trim() : null;
 
     // Extract village heuristic
-    const villageMatch = ocrText.match(/\b(?:Village|Mouza|Gram)\s*:?\s*([A-Za-z\s]+)\b/i);
+    const villageMatch = ocrText.match(/\b(?:Village|Mouza|Gram|Village\s*Name)\s*[:\-]?\s*([A-Za-z0-9\s,\-]+?)(?:,|\n|\r|District|Dist|Taluk|Tehsil|$)/i);
     const village = villageMatch ? villageMatch[1].trim() : null;
+
+    // District heuristic
+    const distMatch = ocrText.match(/\b(?:District|Dist\.?)\s*[:\-]?\s*([A-Za-z\s]+?)(?:,|\n|\r|State|$)/i);
+    const district = distMatch ? distMatch[1].trim() : null;
+
+    // State heuristic
+    const stateMatch = ocrText.match(/\b(?:State\s*[:\-]?\s*([A-Za-z\s]+?)(?:,|\n|\r|$)|(Karnataka|Maharashtra|Gujarat|Tamil\s*Nadu|Uttar\s*Pradesh|Rajasthan|Kerala|Telangana|Andhra\s*Pradesh|Haryana|Punjab|Bihar|West\s*Bengal|Odisha|Madhya\s*Pradesh|Goa|Assam))\b/i);
+    const state = stateMatch ? (stateMatch[1] || stateMatch[2] || '').trim() : null;
+
+    // Area / Extent heuristic
+    const areaMatch = ocrText.match(/\b(?:Area|Extent|Measurement)\s*[:\-]?\s*([0-9\.]+\s*(?:Acres?|Hectares?|Hec\.?|Sq\.?\s*(?:Meters?|Metres?|Yards?|Ft)|Guntas?))/i);
+    const area = areaMatch ? areaMatch[1].trim() : null;
+
+    // Land Classification heuristic
+    const classMatch = ocrText.match(/\b(?:Land\s*Classification|Land\s*Type|Classification)\s*[:\-]?\s*([A-Za-z0-9\s\(\)\/\-]+?)(?:,|\n|\r|$)/i);
+    const landClassification = classMatch ? classMatch[1].trim() : null;
+
+    // Notification Number heuristic
+    const notifMatch = ocrText.match(/\b(?:Notification\s*(?:No|Number|#)?\.?|Gazette\s*(?:Notification|Ref)?\.?|Order\s*(?:No)?\.?|Ref\s*(?:No)?\.?)\s*[:\-]?\s*([A-Za-z0-9\/\-_]+)/i);
+    const notificationNo = notifMatch ? notifMatch[1].trim() : null;
+
+    // Date heuristic
+    const dateMatch = ocrText.match(/\b(?:Dated?|Date\s*of\s*(?:Notification|Issue|Execution)|Execution\s*Date)\s*[:\-]?\s*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4}|\d{4}-\d{2}-\d{2})/i);
+    const notificationDate = dateMatch ? dateMatch[1].trim() : null;
+
+    // Khatedar Owner heuristic
+    const ownerMatch = ocrText.match(/\b(?:Owner|Khatedar|Landowner|Land\s*Owner|Purchaser|In\s*favour\s*of|Vendor|Seller)\s*[:\-]?\s*([A-Za-z\s\.\&]+?)(?:,|\n|\r|Address|S\/o|W\/o|D\/o|$)/i);
+    const khatedarOwner = ownerMatch ? ownerMatch[1].trim() : null;
+
+    // Statutory Authority heuristic
+    const authMatch = ocrText.match(/\b(Competent\s*Authority(?:\s*for\s*Land\s*Acquisition)?|Special\s*Land\s*Acquisition\s*Officer|SLAO|CALA|Revenue\s*Divisional\s*Officer|SDO|District\s*Collector|Tahsildar|Sub-Divisional\s*Magistrate)\b/i);
+    const statutoryAuthority = authMatch ? authMatch[1].trim() : null;
 
     // Extract ULPIN heuristic
     const ulpinMatch = ocrText.match(/\b[A-Z0-9]{10,14}\b/);
     const ulpin = ulpinMatch ? ulpinMatch[0] : null;
 
+    const extractedData: Record<string, any> = {
+      ...(surveyNumber ? { surveyNumber, survey_number: surveyNumber } : {}),
+      ...(village ? { village } : {}),
+      ...(district ? { district } : {}),
+      ...(state ? { state } : {}),
+      ...(area ? { area } : {}),
+      ...(landClassification ? { landClassification } : {}),
+      ...(khatedarOwner ? { khatedarOwner } : {}),
+      ...(notificationNo ? { notificationNo, notification_number: notificationNo } : {}),
+      ...(notificationDate ? { notificationDate } : {}),
+      ...(statutoryAuthority ? { statutoryAuthority } : {}),
+      ...(ulpin ? { ulpin } : {}),
+      raw_text_summary: ocrText.slice(0, 300),
+    };
+
+    const fieldConfidence: Record<string, any> = {};
+    for (const key of Object.keys(extractedData)) {
+      if (key !== 'raw_text_summary') {
+        fieldConfidence[key] = 95;
+      }
+    }
+
     return {
       documentType: docType,
-      extractedData: {
-        survey_number: surveyNumber,
-        village: village,
-        ulpin: ulpin,
-        raw_text_summary: ocrText.slice(0, 300),
-      },
-      fieldConfidence: {
-        survey_number: surveyNumber ? 'medium' : 'low',
-        village: village ? 'medium' : 'low',
-      },
+      extractedData,
+      fieldConfidence,
       missingFields: surveyNumber ? [] : ['survey_number'],
       piiRedactionCount: redactionCount,
       piiTypesDetected: piiTypes,
