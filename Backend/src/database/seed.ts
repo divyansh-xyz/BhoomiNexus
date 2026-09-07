@@ -380,8 +380,8 @@ const seedData = async () => {
               if (s.order === 1) stage1Id = sRes.rows[0].id;
             }
           } else {
-            await client.query("UPDATE workflow_instance_stages SET assigned_officer_id = $1 WHERE workflow_id = $2", [officerId, wfId]);
-            await client.query("UPDATE workflow_instance_stages SET status = 'ACTIVE' WHERE workflow_id = $1 AND stage_order = 1", [wfId]);
+            await client.query("UPDATE workflow_instance_stages SET assigned_officer_id = $1 WHERE workflow_id = $2 AND assigned_officer_id IS NULL", [officerId, wfId]);
+            await client.query("UPDATE workflow_instance_stages SET status = 'ACTIVE' WHERE workflow_id = $1 AND stage_order = 1 AND status NOT IN ('REJECTED', 'COMPLETED')", [wfId]);
             stage1Id = existingStages.rows.find((s: any) => s.stage_order === 1)?.id || existingStages.rows[0].id;
           }
 
@@ -397,7 +397,11 @@ const seedData = async () => {
                 [pId, wfId, stage1Id, officerId, dueDate.toISOString().split("T")[0], JSON.stringify(["Land Schedule", "Survey Map", "Khasra/Khatauni"])]
               );
             } else {
-              await client.query("UPDATE tasks SET assigned_officer_id = $1, status = 'ASSIGNED' WHERE project_id = $2 AND stage_order = 1", [officerId, pId]);
+              await client.query(
+                `UPDATE tasks SET assigned_officer_id = $1 
+                 WHERE project_id = $2 AND stage_order = 1 AND (assigned_officer_id IS NULL OR assigned_officer_id != $1)`,
+                [officerId, pId]
+              );
             }
           }
         }

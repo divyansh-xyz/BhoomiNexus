@@ -10,11 +10,11 @@ export const OfficerDashboardPage: React.FC = () => {
   const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  
+
   useEffect(() => {
     loadTasks();
   }, []);
-  
+
   const loadTasks = async () => {
     setLoading(true);
     try {
@@ -26,14 +26,14 @@ export const OfficerDashboardPage: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   const isOverdue = (task: WorkflowTask) => {
-    return new Date(task.dueDate) < new Date() && task.status !== 'ACCEPTED' && task.status !== 'REJECTED';
+    return new Date(task.dueDate) < new Date() && task.status !== 'ACCEPTED' && task.status !== 'REJECTED' && !task.rejectionReason;
   };
 
   const getMappedStatus = (task: WorkflowTask) => {
     if (task.status === 'ACCEPTED') return 'COMPLETED';
-    if (task.status === 'REJECTED') return 'REJECTED';
+    if (task.status === 'REJECTED' || Boolean(task.rejectionReason)) return 'REJECTED';
     if (isOverdue(task)) return 'OVERDUE';
     return 'PENDING';
   };
@@ -48,319 +48,361 @@ export const OfficerDashboardPage: React.FC = () => {
   const completedCount = tasks.filter(t => getMappedStatus(t) === 'COMPLETED').length;
   const rejectedCount = tasks.filter(t => getMappedStatus(t) === 'REJECTED').length;
 
-  const premiumCardStyle: React.CSSProperties = {
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)',
-    border: '1px solid #e2e8f0',
-    padding: '24px',
-    position: 'relative',
-    overflow: 'hidden',
-    transition: 'transform 0.2s, boxShadow 0.2s',
-  };
-
   return (
-    <div className="boss-page-container" style={{ padding: '0 24px 40px 24px', maxWidth: '1400px', margin: '0 auto' }}>
-      
-      {/* Masthead */}
-      <header style={{ 
-        background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)', 
-        borderRadius: '20px', 
-        padding: '32px 40px', 
-        color: '#ffffff',
-        marginTop: '24px',
-        marginBottom: '32px',
-        boxShadow: '0 10px 30px rgba(30, 58, 138, 0.15), inset 0 1px 0 rgba(255,255,255,0.1)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #60a5fa, #34d399)' }} />
+    <div className="landing-page-root" style={{ minHeight: '100vh', backgroundColor: 'var(--color-blush-paper)' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 24px 80px 24px' }}>
 
-        <div style={{ flex: 1, zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <BhoomiLogo size={32} strokeWidth={2.4} />
-            <span style={{ 
-              color: '#93c5fd',
-              fontSize: '13px', 
-              fontWeight: 700, 
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase'
+        {/* 1. Sovereign Editorial Masthead */}
+        <header style={{ marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px' }}>
+            <div style={{ flex: '1', minWidth: '320px' }}>
+              <div className="hero-eyebrow" style={{ marginBottom: '8px' }}>
+                <span className="hero-meta" style={{ letterSpacing: '+2px', fontSize: '11px', textTransform: 'uppercase' }}>
+                  Ministry of Rural Development &bull; Field Operations Directorate
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
+                <BhoomiLogo size={34} strokeWidth={2.4} />
+                <h1 className="hero-headline" style={{ fontSize: '38px', margin: 0, letterSpacing: '-1.5px', lineHeight: 1.1 }}>
+                  Officer Workflow Dashboard
+                </h1>
+              </div>
+              <p className="hero-subtext" style={{ fontSize: '15px', maxWidth: '680px', margin: 0, lineHeight: 1.55 }}>
+                Official statutory scrutiny terminal for executing assigned stages, verifying physical ground evidence, evaluating OCR document intelligence, and appending spatial affirmations to active project workflows under RFCTLARR Act 2013.
+              </p>
+            </div>
+
+            {/* Officer Duty Stamp */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #000000',
+              borderRadius: '0px',
+              padding: '18px 22px',
+              minWidth: '290px',
+              boxShadow: 'none'
             }}>
-              Regional Land Acquisition Directorate
-            </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <span style={{ width: '8px', height: '8px', backgroundColor: '#0058fe', display: 'inline-block' }} />
+                <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>
+                  Statutory Scrutiny Active
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
+                <span style={{ color: 'var(--color-fossil-gray)' }}>Officer:</span>
+                <span style={{ fontWeight: 600, color: '#000000' }}>{user?.name || 'Ananya Patel'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--color-fossil-gray)' }}>Cadre / Branch:</span>
+                <span style={{ fontWeight: 600, color: '#000000' }}>{user?.department || 'Revenue & Land Records Branch'}</span>
+              </div>
+            </div>
           </div>
-          <h1 style={{ fontSize: '36px', fontWeight: 700, margin: '0 0 12px 0', letterSpacing: '-0.02em', lineHeight: '1.2' }}>
-            Officer Workflow Dashboard
-          </h1>
-          <p style={{ margin: 0, fontSize: '15px', color: '#bfdbfe', maxWidth: '600px', lineHeight: '1.5' }}>
-            Execute assigned statutory stages, verify field evidence, process OCR intelligence, and append spatial affirmations to active project workflows.
-          </p>
-        </div>
-        
-        <div style={{ 
-          background: 'rgba(255,255,255,0.1)', 
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.2)', 
-          borderRadius: '16px', 
-          padding: '20px',
-          minWidth: '280px',
-          zIndex: 1
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <span style={{ width: '8px', height: '8px', backgroundColor: '#34d399', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 0 3px rgba(52, 211, 153, 0.3)' }} />
-            <span style={{ fontSize: '12px', color: '#ffffff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Officer Status: Active</span>
+        </header>
+
+        <div className="hairline-fullwidth" style={{ marginBottom: '32px' }} />
+
+        {/* 2. Broadsheet Triage Summary Bar */}
+        <section style={{ marginBottom: '36px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(5, 1fr)',
+            border: '1px solid #000000',
+            backgroundColor: '#ffffff'
+          }}>
+            <div style={{ padding: '24px 20px', borderRight: '1px solid #000000', borderRadius: '0px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-fossil-gray)', fontWeight: 700, letterSpacing: '+1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Assigned Workload
+              </div>
+              <div style={{ fontFamily: 'var(--font-copernicus)', fontSize: '38px', fontWeight: 400, color: '#000000', lineHeight: 1, marginBottom: '8px' }}>
+                {tasks.length}
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Total Tasks in Queue</div>
+            </div>
+
+            <div style={{ padding: '24px 20px', borderRight: '1px solid #000000', backgroundColor: pendingCount > 0 ? 'var(--color-paper-tint)' : '#ffffff' }}>
+              <div style={{ fontSize: '11px', color: '#0058fe', fontWeight: 700, letterSpacing: '+1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Pending Action
+              </div>
+              <div style={{ fontFamily: 'var(--font-copernicus)', fontSize: '38px', fontWeight: 400, color: '#0058fe', lineHeight: 1, marginBottom: '8px' }}>
+                {pendingCount}
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Tasks Requiring Scrutiny</div>
+            </div>
+
+            <div style={{ padding: '24px 20px', borderRight: '1px solid #000000' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-fossil-gray)', fontWeight: 700, letterSpacing: '+1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Rejected / Remitted
+              </div>
+              <div style={{ fontFamily: 'var(--font-copernicus)', fontSize: '38px', fontWeight: 400, color: '#000000', lineHeight: 1, marginBottom: '8px' }}>
+                {rejectedCount}
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Remitted to Proponent</div>
+            </div>
+
+            <div style={{ padding: '24px 20px', borderRight: '1px solid #000000' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-fossil-gray)', fontWeight: 700, letterSpacing: '+1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                SLA Overdue
+              </div>
+              <div style={{ fontFamily: 'var(--font-copernicus)', fontSize: '38px', fontWeight: 400, color: '#000000', lineHeight: 1, marginBottom: '8px' }}>
+                {overdueCount}
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Escalated Priority Items</div>
+            </div>
+
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-fossil-gray)', fontWeight: 700, letterSpacing: '+1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Completed
+              </div>
+              <div style={{ fontFamily: 'var(--font-copernicus)', fontSize: '38px', fontWeight: 400, color: '#000000', lineHeight: 1, marginBottom: '8px' }}>
+                {completedCount}
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Forwarded in Pipeline</div>
+            </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
-            <span style={{ color: '#bfdbfe' }}>Officer:</span>
-            <span style={{ fontWeight: 600, color: '#ffffff' }}>{user?.name || 'Ananya Patel'}</span>
+        </section>
+
+        <div className="hairline-fullwidth" style={{ marginBottom: '32px' }} />
+
+        {/* 3. Actionable Queue & Statutory Docket Register */}
+        <section style={{ backgroundColor: '#ffffff', border: '1px solid #000000', borderRadius: '0px', padding: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px', marginBottom: '28px', paddingBottom: '20px', borderBottom: '1px solid #000000' }}>
+            <div>
+              <span className="editorial-section-tag" style={{ color: 'var(--color-fossil-gray)', display: 'block', marginBottom: '6px' }}>
+                OFFICIAL STATUTORY DOCKET REGISTER
+              </span>
+              <h3 style={{ fontFamily: 'var(--font-copernicus)', fontSize: '24px', fontWeight: 400, color: '#000000', margin: 0 }}>
+                Actionable Queue
+              </h3>
+              <span style={{ fontSize: '14px', color: 'var(--color-fossil-gray)', marginTop: '4px', display: 'block', fontStyle: 'italic' }}>
+                Chronological ledger of assigned tasks requiring verification and affirmation under RFCTLARR Act 2013.
+              </span>
+            </div>
+
+            {/* Filter Buttons — PRESERVED EXACTLY */}
+            <div style={{ display: 'flex', gap: '0px', border: '1px solid #000000' }}>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '0px',
+                  fontSize: '13px',
+                  fontFamily: 'var(--font-copernicus)',
+                  fontStyle: 'italic',
+                  fontWeight: statusFilter === 'ALL' ? 700 : 400,
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderRight: '1px solid #000000',
+                  backgroundColor: statusFilter === 'ALL' ? '#000000' : 'transparent',
+                  color: statusFilter === 'ALL' ? '#ffffff' : '#000000',
+                  transition: 'background-color 0.15s'
+                }}
+                onClick={() => setStatusFilter('ALL')}
+              >
+                All ({tasks.length})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '0px',
+                  fontSize: '13px',
+                  fontFamily: 'var(--font-copernicus)',
+                  fontStyle: 'italic',
+                  fontWeight: statusFilter === 'PENDING' ? 700 : 400,
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderRight: '1px solid #000000',
+                  backgroundColor: statusFilter === 'PENDING' ? '#000000' : 'transparent',
+                  color: statusFilter === 'PENDING' ? '#ffffff' : '#000000',
+                  transition: 'background-color 0.15s'
+                }}
+                onClick={() => setStatusFilter('PENDING')}
+              >
+                Pending ({pendingCount})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '0px',
+                  fontSize: '13px',
+                  fontFamily: 'var(--font-copernicus)',
+                  fontStyle: 'italic',
+                  fontWeight: statusFilter === 'REJECTED' ? 700 : 400,
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderRight: '1px solid #000000',
+                  backgroundColor: statusFilter === 'REJECTED' ? '#000000' : 'transparent',
+                  color: statusFilter === 'REJECTED' ? '#ffffff' : '#000000',
+                  transition: 'background-color 0.15s'
+                }}
+                onClick={() => setStatusFilter('REJECTED')}
+              >
+                Rejected ({rejectedCount})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '0px',
+                  fontSize: '13px',
+                  fontFamily: 'var(--font-copernicus)',
+                  fontStyle: 'italic',
+                  fontWeight: statusFilter === 'OVERDUE' ? 700 : 400,
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderRight: '1px solid #000000',
+                  backgroundColor: statusFilter === 'OVERDUE' ? '#000000' : 'transparent',
+                  color: statusFilter === 'OVERDUE' ? '#ffffff' : '#000000',
+                  transition: 'background-color 0.15s'
+                }}
+                onClick={() => setStatusFilter('OVERDUE')}
+              >
+                Overdue ({overdueCount})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '0px',
+                  fontSize: '13px',
+                  fontFamily: 'var(--font-copernicus)',
+                  fontStyle: 'italic',
+                  fontWeight: statusFilter === 'COMPLETED' ? 700 : 400,
+                  cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: statusFilter === 'COMPLETED' ? '#000000' : 'transparent',
+                  color: statusFilter === 'COMPLETED' ? '#ffffff' : '#000000',
+                  transition: 'background-color 0.15s'
+                }}
+                onClick={() => setStatusFilter('COMPLETED')}
+              >
+                Completed ({completedCount})
+              </button>
+            </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-            <span style={{ color: '#bfdbfe' }}>Department:</span>
-            <span style={{ fontWeight: 600, color: '#ffffff' }}>{user?.department || 'Revenue & Land Records Branch'}</span>
-          </div>
-        </div>
-      </header>
 
-      {/* Triage Bar */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '20px', marginBottom: '40px' }}>
-        <div style={{ ...premiumCardStyle }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Assigned Workload</div>
-          <div style={{ fontSize: '42px', fontWeight: 700, color: '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{tasks.length}</div>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>Total Tasks in Queue</div>
-        </div>
-
-        <div style={{ ...premiumCardStyle, borderBottom: '4px solid #3b82f6' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Pending Action</div>
-          <div style={{ fontSize: '42px', fontWeight: 700, color: '#3b82f6', lineHeight: '1', marginBottom: '8px' }}>{pendingCount}</div>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>Tasks Requiring Scrutiny</div>
-        </div>
-
-        <div style={{ ...premiumCardStyle, borderBottom: rejectedCount > 0 ? '4px solid #ef4444' : '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Rejected / Remitted</div>
-          <div style={{ fontSize: '42px', fontWeight: 700, color: rejectedCount > 0 ? '#dc2626' : '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{rejectedCount}</div>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>Remitted to Proponent</div>
-        </div>
-
-        <div style={{ ...premiumCardStyle, borderBottom: overdueCount > 0 ? '4px solid #f59e0b' : '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>SLA Overdue</div>
-          <div style={{ fontSize: '42px', fontWeight: 700, color: overdueCount > 0 ? '#f59e0b' : '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{overdueCount}</div>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>Escalated Priority Items</div>
-        </div>
-
-        <div style={{ ...premiumCardStyle, borderBottom: completedCount > 0 ? '4px solid #10b981' : '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '12px' }}>Completed</div>
-          <div style={{ fontSize: '42px', fontWeight: 700, color: completedCount > 0 ? '#10b981' : '#0f172a', lineHeight: '1', marginBottom: '8px' }}>{completedCount}</div>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>Stages Forwarded in Pipeline</div>
-        </div>
-      </section>
-
-      {/* Ledger Section */}
-      <section style={{ backgroundColor: '#ffffff', borderRadius: '20px', padding: '32px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.03)', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
-          <div>
-            <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0 0 8px 0' }}>Actionable Queue</h3>
-            <span style={{ fontSize: '14px', color: '#64748b' }}>
-              Chronological ledger of assigned tasks requiring verification and affirmation.
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', backgroundColor: '#f8fafc', padding: '6px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <button
-              type="button"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: 'none',
-                backgroundColor: statusFilter === 'ALL' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'ALL' ? '#0f172a' : '#64748b',
-                boxShadow: statusFilter === 'ALL' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => setStatusFilter('ALL')}
-            >
-              All ({tasks.length})
-            </button>
-            <button
-              type="button"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: 'none',
-                backgroundColor: statusFilter === 'PENDING' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'PENDING' ? '#3b82f6' : '#64748b',
-                boxShadow: statusFilter === 'PENDING' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => setStatusFilter('PENDING')}
-            >
-              Pending ({pendingCount})
-            </button>
-            <button
-              type="button"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: 'none',
-                backgroundColor: statusFilter === 'REJECTED' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'REJECTED' ? '#dc2626' : '#64748b',
-                boxShadow: statusFilter === 'REJECTED' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => setStatusFilter('REJECTED')}
-            >
-              Rejected ({rejectedCount})
-            </button>
-            <button
-              type="button"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: 'none',
-                backgroundColor: statusFilter === 'OVERDUE' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'OVERDUE' ? '#ef4444' : '#64748b',
-                boxShadow: statusFilter === 'OVERDUE' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => setStatusFilter('OVERDUE')}
-            >
-              Overdue ({overdueCount})
-            </button>
-            <button
-              type="button"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: 'none',
-                backgroundColor: statusFilter === 'COMPLETED' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'COMPLETED' ? '#10b981' : '#64748b',
-                boxShadow: statusFilter === 'COMPLETED' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => setStatusFilter('COMPLETED')}
-            >
-              Completed ({completedCount})
-            </button>
-          </div>
-        </div>
-
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: '16px' }}>
-            <BhoomiLogo size={32} strokeWidth={2.4} />
-            <span style={{ fontSize: '15px', color: '#64748b', fontWeight: 500 }}>Syncing Assigned Tasks...</span>
-          </div>
-        ) : filteredTasks.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-            <p style={{ fontSize: '15px', color: '#64748b', fontWeight: 500 }}>No assigned tasks match the selected filter.</p>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr>
-                  <th style={{ padding: '16px 20px', fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>Task ID / Date</th>
-                  <th style={{ padding: '16px 20px', fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>Project Requisition</th>
-                  <th style={{ padding: '16px 20px', fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>Workflow Stage</th>
-                  <th style={{ padding: '16px 20px', fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>SLA Due Date</th>
-                  <th style={{ padding: '16px 20px', fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>Status</th>
-                  <th style={{ padding: '16px 20px', fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9', textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTasks.map((task) => {
-                  const mappedStatus = getMappedStatus(task);
-                  return (
-                  <tr key={task.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <td style={{ padding: '20px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontWeight: 600, color: '#0f172a', fontFamily: 'monospace', fontSize: '14px' }}>{task.id.split('-').pop()}</span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>Assigned: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : ''}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '20px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{task.projectTitle}</span>
-                        <span style={{ fontSize: '13px', color: '#64748b', fontFamily: 'monospace' }}>{task.projectCode}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '20px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{task.stageName}</span>
-                        <span style={{ fontSize: '13px', color: '#64748b' }}>{task.department}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '20px' }}>
-                       <span style={{ 
-                         color: mappedStatus === 'OVERDUE' ? '#ef4444' : '#0f172a', 
-                         fontWeight: mappedStatus === 'OVERDUE' ? 700 : 500,
-                         fontSize: '14px'
-                       }}>
-                         {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}
-                       </span>
-                    </td>
-                    <td style={{ padding: '20px' }}>
-                      <span className={`status-pill pill-${mappedStatus.toLowerCase()}`} style={{ 
-                        padding: '5px 12px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        borderRadius: '20px',
-                        display: 'inline-block',
-                        ...(mappedStatus === 'OVERDUE' ? { backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' } : {}),
-                        ...(mappedStatus === 'REJECTED' ? { backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' } : {}),
-                        ...(mappedStatus === 'COMPLETED' ? { backgroundColor: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' } : {}),
-                        ...(mappedStatus === 'PENDING' ? { backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' } : {})
-                      }}>
-                        {mappedStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: '20px', textAlign: 'right' }}>
-                      <Link
-                        to={`/officer/tasks/${task.id}`}
-                        style={{ 
-                          display: 'inline-block',
-                          padding: '8px 16px', 
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          backgroundColor: '#1e3a8a',
-                          color: '#ffffff',
-                          borderRadius: '8px',
-                          textDecoration: 'none',
-                          transition: 'background-color 0.2s'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.backgroundColor = '#312e81'}
-                        onMouseOut={e => e.currentTarget.style.backgroundColor = '#1e3a8a'}
-                      >
-                        Inspect &rarr;
-                      </Link>
-                    </td>
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: '16px' }}>
+              <BhoomiLogo size={34} strokeWidth={2.4} />
+              <span style={{ fontSize: '15px', color: 'var(--color-carbon-ink)', fontFamily: 'var(--font-copernicus)', fontStyle: 'italic' }}>
+                Synchronizing Statutory Task Ledger...
+              </span>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', backgroundColor: 'var(--color-paper-tint)', border: '1px solid #000000', borderRadius: '0px' }}>
+              <p style={{ fontSize: '15px', color: '#000000', fontFamily: 'var(--font-copernicus)', fontStyle: 'italic', margin: 0 }}>
+                No assigned statutory tasks match the selected docket filter.
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--color-paper-tint)', borderBottom: '2px solid #000000' }}>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Task ID / Date</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Project Requisition</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Workflow Stage</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>SLA Due Date</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Status</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px', textAlign: 'right' }}>Action</th>
                   </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {filteredTasks.map((task) => {
+                    const mappedStatus = getMappedStatus(task);
+                    return (
+                      <tr
+                        key={task.id}
+                        style={{ borderBottom: '1px solid rgba(0,0,0,0.15)', transition: 'background-color 0.15s' }}
+                        onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--color-paper-tint)'}
+                        onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{ fontWeight: 600, color: '#000000', fontFamily: 'monospace', fontSize: '14px' }}>
+                              {task.id.split('-').pop()}
+                            </span>
+                            <span style={{ fontSize: '12px', color: 'var(--color-fossil-gray)' }}>
+                              Assigned: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : ''}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{ fontWeight: 600, color: '#000000', fontSize: '14px', fontFamily: 'var(--font-copernicus)' }}>
+                              {task.projectTitle}
+                            </span>
+                            <span style={{ fontSize: '12px', color: 'var(--color-fossil-gray)', fontFamily: 'monospace' }}>
+                              {task.projectCode}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 600, color: '#000000' }}>
+                              {task.stageName}
+                            </span>
+                            <span style={{ fontSize: '12px', color: 'var(--color-fossil-gray)' }}>
+                              {task.department}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <span style={{
+                            color: mappedStatus === 'OVERDUE' ? '#000000' : '#000000',
+                            fontWeight: mappedStatus === 'OVERDUE' ? 700 : 500,
+                            fontSize: '13.5px',
+                            fontFamily: 'monospace'
+                          }}>
+                            {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <span style={{
+                            padding: '4px 10px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            borderRadius: '0px',
+                            letterSpacing: '+1px',
+                            display: 'inline-block',
+                            border: '1px solid #000000',
+                            backgroundColor: mappedStatus === 'COMPLETED' ? '#000000' : mappedStatus === 'PENDING' ? 'transparent' : 'var(--color-paper-tint)',
+                            color: mappedStatus === 'COMPLETED' ? '#ffffff' : mappedStatus === 'PENDING' ? '#0058fe' : '#000000',
+                            borderColor: mappedStatus === 'PENDING' ? '#0058fe' : '#000000'
+                          }}>
+                            {mappedStatus}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}>
+                          <Link
+                            to={`/officer/tasks/${task.id}`}
+                            className="btn-cta-black"
+                            style={{
+                              padding: '6px 14px',
+                              fontSize: '13px',
+                              borderRadius: '0px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            Inspect &rarr;
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 };
 
 export default OfficerDashboardPage;
+
