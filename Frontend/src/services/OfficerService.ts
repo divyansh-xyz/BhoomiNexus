@@ -143,17 +143,7 @@ export const OfficerService = {
       vaultFormData.append('file', file);
       vaultFormData.append('taskId', taskId);
 
-      // Primary: Upload to Node Backend (saves to DB, Vault & triggers OCR pipeline)
-      const res = await apiClient.post('/documents/upload', vaultFormData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      const docId = res.data?.document_id || res.data?.id;
-      if (docId) {
-        return { success: true, documentId: docId };
-      }
-
-      // Optional fallback to standalone microservice if running on port 8000
+      // 1. Try AI Document Parser microservice first (for LLM extraction)
       try {
         const fallbackRes = await fetch(`${API_BASE_URL}/documents/upload`, {
           method: 'POST',
@@ -161,10 +151,31 @@ export const OfficerService = {
         });
         if (fallbackRes.ok) {
           const fbData = await fallbackRes.json();
-          return { success: true, documentId: fbData.document_id || fbData.id };
+          const aiDocId = fbData.document_id || fbData.id;
+          
+          // 2. Also upload to Node Backend to keep the main project dossier in sync
+          try {
+            await apiClient.post('/documents/upload', vaultFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+          } catch (backendErr) {
+            console.warn("Failed to sync to backend dossier, but AI parsing will proceed", backendErr);
+          }
+
+          return { success: true, documentId: aiDocId };
         }
-      } catch {
-        // Fallback microservice not available
+      } catch (err) {
+        console.warn("AI Parser failed, falling back to basic backend upload", err);
+      }
+
+      // Fallback: Upload to Node Backend only (no AI processing)
+      const res = await apiClient.post('/documents/upload', vaultFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const docId = res.data?.document_id || res.data?.id;
+      if (docId) {
+        return { success: true, documentId: docId };
       }
 
       return { success: true, documentId: `DOC-${Date.now()}` };
