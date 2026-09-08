@@ -104,10 +104,27 @@ const mockTaskDetails: Record<string, TaskDetail> = {
 export interface OcrExtractionResult {
   docId: string;
   backendDocId?: string;
-  status: 'PENDING' | 'OCR_PROCESSING' | 'GEMINI_EXTRACTING' | 'COMPLETED';
+  /** EMPTY = document classified but no fields read. FAILED = parser unreachable. */
+  status: 'PENDING' | 'OCR_PROCESSING' | 'GEMINI_EXTRACTING' | 'COMPLETED' | 'EMPTY' | 'FAILED';
   extractedData?: Record<string, any>;
   confidenceScores?: Record<string, number>;
+  documentType?: string;
+  missingFields?: string[];
 }
+
+// The parser reports per-field confidence as qualitative buckets ("high"/"medium"/
+// "low"); the officer form renders a numeric percentage.
+const CONFIDENCE_BUCKETS: Record<string, number> = { high: 95, medium: 80, low: 55 };
+
+const normalizeConfidence = (scores?: Record<string, any> | null): Record<string, number> | undefined => {
+  if (!scores || typeof scores !== 'object') return undefined;
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(scores)) {
+    if (typeof value === 'number') out[key] = value <= 1 ? Math.round(value * 100) : Math.round(value);
+    else if (typeof value === 'string') out[key] = CONFIDENCE_BUCKETS[value.toLowerCase()] ?? 80;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+};
 
 export const OfficerService = {
   getAssignedTasks: async (): Promise<OfficerTask[]> => {
@@ -139,32 +156,47 @@ export const OfficerService = {
   // Phase 9 & 10: Real AI Document Parser Integration + Document Vault Integration
   uploadEvidence: async (taskId: string, file: File): Promise<{ success: boolean; documentId?: string }> => {
     try {
-      const vaultFormData = new FormData();
-      vaultFormData.append('file', file);
-      vaultFormData.append('taskId', taskId);
+      // A FormData is consumed once sent, so build a fresh one per request.
+      const buildForm = () => {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('taskId', taskId);
+        return fd;
+      };
 
-      // Primary: Upload to Node Backend (saves to DB, Vault & triggers OCR pipeline)
-      const res = await apiClient.post('/documents/upload', vaultFormData, {
+      // 1. Try AI Document Parser microservice first (for LLM extraction)
+      try {
+        const fallbackRes = await fetch(`${API_BASE_URL}/documents/upload`, {
+          method: 'POST',
+          body: buildForm(),
+        });
+        if (fallbackRes.ok) {
+          const fbData = await fallbackRes.json();
+          const aiDocId = fbData.document_id || fbData.id;
+
+          // 2. Also upload to Node Backend to keep the main project dossier in sync
+          try {
+            await apiClient.post('/documents/upload', buildForm(), {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+          } catch (backendErr) {
+            console.warn("Failed to sync to backend dossier, but AI parsing will proceed", backendErr);
+          }
+
+          return { success: true, documentId: aiDocId };
+        }
+      } catch (err) {
+        console.warn("AI Parser failed, falling back to basic backend upload", err);
+      }
+
+      // Fallback: Upload to Node Backend only (no AI processing)
+      const res = await apiClient.post('/documents/upload', buildForm(), {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       const docId = res.data?.document_id || res.data?.id;
       if (docId) {
         return { success: true, documentId: docId };
-      }
-
-      // Optional fallback to standalone microservice if running on port 8000
-      try {
-        const fallbackRes = await fetch(`${API_BASE_URL}/documents/upload`, {
-          method: 'POST',
-          body: vaultFormData,
-        });
-        if (fallbackRes.ok) {
-          const fbData = await fallbackRes.json();
-          return { success: true, documentId: fbData.document_id || fbData.id };
-        }
-      } catch {
-        // Fallback microservice not available
       }
 
       return { success: true, documentId: `DOC-${Date.now()}` };
@@ -174,7 +206,7 @@ export const OfficerService = {
     }
   },
 
-  getProcessingStatus: async (docId: string): Promise<{ overall_status: string; ocr_status?: string; llm_status?: string }> => {
+  getProcessingStatus: async (docId: string): Promise<{ overall_status: string }> => {
     try {
       // Primary: Check Node Backend
       const res = await apiClient.get(`/documents/${docId}/processing`);
@@ -194,62 +226,49 @@ export const OfficerService = {
   },
 
   getOcrExtractionStatus: async (_taskId: string, docId: string): Promise<OcrExtractionResult> => {
+    // Primary: AI Parser. It is the only source that actually runs OCR/Gemini and
+    // that answers 202 while still working. The Node backend must NOT be asked
+    // first: it synthesizes a COMPLETED template from seed data every time, which
+    // ends the caller's polling loop before the real extraction has finished.
     try {
-      // Primary: Fetch from Node Backend
-      const res = await apiClient.get(`/documents/${docId}/extraction`);
-      if (res.data && res.data.extracted_data && res.data.status === 'COMPLETED') {
+      const response = await fetch(`${API_BASE_URL}/documents/${docId}/extraction`);
+
+      if (response.status === 202) {
+        return { docId, backendDocId: docId, status: 'GEMINI_EXTRACTING' };
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        const extracted = data.extracted_data || data.fields;
+
+        // An empty object means Gemini classified the document but could not read
+        // any fields. Report that honestly rather than inventing values: the
+        // officer affirms these into the statutory registry.
+        if (!extracted || Object.keys(extracted).length === 0) {
+          return {
+            docId,
+            backendDocId: docId,
+            status: 'EMPTY',
+            documentType: data.document_type,
+            missingFields: data.missing_fields,
+          };
+        }
+
         return {
           docId,
           backendDocId: docId,
           status: 'COMPLETED',
-          extractedData: res.data.extracted_data,
-          confidenceScores: res.data.confidence_scores,
+          extractedData: extracted,
+          confidenceScores: normalizeConfidence(data.field_confidence || data.confidence_scores),
+          documentType: data.document_type,
+          missingFields: data.missing_fields,
         };
       }
-      if (res.data && (res.status === 202 || res.data.status === 'PROCESSING' || res.data.status === 'PENDING')) {
-        return {
-          docId,
-          backendDocId: docId,
-          status: 'OCR_PROCESSING',
-          extractedData: {},
-          confidenceScores: {},
-        };
-      }
-    } catch {
-      // Fallback: Check port 8000 directly
-      try {
-        const response = await fetch(`${API_BASE_URL}/documents/${docId}/extraction`);
-        if (response.status === 202) {
-          return {
-            docId,
-            backendDocId: docId,
-            status: 'OCR_PROCESSING',
-            extractedData: {},
-            confidenceScores: {},
-          };
-        }
-        if (response.ok) {
-          const data = await response.json();
-          return {
-            docId,
-            backendDocId: docId,
-            status: 'COMPLETED',
-            extractedData: data.extracted_data || data.fields || {},
-            confidenceScores: data.field_confidence || data.confidence_scores || {},
-          };
-        }
-      } catch {
-        // Continue to resilient empty extraction state
-      }
+    } catch (err) {
+      console.error('AI parser extraction fetch failed', err);
     }
 
-    return {
-      docId,
-      backendDocId: docId,
-      status: 'OCR_PROCESSING',
-      extractedData: {},
-      confidenceScores: {},
-    };
+    return { docId, backendDocId: docId, status: 'FAILED' };
   },
 
   submitOcrVerification: async (taskId: string, docId: string, backendDocId: string | undefined, verifiedData: any): Promise<{ success: boolean }> => {

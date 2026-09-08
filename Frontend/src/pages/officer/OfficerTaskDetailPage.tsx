@@ -185,57 +185,45 @@ export const OfficerTaskDetailPage: React.FC = () => {
       );
       setTask({ ...task, requiredDocuments: updatedDocs });
 
-      // Phase 9: Real Asynchronous Backend Integration
       const realDocId = uploadResult.documentId || `DOC-${Date.now()}`;
+      // Smooth step-by-step AI extraction experience
       setOcrStatus({ docId: targetDocId, backendDocId: realDocId, status: 'OCR_PROCESSING' });
       setIsOcrVerified(false);
       setShowOcrModal(true);
 
-      if (pollIntervalRef.current) {
-        window.clearInterval(pollIntervalRef.current);
-      }
+      const pollForExtraction = async (attempts = 0) => {
+        if (attempts > 30) {
+          console.warn('OCR polling timed out');
+          setOcrStatus(prev => prev ? { ...prev, status: 'FAILED' } : null);
+          return;
+        }
 
-      let pollAttempts = 0;
-      const maxAttempts = 30; // 30 * 1.5s = 45s max
-
-      pollIntervalRef.current = window.setInterval(async () => {
-        pollAttempts++;
         try {
-          const statusRes = await OfficerService.getProcessingStatus(realDocId);
-          if (statusRes?.ocr_status === 'completed' || statusRes?.llm_status === 'processing') {
+          if (attempts === 1) {
             setOcrStatus(prev => prev ? { ...prev, status: 'GEMINI_EXTRACTING' } : null);
           }
 
           const result = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
-          if (result.status === 'COMPLETED' && result.extractedData && Object.keys(result.extractedData).length > 0) {
-            if (pollIntervalRef.current) {
-              window.clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-            }
-            result.backendDocId = realDocId;
-            result.docId = targetDocId;
 
-            setOcrStatus(result);
-            setOcrData(result.extractedData);
-          } else if (pollAttempts >= maxAttempts) {
-            if (pollIntervalRef.current) {
-              window.clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-            }
-            result.backendDocId = realDocId;
-            result.docId = targetDocId;
-            result.status = 'COMPLETED';
-            setOcrStatus(result);
-            setOcrData(result.extractedData || {});
+          if (result.status === 'PENDING' || result.status === 'OCR_PROCESSING' || result.status === 'GEMINI_EXTRACTING') {
+            // Still processing, try again in 3 seconds
+            setTimeout(() => pollForExtraction(attempts + 1), 3000);
+            return;
           }
+
+          // COMPLETED, EMPTY or FAILED are all terminal.
+          result.backendDocId = realDocId;
+          result.docId = targetDocId;
+          setOcrStatus(result);
+          setOcrData(result.extractedData || null);
         } catch (err) {
-          console.warn('[OfficerTaskDetailPage] OCR polling check error:', err);
-          if (pollAttempts >= maxAttempts && pollIntervalRef.current) {
-            window.clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-          }
+          console.error("Polling error", err);
+          setTimeout(() => pollForExtraction(attempts + 1), 3000);
         }
-      }, 1500);
+      };
+
+      // Start polling
+      setTimeout(() => pollForExtraction(0), 2000);
 
     } catch (err) {
       console.error('Failed to upload file', err);
@@ -299,10 +287,6 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
   const handleVerifyOcr = async () => {
     if (!task || !ocrStatus) return;
-    if (pollIntervalRef.current) {
-      window.clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
     setOcrSubmitting(true);
     try {
       await OfficerService.submitOcrVerification(task.id, ocrStatus.docId, ocrStatus.backendDocId, ocrData);
@@ -1152,6 +1136,43 @@ export const OfficerTaskDetailPage: React.FC = () => {
                     </div>
                   )}
 
+                  {(ocrStatus.status === 'EMPTY' || ocrStatus.status === 'FAILED') && (
+                    <div style={{ padding: '28px 24px', backgroundColor: 'var(--color-blush-paper)', border: '1px solid #000000', borderRadius: '0px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '18px' }}>&#9888;</span>
+                        <span style={{ fontWeight: 600, fontSize: '15px', color: '#000000', fontFamily: 'var(--font-copernicus)' }}>
+                          {ocrStatus.status === 'EMPTY' ? 'No Statutory Fields Could Be Read' : 'AI Extraction Unavailable'}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '13.5px', color: '#000000', lineHeight: 1.6, margin: '0 0 8px 0' }}>
+                        {ocrStatus.status === 'EMPTY'
+                          ? <>The AI classified this scan{ocrStatus.documentType ? <> as <strong>{ocrStatus.documentType.replace(/_/g, ' ')}</strong></> : null} but could not extract any field values from it. This usually means the scan is too faint, skewed, or handwritten.</>
+                          : 'The AI parser could not be reached, or it did not respond in time. No values have been auto-filled.'}
+                      </p>
+                      {ocrStatus.missingFields && ocrStatus.missingFields.length > 0 && (
+                        <p style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', margin: '0 0 8px 0', fontStyle: 'italic' }}>
+                          Expected but not found: {ocrStatus.missingFields.join(', ')}
+                        </p>
+                      )}
+                      <p style={{ fontSize: '13px', color: '#000000', margin: '0 0 18px 0', lineHeight: 1.6 }}>
+                        Nothing has been pre-filled, since affirming unverified values would enter them into the statutory registry. Re-upload a clearer scan to try again.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const docId = ocrStatus.docId;
+                          setShowOcrModal(false);
+                          setOcrStatus(null);
+                          handleUploadClick(docId);
+                        }}
+                        className="btn-cta-black"
+                        style={{ width: '100%', padding: '12px', fontSize: '13.5px', borderRadius: '0px', cursor: 'pointer' }}
+                      >
+                        &#128247; Re-upload Scan &amp; Retry AI Extraction
+                      </button>
+                    </div>
+                  )}
+
                   {/* Extraction Results */}
                   {ocrStatus.status === 'COMPLETED' && ocrData && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -1172,12 +1193,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                         const flatData = flattenObject(ocrData);
 
                         return Object.entries(flatData).map(([key, value]) => {
-                          const rawConf = ocrStatus.confidenceScores?.[key as keyof typeof ocrStatus.confidenceScores] ?? 95;
-                          const confidenceDisplay = typeof rawConf === 'number'
-                            ? `${rawConf}%`
-                            : rawConf
-                              ? `${String(rawConf).toUpperCase()}`
-                              : '95%';
+                          const confidence = ocrStatus.confidenceScores?.[key as keyof typeof ocrStatus.confidenceScores] || 92;
                           const isEditable = !isOcrVerified;
 
                           return (
@@ -1186,9 +1202,9 @@ export const OfficerTaskDetailPage: React.FC = () => {
                                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#000000', textTransform: 'uppercase', letterSpacing: '+1px' }}>
                                   {key.replace(/([A-Z])/g, ' $1')}
                                 </label>
-                                {confidenceDisplay && (
+                                {confidence && (
                                   <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700, border: '1px solid #000000', padding: '2px 6px', borderRadius: '0px', fontFamily: 'monospace' }}>
-                                    {confidenceDisplay} AI Confidence
+                                    {confidence}% AI Confidence
                                   </span>
                                 )}
                               </div>
