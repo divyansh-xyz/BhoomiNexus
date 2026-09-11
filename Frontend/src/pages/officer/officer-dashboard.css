@@ -1,0 +1,1347 @@
+/* ==========================================================================
+   OFFICER DASHBOARD — THINGS AESTHETIC DESIGN SYSTEM
+   Derived from DESIGN.md:
+   Mist Canvas (#f2f5f7), Paper Surfaces (#ffffff), Ink Typography (#303336),
+   Fog Neutrals (#838b96), Signal Blue Accents (#2576eb), 18px Card Radii,
+   6px Button Radii, System Sans-Serif Typography.
+   ========================================================================== */
+
+:root {
+  --to-ink: #303336;
+  --to-paper: #ffffff;
+  --to-mist: #f2f5f7;
+  --to-fog: #838b96;
+  --to-ash: #55606e;
+  --to-smoke: #44474b;
+  --to-silver: #9299a4;
+  --to-hairline: #dfe3e8;
+  --to-signal-blue: #2576eb;
+  --to-signal-blue-hover: #1d65d4;
+  --to-signal-blue-tint: rgba(37, 118, 235, 0.08);
+  --to-sky-blue: #5c9cf5;
+  --to-emerald: #10b981;
+  --to-emerald-tint: rgba(16, 185, 129, 0.08);
+  --to-rose: #ef4444;
+  --to-rose-tint: rgba(239, 68, 68, 0.08);
+  --to-amber: #f59e0b;
+  --to-amber-tint: rgba(245, 158, 11, 0.08);
+
+  --to-radius-cards: 18px;
+  --to-radius-buttons: 6px;
+  --to-radius-pills: 9999px;
+
+  --to-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 24px -6px rgba(0, 0, 0, 0.06);
+  --to-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 16px 36px -8px rgba(0, 0, 0, 0.08);
+
+  --to-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --to-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Sovereign Official Top Masthead Override for Officer */
+.gov-workspace-shell.theme-things-officer {
+  background-color: #f2f5f7 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+.gov-workspace-shell.theme-things-officer .gov-top-masthead {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #dfe3e8 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.gov-workspace-shell.theme-things-officer .gov-brand-title {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif !important;
+  font-weight: 700 !important;
+  color: #303336 !important;
+}
+
+.gov-workspace-shell.theme-things-officer .gov-ministry-name {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif !important;
+  font-weight: 600 !important;
+  color: #303336 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.gov-workspace-shell.theme-things-officer .gov-sub-label {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif !important;
+  color: #838b96 !important;
+}
+
+.gov-workspace-shell.theme-things-officer .gov-brand-divider {
+  background-color: #dfe3e8 !important;
+  opacity: 1 !important;
+}
+
+.gov-workspace-shell.theme-things-officer .gov-signout-btn {
+  background-color: transparent !important;
+  color: #55606e !important;
+  border: 1px solid #dfe3e8 !important;
+  border-radius: 6px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  padding: 6px 14px !important;
+  transition: all 0.15s ease !important;
+}
+
+.gov-workspace-shell.theme-things-officer .gov-signout-btn:hover {
+  background-color: #f2f5f7 !important;
+  color: #303336 !important;
+  border-color: #838b96 !important;
+}
+
+/* Page Root */
+.things-officer-root {
+  min-height: 100vh;
+  background-color: var(--to-mist);
+  font-family: var(--to-font-sans);
+  color: var(--to-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.things-officer-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 24px 80px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* 1. Sovereign Editorial Masthead */
+.things-officer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.things-officer-header-main {
+  flex: 1;
+  min-width: 320px;
+}
+
+.things-officer-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--to-fog);
+  margin-bottom: 10px;
+}
+
+.things-officer-eyebrow-pill {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  padding: 3px 10px;
+  border-radius: var(--to-radius-pills);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.things-officer-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.things-officer-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.things-officer-subtitle {
+  font-size: 14.5px;
+  color: var(--to-fog);
+  line-height: 1.6;
+  max-width: 720px;
+  margin: 0;
+}
+
+/* Duty Stamp Card */
+.things-officer-duty-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 18px 22px;
+  min-width: 300px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.things-officer-duty-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--to-signal-blue);
+}
+
+.things-officer-duty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--to-signal-blue);
+  box-shadow: 0 0 0 3px rgba(37, 118, 235, 0.2);
+  display: inline-block;
+  animation: pulse-officer-duty 2s infinite;
+}
+
+@keyframes pulse-officer-duty {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 118, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(37, 118, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 118, 235, 0);
+  }
+}
+
+.things-officer-duty-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--to-hairline);
+  padding-top: 10px;
+}
+
+.things-officer-duty-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  gap: 12px;
+}
+
+.things-officer-duty-label {
+  color: var(--to-fog);
+  font-weight: 500;
+}
+
+.things-officer-duty-val {
+  font-weight: 600;
+  color: var(--to-ink);
+  text-align: right;
+}
+
+/* 2. Triage Summary Bar (KPIs) */
+.things-officer-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .things-officer-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .things-officer-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .things-officer-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.things-officer-kpi-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 20px 22px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.things-officer-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--to-shadow-hover);
+}
+
+.things-officer-kpi-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--to-fog);
+}
+
+.things-officer-kpi-val {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--to-ink);
+  letter-spacing: -0.025em;
+  margin: 4px 0 2px;
+}
+
+.things-officer-kpi-val.text-signal-blue {
+  color: var(--to-signal-blue);
+}
+
+.things-officer-kpi-val.text-rose {
+  color: var(--to-rose);
+}
+
+.things-officer-kpi-val.text-emerald {
+  color: var(--to-emerald);
+}
+
+.things-officer-kpi-sub {
+  font-size: 12px;
+  color: var(--to-fog);
+  line-height: 1.4;
+}
+
+/* 3. Actionable Queue & Statutory Docket Register Card */
+.things-officer-queue-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  box-shadow: var(--to-shadow-card);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.things-officer-queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--to-hairline);
+}
+
+.things-officer-queue-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.things-officer-section-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--to-fog);
+}
+
+.things-officer-queue-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.things-officer-queue-desc {
+  font-size: 13.5px;
+  color: var(--to-fog);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Filter Bar */
+.things-officer-filter-bar {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--to-mist);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-buttons);
+  padding: 3px;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.things-officer-filter-pill {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--to-ash);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.things-officer-filter-pill:hover {
+  color: var(--to-ink);
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.things-officer-filter-pill.active {
+  background-color: var(--to-paper);
+  color: var(--to-ink);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.things-officer-filter-count {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: var(--to-radius-pills);
+  background-color: rgba(0, 0, 0, 0.06);
+  color: var(--to-ash);
+}
+
+.things-officer-filter-pill.active .things-officer-filter-count {
+  background-color: var(--to-signal-blue-tint);
+  color: var(--to-signal-blue);
+  font-weight: 700;
+}
+
+/* Table */
+.things-officer-table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--to-hairline);
+  background-color: var(--to-paper);
+}
+
+.things-officer-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.things-officer-table thead th {
+  background-color: #fafbfc;
+  padding: 12px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--to-fog);
+  border-bottom: 1px solid var(--to-hairline);
+  white-space: nowrap;
+}
+
+.things-officer-table thead th.text-right {
+  text-align: right;
+}
+
+.things-officer-table tbody td {
+  padding: 16px 18px;
+  font-size: 13.5px;
+  color: var(--to-ink);
+  border-bottom: 1px solid var(--to-hairline);
+  vertical-align: middle;
+  background-color: var(--to-paper);
+  transition: background-color 0.15s ease;
+}
+
+.things-officer-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.things-officer-table tbody tr:hover td {
+  background-color: #f8fafc;
+}
+
+/* Cell typography & elements */
+.things-officer-id-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.things-officer-task-id {
+  font-family: var(--to-font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--to-ink);
+  background-color: var(--to-mist);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--to-hairline);
+  display: inline-block;
+  width: fit-content;
+}
+
+.things-officer-meta-date {
+  font-size: 12px;
+  color: var(--to-fog);
+}
+
+.things-officer-proj-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.things-officer-proj-title {
+  font-weight: 600;
+  color: var(--to-ink);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.things-officer-proj-code {
+  font-family: var(--to-font-mono);
+  font-size: 11.5px;
+  color: var(--to-fog);
+}
+
+.things-officer-stage-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.things-officer-stage-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--to-ink);
+}
+
+.things-officer-department {
+  font-size: 12px;
+  color: var(--to-fog);
+}
+
+.things-officer-sla-date {
+  font-family: var(--to-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--to-ink);
+  white-space: nowrap;
+}
+
+.things-officer-sla-date.is-overdue {
+  color: #b91c1c;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Status Badges */
+.things-officer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--to-radius-pills);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.things-officer-pill.status-pending {
+  background-color: var(--to-signal-blue-tint);
+  color: var(--to-signal-blue);
+  border: 1px solid rgba(37, 118, 235, 0.25);
+}
+
+.things-officer-pill.status-completed {
+  background-color: var(--to-emerald-tint);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.things-officer-pill.status-rejected {
+  background-color: var(--to-rose-tint);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.things-officer-pill.status-overdue {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  font-weight: 800;
+}
+
+/* Inspect Task Button */
+.things-officer-inspect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--to-signal-blue);
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-buttons);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.things-officer-inspect-btn:hover {
+  background-color: var(--to-signal-blue);
+  color: #ffffff;
+  border-color: var(--to-signal-blue);
+  box-shadow: 0 2px 6px rgba(37, 118, 235, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Loading & Empty States */
+.things-officer-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  gap: 16px;
+}
+
+.things-officer-loading-text {
+  font-size: 14.5px;
+  color: var(--to-fog);
+  font-weight: 500;
+}
+
+.things-officer-empty-state {
+  text-align: center;
+  padding: 50px 20px;
+  background-color: #fafbfc;
+  border: 1px dashed var(--to-hairline);
+  border-radius: 12px;
+}
+
+.things-officer-empty-text {
+  font-size: 14px;
+  color: var(--to-fog);
+  margin: 0;
+}
+
+/* ==========================================================================
+   OFFICER TASK DETAIL & INSPECTION STYLES (DESIGN.md)
+   ========================================================================== */
+
+.things-task-nav-bar {
+  margin-bottom: 20px;
+}
+
+/* Back Button */
+.things-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--to-ash);
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-buttons);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.things-btn-back:hover {
+  background-color: #f8fafc;
+  color: var(--to-ink);
+  border-color: var(--to-silver);
+}
+
+/* Task Detail Masthead */
+.things-task-masthead {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 28px 32px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.things-task-masthead-main {
+  flex: 1;
+  min-width: 320px;
+}
+
+.things-task-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.things-task-docket-badge {
+  font-family: var(--to-font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--to-ink);
+  background-color: var(--to-mist);
+  border: 1px solid var(--to-hairline);
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.things-task-stage-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.things-task-project-info {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--to-fog);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.things-task-project-name {
+  color: var(--to-ink);
+  font-weight: 600;
+}
+
+.things-task-project-id {
+  font-family: var(--to-font-mono);
+  font-size: 12px;
+  color: var(--to-fog);
+}
+
+.things-task-stamp-card {
+  background-color: #fafbfc;
+  border: 1px solid var(--to-hairline);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.things-task-stamp-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.things-task-stamp-label {
+  font-size: 11px;
+  color: var(--to-fog);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.things-task-stamp-val {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--to-ink);
+}
+
+.things-task-stamp-val.font-mono {
+  font-family: var(--to-font-mono);
+  font-size: 13.5px;
+}
+
+/* Rejection Notice Banner */
+.things-task-rejection-banner {
+  background-color: #fff8f8;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--to-radius-cards);
+  padding: 22px 26px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.08);
+}
+
+.things-task-rejection-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+  min-width: 300px;
+}
+
+.things-task-rejection-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background-color: var(--to-rose-tint);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--to-rose);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.things-task-rejection-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0 0 6px 0;
+}
+
+.things-task-rejection-reason {
+  font-size: 14px;
+  color: var(--to-ink);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.things-task-rejection-sub {
+  font-size: 12.5px;
+  color: var(--to-fog);
+}
+
+/* Two-Column Grid */
+.things-task-layout-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1.9fr;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+@media (max-width: 1024px) {
+  .things-task-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Content Cards */
+.things-task-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 24px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.things-task-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--to-hairline);
+}
+
+.things-task-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.things-task-card-subtitle {
+  font-size: 12.5px;
+  color: var(--to-fog);
+  margin: 2px 0 0 0;
+}
+
+/* Previous Stage Context Callout */
+.things-task-context-callout {
+  background-color: #fafbfc;
+  border: 1px solid var(--to-hairline);
+  border-left: 3px solid var(--to-signal-blue);
+  padding: 16px 18px;
+  border-radius: 6px;
+  color: var(--to-ink);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+/* General Buttons */
+.things-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--to-ash);
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-buttons);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.things-btn-outline:hover:not(:disabled) {
+  background-color: #f8fafc;
+  color: var(--to-ink);
+  border-color: var(--to-silver);
+}
+
+.things-btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.things-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: var(--to-signal-blue);
+  border: 1px solid var(--to-signal-blue);
+  border-radius: var(--to-radius-buttons);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  text-decoration: none;
+  box-shadow: 0 1px 3px rgba(37, 118, 235, 0.25);
+}
+
+.things-btn-primary:hover:not(:disabled) {
+  background-color: var(--to-signal-blue-hover);
+  border-color: var(--to-signal-blue-hover);
+  box-shadow: 0 2px 6px rgba(37, 118, 235, 0.35);
+}
+
+.things-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.things-btn-success {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #10b981;
+  border: 1px solid #10b981;
+  border-radius: var(--to-radius-buttons);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.25);
+}
+
+.things-btn-success:hover:not(:disabled) {
+  background-color: #059669;
+  border-color: #059669;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.things-btn-success:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.things-btn-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #dc2626;
+  background-color: var(--to-paper);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--to-radius-buttons);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.things-btn-danger-outline:hover:not(:disabled) {
+  background-color: #fef2f2;
+  border-color: #dc2626;
+}
+
+.things-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #dc2626;
+  border: 1px solid #dc2626;
+  border-radius: var(--to-radius-buttons);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.25);
+}
+
+.things-btn-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Document Item Row */
+.things-task-doc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background-color: #fafbfc;
+  border: 1px solid var(--to-hairline);
+  flex-wrap: wrap;
+  gap: 12px;
+  transition: all 0.15s ease;
+}
+
+.things-task-doc-row.is-verified {
+  background-color: #ffffff;
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.05);
+}
+
+.things-task-doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.things-task-doc-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--to-ink);
+}
+
+.things-task-doc-sub {
+  font-size: 12px;
+  color: var(--to-fog);
+}
+
+.things-task-doc-sub.verified {
+  color: #059669;
+  font-weight: 500;
+}
+
+.things-task-doc-sub.uploaded {
+  color: var(--to-signal-blue);
+  font-weight: 500;
+}
+
+.things-task-doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Animated OCR Running Badge */
+.things-ocr-running-badge {
+  background-color: var(--to-signal-blue-tint);
+  color: var(--to-signal-blue);
+  border: 1px solid rgba(37, 118, 235, 0.3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 5px 10px;
+  border-radius: var(--to-radius-pills);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: pulse-ocr-badge 1.8s infinite;
+}
+
+@keyframes pulse-ocr-badge {
+  0% { opacity: 0.85; }
+  50% { opacity: 1; }
+  100% { opacity: 0.85; }
+}
+
+/* Affirmation Info Note */
+.things-task-affirm-note {
+  margin-top: 14px;
+  padding: 12px 16px;
+  background-color: #fafbfc;
+  border: 1px solid var(--to-hairline);
+  border-radius: 8px;
+  color: var(--to-ash);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Modal Overlay & Containers */
+.things-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* AI Intelligence Fullscreen Modal */
+.things-ocr-modal-box {
+  background-color: var(--to-paper);
+  width: 100%;
+  height: 100%;
+  max-width: 1400px;
+  max-height: 900px;
+  border-radius: var(--to-radius-cards);
+  border: 1px solid var(--to-hairline);
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.things-ocr-viewer-pane {
+  flex: 1.2;
+  background-color: #0f172a;
+  border-right: 1px solid var(--to-hairline);
+  display: flex;
+  flex-direction: column;
+}
+
+.things-ocr-viewer-header {
+  padding: 14px 20px;
+  background-color: #1e293b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.things-ocr-viewer-title {
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.things-ocr-viewer-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.things-ocr-panel-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--to-paper);
+}
+
+.things-ocr-panel-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--to-hairline);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.things-ocr-panel-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--to-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.things-ocr-close-btn {
+  background: transparent;
+  border: 1px solid var(--to-hairline);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--to-ash);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.things-ocr-close-btn:hover {
+  background-color: #f1f5f9;
+  color: var(--to-ink);
+}
+
+.things-ocr-panel-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Field group in OCR */
+.things-ocr-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.things-ocr-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.things-ocr-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--to-ash);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.things-ocr-confidence-badge {
+  font-size: 11px;
+  color: #059669;
+  font-weight: 600;
+  background-color: var(--to-emerald-tint);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--to-font-mono);
+}
+
+.things-ocr-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--to-radius-inputs);
+  border: 1px solid var(--to-hairline);
+  background-color: #ffffff;
+  color: var(--to-ink);
+  font-size: 13.5px;
+  font-family: var(--to-font-sans);
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.things-ocr-input:focus {
+  border-color: var(--to-signal-blue);
+  box-shadow: 0 0 0 3px rgba(37, 118, 235, 0.12);
+}
+
+.things-ocr-input:read-only {
+  background-color: #f8fafc;
+  color: var(--to-ash);
+}
+
+/* Rejection Modal Card */
+.things-reject-modal-box {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 30px;
+  width: 520px;
+  max-width: 100%;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.things-reject-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0;
+}
+
+.things-reject-desc {
+  font-size: 13.5px;
+  color: var(--to-fog);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.things-reject-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 120px;
+  background-color: #ffffff;
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-inputs);
+  color: var(--to-ink);
+  padding: 12px 14px;
+  font-family: var(--to-font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.things-reject-textarea:focus {
+  border-color: var(--to-signal-blue);
+  box-shadow: 0 0 0 3px rgba(37, 118, 235, 0.12);
+}
+

@@ -116,7 +116,7 @@ export const initializeWorkflow = async (req: Request, res: Response, next: Next
       );
     }
 
-    await pool.query(`UPDATE projects SET status = 'WORKFLOW_CONFIG' WHERE id = $1`, [projectId]);
+    await pool.query(`UPDATE projects SET status = 'WORKFLOW_CONFIGURED', updated_at = NOW() WHERE id = $1`, [projectId]);
 
     await createAuditEvent({
       userId: req.user!.id,

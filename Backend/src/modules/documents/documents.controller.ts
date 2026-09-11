@@ -679,7 +679,7 @@ startxref
 `;
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${safeName}_${task.project_code}.pdf"`);
+    res.setHeader("Content-Disposition", `inline; filename="${safeName}_${task.project_code}.pdf"`);
     return res.send(Buffer.from(certPdf));
   } catch (error) {
     next(error);

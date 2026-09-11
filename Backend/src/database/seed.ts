@@ -163,7 +163,7 @@ const seedData = async () => {
           code: "PRJ-KA-8890", title: "Bengaluru Suburban Rail Corridor",
           type: "METRO_RAIL", state: "Karnataka", district: "Bengaluru Urban",
           area: 280, budget: 8900, corridorKm: 22.5, width: 30,
-          status: "PARCELS_CONFIRMED", ministry: "Ministry of Railways",
+          status: "WORKFLOW_CONFIGURED", ministry: "Ministry of Railways",
           authority: "KRCL", purpose: "Public Purpose - Rail Transit",
         },
         {
@@ -290,16 +290,24 @@ const seedData = async () => {
               );
 
               const pId = parcelRes.rows[0].id;
+              const isConfirmed = (p.status === 'PARCELS_CONFIRMED' || p.status === 'WORKFLOW_CONFIGURED' || p.status === 'WORKFLOW_ACTIVE') && i < 2;
               await client.query(
-                `INSERT INTO project_parcels (project_id, parcel_id, status, intersect_percent)
-                 VALUES ($1, $2, 'CANDIDATE', $3)`,
-                [projId, pId, 65 + (i % 35)]
+                `INSERT INTO project_parcels (project_id, parcel_id, status, intersect_percent, confirmed_at)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [projId, pId, isConfirmed ? 'CONFIRMED' : 'CANDIDATE', 65 + (i % 35), isConfirmed ? new Date() : null]
               );
             }
 
+            const confirmedCount = (p.status === 'PARCELS_CONFIRMED' || p.status === 'WORKFLOW_CONFIGURED' || p.status === 'WORKFLOW_ACTIVE') ? 2 : 0;
+            const areaRes = await client.query(
+              `SELECT SUM(lp.area_acres) as c_area FROM land_parcels lp JOIN project_parcels pp ON pp.parcel_id = lp.id WHERE pp.project_id = $1 AND pp.status = 'CONFIRMED'`,
+              [projId]
+            );
+            const confirmedArea = parseFloat(areaRes.rows[0]?.c_area || '0');
+
             await client.query(
-              `UPDATE projects SET candidate_parcels_count = $1 WHERE id = $2`,
-              [parcelCount, projId]
+              `UPDATE projects SET candidate_parcels_count = $1, selected_parcels_count = $2, confirmed_area_acres = $3 WHERE id = $4`,
+              [parcelCount, confirmedCount, confirmedArea, projId]
             );
 
             // Seed initial statutory documents for the project if not present
@@ -345,18 +353,19 @@ const seedData = async () => {
           if (pRow.rows.length === 0) continue;
           const pId = pRow.rows[0].id;
 
-          let wfRow = await client.query("SELECT id FROM workflow_instances WHERE project_id = $1", [pId]);
           let wfId: string;
+          const wfRow = await client.query("SELECT id FROM workflow_instances WHERE project_id = $1", [pId]);
+          const wfStatus = code === "PRJ-MH-4421" ? "ACTIVE" : "DRAFT";
           if (wfRow.rows.length === 0) {
             const insWf = await client.query(
               `INSERT INTO workflow_instances (project_id, template_id, template_name, status, activated_at, activated_by)
-               VALUES ($1, $2, 'Land Acquisition — Prototype', 'ACTIVE', NOW(), $3) RETURNING id`,
-              [pId, templateId, bossId]
+               VALUES ($1, $2, 'Land Acquisition — Prototype', $3, ${wfStatus === 'ACTIVE' ? 'NOW()' : 'NULL'}, $4) RETURNING id`,
+              [pId, templateId, wfStatus, bossId]
             );
             wfId = insWf.rows[0].id;
           } else {
             wfId = wfRow.rows[0].id;
-            await client.query("UPDATE workflow_instances SET status = 'ACTIVE' WHERE id = $1", [wfId]);
+            await client.query("UPDATE workflow_instances SET status = $1 WHERE id = $2", [wfStatus, wfId]);
           }
 
           const existingStages = await client.query("SELECT id, stage_order FROM workflow_instance_stages WHERE workflow_id = $1", [wfId]);

@@ -11,7 +11,7 @@ export const config = {
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   llmProvider: process.env.LLM_PROVIDER || 'google',
   llmApiKey: process.env.LLM_API_KEY || process.env.GEMINI_API_KEY || '',
-  llmModel: process.env.LLM_MODEL || 'gemini-3.6-flash',
+  llmModel: process.env.LLM_MODEL || 'gemini-3.5-flash',
   storagePath: path.resolve(process.env.STORAGE_PATH || './uploads'),
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10),
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:5173').split(','),

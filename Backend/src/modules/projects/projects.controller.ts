@@ -142,8 +142,15 @@ export const getProjectById = async (req: Request, res: Response, next: NextFunc
 
     const projResult = await pool.query(
       `SELECT p.*,
-              (SELECT COUNT(*) FROM project_parcels pp WHERE pp.project_id = p.id AND pp.status = 'CONFIRMED')::int AS selected_parcels_count,
-              COALESCE((SELECT SUM(lp.area_acres) FROM land_parcels lp JOIN project_parcels pp ON pp.parcel_id = lp.id WHERE pp.project_id = p.id AND pp.status = 'CONFIRMED'), 0)::float AS confirmed_area_acres
+              GREATEST(
+                COALESCE(p.selected_parcels_count, 0),
+                (SELECT COUNT(*) FROM project_parcels pp WHERE pp.project_id = p.id AND pp.status = 'CONFIRMED')::int
+              ) AS selected_parcels_count,
+              COALESCE(
+                NULLIF((SELECT SUM(lp.area_acres) FROM land_parcels lp JOIN project_parcels pp ON pp.parcel_id = lp.id WHERE pp.project_id = p.id AND pp.status = 'CONFIRMED'), 0),
+                p.confirmed_area_acres,
+                0
+              )::float AS confirmed_area_acres
        FROM projects p WHERE ${isUuid ? 'p.id = $1' : 'p.code = $1'}`,
       [id]
     );

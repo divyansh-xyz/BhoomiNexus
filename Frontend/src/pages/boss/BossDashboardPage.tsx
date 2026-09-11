@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { bossService } from '../../services/api/boss.service';
 import type { ProjectRequest, BossDashboardStats } from '../../types/boss.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
+import './boss-dashboard.css';
 
 export const BossDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -44,12 +45,15 @@ export const BossDashboardPage: React.FC = () => {
   };
 
   const filteredProjects = projects.filter((p) => {
+    const isWorkflowReady = p.status === 'WORKFLOW_CONFIGURED' || (p.status === 'PARCELS_CONFIRMED' && (p.workflowProgress?.totalStages ?? 0) > 0);
+    const isJustParcelsConfirmed = p.status === 'PARCELS_CONFIRMED' && !(p.workflowProgress && p.workflowProgress.totalStages > 0);
+
     const matchesStatus =
       statusFilter === 'ALL' ||
-      (statusFilter === 'PARCELS_PENDING' && p.status === 'PARCELS_PENDING') ||
-      (statusFilter === 'NEW_REQUEST' && p.status === 'NEW_REQUEST') ||
-      (statusFilter === 'UNDER_REVIEW' && p.status === 'UNDER_REVIEW') ||
-      (statusFilter === 'CONFIRMED' && (p.status === 'PARCELS_CONFIRMED' || p.status === 'WORKFLOW_CONFIGURED'));
+      (statusFilter === 'NEW_REQUEST' && (p.status === 'NEW_REQUEST' || p.status === 'DRAFT' || p.status === 'PARCELS_PENDING')) ||
+      (statusFilter === 'PARCELS_CONFIRMED' && isJustParcelsConfirmed) ||
+      (statusFilter === 'WORKFLOW_CONFIGURED' && isWorkflowReady) ||
+      (statusFilter === 'WORKFLOW_ACTIVE' && (p.status === 'WORKFLOW_ACTIVE' || p.status === 'PROJECT_APPROVED'));
 
     const q = searchQuery.toLowerCase().trim();
     const matchesQuery =
@@ -115,7 +119,7 @@ export const BossDashboardPage: React.FC = () => {
         }).addTo(map);
 
         marker.bindTooltip(
-          `<div style="font-family: 'Lora', serif; font-size: 11.5px; padding: 3px 6px; background: #0f172a; color: #f8fafc; border: 1px solid #334155;">
+          `<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11.5px; padding: 3px 6px; background: #0f172a; color: #f8fafc; border: 1px solid #334155; border-radius: 4px;">
              <strong style="color: #60a5fa;">${proj.code}</strong><br/>
              ${proj.title}<br/>
              <span style="color: #38bdf8; font-weight: 600;">${proj.requestedAreaAcres} Acres</span> &bull; ${proj.state}
@@ -184,524 +188,551 @@ export const BossDashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="boss-page-container">
-      {/* 1. Sovereign Gazette Extraordinary Masthead */}
-      <header className="boss-executive-masthead">
-        <div className="masthead-gazette-tagline">
-          <span>THE GAZETTE OF INDIA EXTRAORDINARY &bull; PART II &mdash; SECTION 3 &bull; STATUTORY ACQUISITION REGISTER</span>
-          <span className="masthead-bulletin">BULLETIN NO. MoRD/BOSS/2026/04</span>
-        </div>
-
-        <div className="masthead-main-row">
-          <div className="masthead-brand-block">
-            <div className="masthead-symbol-row">
-              <BhoomiLogo size={32} strokeWidth={2.4} />
-              <span className="masthead-org-title">Department of Land Resources &bull; MoRD</span>
-            </div>
-            <h1 className="masthead-headline">
-              Bureau of Sovereign Scrutiny (BOSS)
-            </h1>
-            <p className="masthead-thesis">
-              Central executive clearinghouse for linear infrastructure project intake, pre-feasibility corridor verification, and statutory parcel determination pursuant to RFCTLARR Act 2013.
-            </p>
+    <div className="things-boss-dashboard">
+      <div className="things-boss-inner">
+        {/* 1. Sovereign Gazette Extraordinary Masthead */}
+        <header className="things-boss-masthead">
+          <div className="things-boss-gazette-tagline">
+            <span>THE GAZETTE OF INDIA EXTRAORDINARY &bull; PART II &mdash; SECTION 3 &bull; STATUTORY ACQUISITION REGISTER</span>
+            <span className="things-boss-bulletin-tag">BULLETIN NO. MoRD/BOSS/2026/04</span>
           </div>
 
-          <div className="masthead-stamp-box">
-            <div className="stamp-header">
-              <span className="status-dot-pulse" />
-              <span>Sovereign Ledger Status: Active</span>
-            </div>
-            <div className="stamp-details">
-              <div className="stamp-row">
-                <span className="stamp-label">Authority:</span>
-                <span className="stamp-val">Central Nodal Oversight Directorate</span>
+          <div className="things-boss-hero-row">
+            <div className="things-boss-brand-block">
+              <div className="things-boss-symbol-row">
+                <BhoomiLogo size={28} strokeWidth={2.4} />
+                <span>Department of Land Resources &bull; MoRD</span>
               </div>
-              <div className="stamp-row">
-                <span className="stamp-label">Supervising Nodal:</span>
-                <span className="stamp-val">Dr. Vikramaditya Sen, IAS</span>
+              <h1 className="things-boss-headline">
+                Bureau of Sovereign Scrutiny (BOSS)
+              </h1>
+              <p className="things-boss-thesis">
+                Central executive clearinghouse for linear infrastructure project intake, pre-feasibility corridor verification, and statutory parcel determination pursuant to RFCTLARR Act 2013.
+              </p>
+            </div>
+
+            <div className="things-boss-session-card">
+              <div className="things-boss-session-header">
+                <span className="things-boss-dot-pulse" />
+                <span>Sovereign Ledger Status: Active</span>
               </div>
-              <div className="stamp-row">
-                <span className="stamp-label">Jurisdiction:</span>
-                <span className="stamp-val">36 States &amp; Union Territories</span>
-              </div>
-              <div className="stamp-row">
-                <span className="stamp-label">Sync Block:</span>
-                <span className="stamp-val font-mono">#41209 &bull; WGS84 Spatial Datum</span>
+              <div className="things-boss-session-details">
+                <div className="things-boss-session-row">
+                  <span className="things-boss-session-label">Authority:</span>
+                  <span className="things-boss-session-val">Central Nodal Oversight Directorate</span>
+                </div>
+                <div className="things-boss-session-row">
+                  <span className="things-boss-session-label">Supervising Nodal:</span>
+                  <span className="things-boss-session-val">Dr. Vikramaditya Sen, IAS</span>
+                </div>
+                <div className="things-boss-session-row">
+                  <span className="things-boss-session-label">Jurisdiction:</span>
+                  <span className="things-boss-session-val">36 States &amp; UTs</span>
+                </div>
+                <div className="things-boss-session-row">
+                  <span className="things-boss-session-label">Sync Block:</span>
+                  <span className="things-boss-session-val font-mono">#41209 &bull; WGS84 Spatial Datum</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="hairline-fullwidth" />
-
-      {/* 2. Signature Spatial Radar & Telemetry Section */}
-      <section className="boss-spatial-radar-section">
-        <div className="radar-header-row">
-          <div>
-            <span className="editorial-section-tag">NATIONAL GEOSPATIAL INTELLIGENCE RADAR</span>
-            <h2 className="radar-section-title">
-              Active Megaproject Alignment Corridors Under Scrutiny
-            </h2>
-          </div>
-          <div className="radar-action-controls">
-            <button
-              type="button"
-              onClick={fitAllCorridors}
-              className="btn-cta-outline"
-              style={{ fontSize: '12px', padding: '6px 14px' }}
-            >
-              Fit National Corridors &bull; All India
-            </button>
-          </div>
-        </div>
-
-        <div className="boss-radar-canvas-card">
-          <div ref={mapContainerRef} className="boss-radar-map" />
-          
-          <div className="boss-radar-corridor-chips">
-            <span className="chips-label">Corridor Quick-Focus:</span>
-            {projects.length === 0 ? (
-              <span style={{ fontSize: '12px', color: 'var(--color-fossil-gray)', padding: '4px 8px' }}>
-                No active project alignment corridors loaded from API.
-              </span>
-            ) : (
-              projects.map((p) => {
-                const isSelected = p.id === selectedProjectId;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelectedProjectId(p.id)}
-                    className={`radar-corridor-chip ${isSelected ? 'active' : ''}`}
-                  >
-                    <span className="chip-indicator" style={{ backgroundColor: isSelected ? '#0058fe' : '#000000' }} />
-                    <span className="chip-code">{p.code}</span>
-                    <span className="chip-state">({p.state.split('&')[0].trim()})</span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </section>
-
-      <div className="hairline-fullwidth" />
-
-      {/* 3. Broadsheet Requisition & Triage Bar */}
-      <section className="boss-triage-summary-bar">
-        <div className="triage-grid">
-          <div className="triage-card">
-            <span className="triage-label">National Intake Pipeline</span>
-            <div className="triage-value">
-              {(stats?.totalAreaHa ?? 0).toLocaleString()}<span className="triage-unit"> Ha</span>
+        {/* 2. Signature Spatial Radar & Telemetry Section */}
+        <section className="things-boss-radar-section">
+          <div className="things-boss-radar-header">
+            <div>
+              <span className="things-section-eyebrow">NATIONAL GEOSPATIAL INTELLIGENCE RADAR</span>
+              <h2 className="things-boss-radar-title">
+                Active Megaproject Alignment Corridors Under Scrutiny
+              </h2>
             </div>
-            <span className="triage-sub">Total Requisition Under Statutory Process</span>
+            <div>
+              <button
+                type="button"
+                onClick={fitAllCorridors}
+                className="things-btn-outline"
+                style={{ fontSize: '12px', padding: '6px 14px' }}
+              >
+                Fit National Corridors &bull; All India
+              </button>
+            </div>
           </div>
 
-          <div className="triage-card triage-highlight">
-            <span className="triage-label">Determination Backlog</span>
-            <div className="triage-value text-signal-blue">
+          <div className="things-boss-radar-card">
+            <div ref={mapContainerRef} className="things-boss-map-container" />
+            
+            <div className="things-boss-radar-chips-bar">
+              <span className="things-boss-chips-label">Corridor Quick-Focus:</span>
+              {projects.length === 0 ? (
+                <span style={{ fontSize: '12px', color: 'var(--tb-fog)', padding: '4px 8px' }}>
+                  No active project alignment corridors loaded from API.
+                </span>
+              ) : (
+                projects.map((p) => {
+                  const isSelected = p.id === selectedProjectId;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedProjectId(p.id)}
+                      className={`things-boss-corridor-chip ${isSelected ? 'active' : ''}`}
+                    >
+                      <span className="things-boss-chip-dot" />
+                      <span style={{ fontWeight: 700 }}>{p.code}</span>
+                      <span style={{ opacity: 0.8 }}>({p.state.split('&')[0].trim()})</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* 3. Requisition & Triage Bar */}
+        <section className="things-boss-triage-grid">
+          <div className="things-kpi-card">
+            <span className="things-kpi-label">National Intake Pipeline</span>
+            <div className="things-kpi-value">
+              {(stats?.totalAreaHa ?? 0).toLocaleString()}<span style={{ fontSize: '16px', fontWeight: 500 }}> Ha</span>
+            </div>
+            <span className="things-kpi-sub">Total Requisition Under Statutory Process</span>
+          </div>
+
+          <div className="things-kpi-card">
+            <span className="things-kpi-label">Determination Backlog</span>
+            <div className="things-kpi-value text-signal-blue">
               {stats?.pendingConfigCount ?? 0}
             </div>
-            <span className="triage-sub">Projects Awaiting Spatial Parcel Confirmation</span>
+            <span className="things-kpi-sub">Projects Awaiting Spatial Parcel Confirmation</span>
           </div>
 
-          <div className="triage-card">
-            <span className="triage-label">New Intake Requests</span>
-            <div className="triage-value">
+          <div className="things-kpi-card">
+            <span className="things-kpi-label">New Intake Requests</span>
+            <div className="things-kpi-value">
               {stats?.newRequestsCount ?? 0}
             </div>
-            <span className="triage-sub">Pre-Feasibility &amp; Section 4(1) Drafts</span>
+            <span className="things-kpi-sub">Pre-Feasibility &amp; Section 4(1) Drafts</span>
           </div>
 
-          <div className="triage-card">
-            <span className="triage-label">Determined Today</span>
-            <div className="triage-value">
+          <div className="things-kpi-card">
+            <span className="things-kpi-label">Determined Today</span>
+            <div className="things-kpi-value text-emerald">
               {stats?.configuredTodayCount ?? 0}
             </div>
-            <span className="triage-sub">Parcels Locked &amp; Pushed to CALA Workflow</span>
+            <span className="things-kpi-sub">Parcels Locked &amp; Pushed to CALA Workflow</span>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="hairline-fullwidth" />
+        {/* 4. Statutory Intake Scrutiny Ledger */}
+        <section className="things-boss-worklist-section">
+          <div className="things-toolbar-header">
+            <div className="things-toolbar-left">
+              <span className="things-section-eyebrow">STATUTORY PROJECT INTAKE DOCKET</span>
+              <h3 className="things-worklist-heading">
+                Statutory Project Intake Docket ({filteredProjects.length})
+              </h3>
+              <span className="things-worklist-subheading">
+                Official Central Docket Register of Infrastructure Corridors Under Pre-Acquisition Scrutiny
+              </span>
+            </div>
 
-      {/* 4. Statutory Intake Scrutiny Ledger */}
-      <section className="boss-ledger-section">
-        <div className="ledger-header-toolbar">
-          <div className="toolbar-left">
-            <h3 className="ledger-heading">Statutory Project Intake Docket</h3>
-            <span className="ledger-subheading">
-              Official Central Docket Register of Infrastructure Corridors Under Pre-Acquisition Scrutiny
-            </span>
+            <div className="things-toolbar-right">
+              {/* View Mode Toggle */}
+              <div className="things-view-toggle">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('dockets')}
+                  className={`things-view-btn ${viewMode === 'dockets' ? 'active' : ''}`}
+                  title="Gazette Docket Cards View"
+                >
+                  Gazette Dockets
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('compact')}
+                  className={`things-view-btn ${viewMode === 'compact' ? 'active' : ''}`}
+                  title="Compact Broadsheet Register View"
+                >
+                  Compact Register
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="toolbar-right">
-            {/* View Mode Toggle */}
-            <div className="ledger-view-toggle">
+          {/* Filter and Search Strip */}
+          <div className="things-controls-bar">
+            <div className="things-search-wrapper">
+              <input
+                type="text"
+                placeholder="Search by Docket Code, Proponent Agency, Corridor, or Jurisdiction..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="things-search-input"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="things-clear-search-btn"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+
+            <div className="things-filter-tabs">
               <button
                 type="button"
-                onClick={() => setViewMode('dockets')}
-                className={`view-toggle-btn ${viewMode === 'dockets' ? 'active' : ''}`}
-                title="Gazette Docket Cards View"
+                className={`things-filter-pill ${statusFilter === 'ALL' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('ALL')}
               >
-                Gazette Dockets
+                All Dockets ({projects.length})
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode('compact')}
-                className={`view-toggle-btn ${viewMode === 'compact' ? 'active' : ''}`}
-                title="Compact Broadsheet Register View"
+                className={`things-filter-pill ${statusFilter === 'NEW_REQUEST' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('NEW_REQUEST')}
               >
-                Compact Register
+                New Requests ({projects.filter((p) => p.status === 'NEW_REQUEST' || p.status === 'DRAFT' || p.status === 'PARCELS_PENDING').length})
+              </button>
+              <button
+                type="button"
+                className={`things-filter-pill ${statusFilter === 'PARCELS_CONFIRMED' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('PARCELS_CONFIRMED')}
+              >
+                Parcels Confirmed ({projects.filter((p) => p.status === 'PARCELS_CONFIRMED' && !(p.workflowProgress && p.workflowProgress.totalStages > 0)).length})
+              </button>
+              <button
+                type="button"
+                className={`things-filter-pill ${statusFilter === 'WORKFLOW_CONFIGURED' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('WORKFLOW_CONFIGURED')}
+              >
+                Pipeline Configured ({projects.filter((p) => p.status === 'WORKFLOW_CONFIGURED' || (p.status === 'PARCELS_CONFIRMED' && (p.workflowProgress?.totalStages ?? 0) > 0)).length})
+              </button>
+              <button
+                type="button"
+                className={`things-filter-pill ${statusFilter === 'WORKFLOW_ACTIVE' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('WORKFLOW_ACTIVE')}
+              >
+                Sanction Granted ({projects.filter((p) => p.status === 'WORKFLOW_ACTIVE' || p.status === 'PROJECT_APPROVED').length})
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Filter and Search Strip */}
-        <div className="boss-filter-search-strip">
-          <div className="search-field-wrapper">
-            <input
-              type="text"
-              placeholder="Search by Docket Code, Proponent Agency, Corridor, or Jurisdiction..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="gazette-search-input"
-            />
-            {searchQuery && (
+          {/* Main Worklist Display */}
+          {loading ? (
+            <div className="things-loading-state">
+              <BhoomiLogo size={32} strokeWidth={2.4} />
+              <span>Accessing Central Sovereign Intake Register...</span>
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="things-empty-state">
+              <p>No project requests match the specified query.</p>
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="clear-search-btn"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('ALL');
+                }}
+                className="things-btn-outline"
               >
-                &times;
+                Clear Filters
               </button>
-            )}
-          </div>
+            </div>
+          ) : viewMode === 'dockets' ? (
+            /* View Mode A: Gazette Docket Cards */
+            <div className="things-dockets-stream">
+              {filteredProjects.map((project) => {
+                const isSelectedOnMap = project.id === selectedProjectId;
+                const isPendingParcels = project.status === 'PARCELS_PENDING' || project.status === 'NEW_REQUEST';
 
-          <div className="filter-tabs-cluster">
-            <button
-              type="button"
-              className={`filter-tab-pill ${statusFilter === 'ALL' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('ALL')}
-            >
-              All Dockets ({projects.length})
-            </button>
-            <button
-              type="button"
-              className={`filter-tab-pill ${statusFilter === 'PARCELS_PENDING' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('PARCELS_PENDING')}
-            >
-              Parcels Pending Scrutiny
-            </button>
-            <button
-              type="button"
-              className={`filter-tab-pill ${statusFilter === 'NEW_REQUEST' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('NEW_REQUEST')}
-            >
-              New Requests
-            </button>
-            <button
-              type="button"
-              className={`filter-tab-pill ${statusFilter === 'UNDER_REVIEW' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('UNDER_REVIEW')}
-            >
-              Under Scrutiny
-            </button>
-            <button
-              type="button"
-              className={`filter-tab-pill ${statusFilter === 'CONFIRMED' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('CONFIRMED')}
-            >
-              Parcels Confirmed
-            </button>
-          </div>
-        </div>
-
-        {/* Main Worklist Display */}
-        {loading ? (
-          <div className="boss-loading-ledger">
-            <BhoomiLogo size={28} strokeWidth={2.4} />
-            <span>Accessing Central Sovereign Intake Register...</span>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="boss-empty-ledger">
-            <p>No project requests match the specified query.</p>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setStatusFilter('ALL');
-              }}
-              className="btn-cta-outline"
-              style={{ marginTop: '12px' }}
-            >
-              Clear Filters
-            </button>
-          </div>
-        ) : viewMode === 'dockets' ? (
-          /* View Mode A: Gazette Docket Cards */
-          <div className="boss-dockets-stream">
-            {filteredProjects.map((project) => {
-              const isSelectedOnMap = project.id === selectedProjectId;
-              const isPendingParcels = project.status === 'PARCELS_PENDING';
-
-              return (
-                <article
-                  key={project.id}
-                  className={`gazette-docket-card ${isSelectedOnMap ? 'docket-focused' : ''}`}
-                  onClick={() => setSelectedProjectId(project.id)}
-                >
-                  {/* Docket Masthead Bar */}
-                  <div className="docket-top-bar">
-                    <div className="docket-id-group">
-                      <span className="docket-number">DOCKET № 2026/MoRD/{project.code}</span>
-                      <span className="docket-authority-stamp">{project.proponentAuthority}</span>
-                    </div>
-
-                    <div className="docket-badges-group">
-                      <span className="statutory-clause-chip">{project.rfctlarrSection}</span>
-                      <span className={`status-pill pill-${project.status.toLowerCase()}`}>
-                        {project.status.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Main Headline & Narrative Scope */}
-                  <div className="docket-body">
-                    <div className="docket-title-row">
-                      <h4 className="docket-headline">
-                        <Link
-                          to={`/boss/projects/${project.id}`}
-                          className="docket-title-link"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {project.title}
-                        </Link>
-                      </h4>
-                    </div>
-
-                    <p className="docket-scope-text">{project.scope}</p>
-
-                    {/* Architectural Requisition Grid */}
-                    <div className="docket-spec-grid">
-                      <div className="spec-cell">
-                        <span className="spec-label">Requisition Land Area:</span>
-                        <div className="spec-val-primary">
-                          {(project.requestedAreaAcres ?? 0).toLocaleString()}<span className="spec-unit"> Acres</span>
-                          <span className="spec-secondary">({project.requestedAreaHa} Ha)</span>
-                        </div>
-                      </div>
-
-                      <div className="spec-cell">
-                        <span className="spec-label">Corridor Geometry &amp; RoW:</span>
-                        <div className="spec-val">
-                          {project.corridorKm} km <span className="spec-unit">&bull; {project.alignmentWidthMeters}m RoW</span>
-                        </div>
-                        <span className="spec-secondary">{project.state} ({project.district})</span>
-                      </div>
-
-                      <div className="spec-cell">
-                        <span className="spec-label">Candidate Parcels:</span>
-                        <div className="spec-val">
-                          {project.candidateParcelsCount ?? 0} <span className="spec-unit">Parcels</span>
-                        </div>
-                        <span className="spec-secondary">PostGIS ST_Intersects Buffer</span>
-                      </div>
-
-                      <div className="spec-cell">
-                        <span className="spec-label">Statutory Nodal Officer:</span>
-                        <div className="spec-val text-truncate">{project.nodalOfficer?.name ?? 'Unassigned'}</div>
-                        <span className="spec-secondary text-truncate">{project.nodalOfficer?.designation ?? 'Pending Assignment'}</span>
-                      </div>
-                    </div>
-
-                    {/* Proponent Statutory Callout */}
-                    {isPendingParcels && (
-                      <div className="docket-statutory-notice">
-                        <span className="notice-icon">&#9873;</span>
-                        <span>
-                          <strong>Statutory Action Required:</strong> Alignment corridor geometry verified. {project.candidateParcelsCount || 0} candidate land parcels have been intersected. Bureau parcel determination and confirmation must be completed to initiate CALA field workflow.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Docket Action Strip */}
-                  <div className="docket-action-bar">
-                    <div className="docket-timestamp-meta">
-                      <span>Submitted: {new Date(project.submissionDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      <span>&bull;</span>
-                      <span>Target SLA: {new Date(project.slaDeadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                    </div>
-
-                    <div className="docket-buttons">
-                      {project.status === 'PROJECT_APPROVED' || project.status === 'WORKFLOW_ACTIVE' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              fontSize: '11.5px',
-                              fontFamily: 'monospace',
-                              fontWeight: 700,
-                              color: '#15803d',
-                              backgroundColor: '#f0fdf4',
-                              padding: '6px 14px',
-                              border: '1px solid #86efac',
-                              letterSpacing: '0.04em',
-                            }}
-                          >
-                            ✓ STATUTORY SANCTION GRANTED • BOSS EXITED
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '12px',
-                              color: '#64748b',
-                              fontStyle: 'italic',
-                              fontFamily: 'serif',
-                            }}
-                          >
-                            Active under Processing Officers (Pipeline tracked by Requesting Authority)
-                          </span>
-                        </div>
-                      ) : (
-                        <>
-                          <Link
-                            to={`/boss/projects/${project.id}`}
-                            className="btn-cta-outline"
-                            style={{ fontSize: '13px', padding: '8px 18px' }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Inspect Dossier &rarr;
-                          </Link>
-
-                          {isPendingParcels ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/boss/projects/${project.id}/parcels`);
-                              }}
-                              className="btn-cta-blue"
-                              style={{ fontSize: '13px', padding: '8px 22px' }}
-                            >
-                              Determine Land Parcels &rarr;
-                            </button>
-                          ) : project.status === 'PARCELS_CONFIRMED' ? (
-                            <Link
-                              to={`/boss/projects/${project.id}/parcels`}
-                              className="btn-cta-outline"
-                              style={{ fontSize: '13px', padding: '8px 14px' }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Parcels ({project.selectedParcelsCount ?? 0}) &rarr;
-                            </Link>
-                          ) : project.status === 'WORKFLOW_CONFIGURED' ? (
-                            <Link
-                              to={`/boss/projects/${project.id}/workflow`}
-                              className="btn-cta-outline"
-                              style={{ fontSize: '13px', padding: '8px 14px' }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Manage Pipeline &rarr;
-                            </Link>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          /* View Mode B: Compact Gazette Tabular Register */
-          <div className="boss-table-container">
-            <table className="boss-broadsheet-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '18%' }}>Docket Reference &amp; Agency</th>
-                  <th style={{ width: '32%' }}>Corridor Title &amp; Statutory Scope</th>
-                  <th style={{ width: '14%' }}>Jurisdiction</th>
-                  <th style={{ width: '14%' }}>Requisition Area</th>
-                  <th style={{ width: '12%' }}>Status</th>
-                  <th style={{ width: '10%', textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProjects.map((project) => (
-                  <tr
+                return (
+                  <article
                     key={project.id}
-                    className={`boss-table-row ${project.id === selectedProjectId ? 'row-focused' : ''}`}
+                    className={`things-docket-card ${isSelectedOnMap ? 'docket-focused' : ''}`}
                     onClick={() => setSelectedProjectId(project.id)}
                   >
-                    <td>
-                      <div className="boss-code-cell">
-                        <span className="boss-project-code">{project.code}</span>
-                        <span className="boss-proponent-agency">{project.proponentAuthority}</span>
+                    {/* Docket Masthead Bar */}
+                    <div className="things-docket-topbar">
+                      <div className="things-docket-id-group">
+                        <span className="things-docket-number">DOCKET &#x2116; 2026/MoRD/{project.code}</span>
+                        <span className="things-docket-authority-stamp">{project.proponentAuthority}</span>
                       </div>
-                    </td>
-                    <td>
-                      <div className="boss-title-cell">
-                        <Link
-                          to={`/boss/projects/${project.id}`}
-                          className="boss-project-link"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {project.title}
-                        </Link>
-                        <span className="boss-statutory-clause">{project.rfctlarrSection}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="boss-geo-cell">
-                        <span className="boss-state-label">{project.state}</span>
-                        <span className="boss-dist-label">{project.district}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="boss-area-cell">
-                        <span className="boss-area-acres">{(project.requestedAreaAcres ?? 0).toLocaleString()} Acres</span>
-                        <span className="boss-area-ha">({project.requestedAreaHa} Ha)</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`status-pill pill-${project.status.toLowerCase()}`}>
-                        {project.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {project.status === 'PROJECT_APPROVED' || project.status === 'WORKFLOW_ACTIVE' ? (
-                        <span style={{ fontSize: '11px', color: '#15803d', fontWeight: 600, fontFamily: 'monospace' }}>
-                          ✓ BOSS EXITED
-                        </span>
-                      ) : (
-                        <Link
-                          to={project.status === 'PARCELS_PENDING' ? `/boss/projects/${project.id}/parcels` : `/boss/projects/${project.id}`}
-                          className="btn-cta-outline"
-                          style={{ padding: '6px 12px', fontSize: '11.5px' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {project.status === 'PARCELS_PENDING' ? 'Parcels \u2192' : 'Dossier \u2192'}
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
 
-        {/* Gazette Colophon Footer */}
-        <div className="boss-ledger-colophon">
-          <span>Central Land Records Nodal Clearinghouse &bull; DoLR &bull; RFCTLARR Compliance Engine</span>
-          <span>Showing {filteredProjects.length} of {projects.length} Registered Infrastructure Corridors</span>
-        </div>
-      </section>
+                      <div className="things-docket-badges-group">
+                        <span className="things-clause-chip">{project.rfctlarrSection}</span>
+                        <span className={`things-status-pill pill-${project.status.toLowerCase()}`}>
+                          {project.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Main Headline & Narrative Scope */}
+                    <div className="things-docket-body">
+                      <div>
+                        <h4 className="things-docket-headline">
+                          <Link
+                            to={`/boss/projects/${project.id}`}
+                            className="things-docket-title-link"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {project.title}
+                          </Link>
+                        </h4>
+                      </div>
+
+                      <p className="things-docket-scope">{project.scope}</p>
+
+                      {/* Architectural Requisition Grid */}
+                      <div className="things-spec-grid">
+                        <div className="things-spec-cell">
+                          <span className="things-spec-label">Requisition Land Area:</span>
+                          <div className="things-spec-val-primary">
+                            {(project.requestedAreaAcres ?? 0).toLocaleString()}<span className="things-spec-unit"> Acres</span>{' '}
+                            <span className="things-spec-secondary">({project.requestedAreaHa} Ha)</span>
+                          </div>
+                        </div>
+
+                        <div className="things-spec-cell">
+                          <span className="things-spec-label">Corridor Geometry &amp; RoW:</span>
+                          <div className="things-spec-val">
+                            {project.corridorKm} km <span className="things-spec-unit">&bull; {project.alignmentWidthMeters}m RoW</span>
+                          </div>
+                          <span className="things-spec-secondary">{project.state} ({project.district})</span>
+                        </div>
+
+                        <div className="things-spec-cell">
+                          <span className="things-spec-label">Candidate Parcels:</span>
+                          <div className="things-spec-val">
+                            {project.candidateParcelsCount ?? 0} <span className="things-spec-unit">Parcels</span>
+                          </div>
+                          <span className="things-spec-secondary">PostGIS ST_Intersects Buffer</span>
+                        </div>
+
+                        <div className="things-spec-cell">
+                          <span className="things-spec-label">Statutory Nodal Officer:</span>
+                          <div className="things-spec-val" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {project.nodalOfficer?.name ?? 'Unassigned'}
+                          </div>
+                          <span className="things-spec-secondary" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {project.nodalOfficer?.designation ?? 'Pending Assignment'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Proponent Statutory Callout */}
+                      {isPendingParcels && (
+                        <div className="things-boss-statutory-notice">
+                          <span className="things-boss-notice-icon">&#9873;</span>
+                          <span>
+                            <strong>Statutory Action Required:</strong> Alignment corridor geometry verified. {project.candidateParcelsCount || 0} candidate land parcels have been intersected. Bureau parcel determination and confirmation must be completed to initiate CALA field workflow.
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Docket Action Strip */}
+                      <div className="things-docket-footer">
+                        <div className="things-docket-timestamps">
+                          <span>Submitted: {new Date(project.submissionDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <span>&bull;</span>
+                          <span>Target SLA: {new Date(project.slaDeadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {project.status === 'PROJECT_APPROVED' || project.status === 'WORKFLOW_ACTIVE' ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  fontSize: '11px',
+                                  fontFamily: 'monospace',
+                                  fontWeight: 700,
+                                  color: 'var(--tb-emerald)',
+                                  backgroundColor: 'var(--tb-emerald-soft)',
+                                  padding: '5px 12px',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  borderRadius: 'var(--tb-radius-buttons)',
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                &#x2713; STATUTORY SANCTION GRANTED &bull; BOSS EXITED
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '12px',
+                                  color: 'var(--tb-fog)',
+                                  fontStyle: 'italic',
+                                }}
+                              >
+                                Active under Processing Officers
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              <Link
+                                to={`/boss/projects/${project.id}`}
+                                className="things-btn-outline"
+                                style={{ fontSize: '13px', padding: '7px 16px' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Inspect Dossier &rarr;
+                              </Link>
+
+                              {isPendingParcels ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/boss/projects/${project.id}/parcels`);
+                                  }}
+                                  className="things-btn-requisition"
+                                  style={{ margin: 0, fontSize: '13px', padding: '7px 18px' }}
+                                >
+                                  Determine Land Parcels &rarr;
+                                </button>
+                              ) : project.status === 'WORKFLOW_CONFIGURED' || (project.status === 'PARCELS_CONFIRMED' && (project.workflowProgress?.totalStages ?? 0) > 0) ? (
+                                <>
+                                  <Link
+                                    to={`/boss/projects/${project.id}/parcels`}
+                                    className="things-btn-outline"
+                                    style={{ fontSize: '12.5px', padding: '6px 12px' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Parcels ({project.selectedParcelsCount ?? 0}) &rarr;
+                                  </Link>
+                                  <Link
+                                    to={`/boss/projects/${project.id}/workflow`}
+                                    className="things-btn-outline"
+                                    style={{ fontSize: '12.5px', padding: '6px 12px' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Pipeline ({project.workflowProgress?.totalStages ?? 0} Stages) &rarr;
+                                  </Link>
+                                  <Link
+                                    to={`/boss/projects/${project.id}`}
+                                    className="things-btn-primary"
+                                    style={{ fontSize: '12.5px', padding: '6px 14px', backgroundColor: '#10b981', borderColor: '#10b981' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    ✓ Approve Forward &rarr;
+                                  </Link>
+                                </>
+                              ) : project.status === 'PARCELS_CONFIRMED' ? (
+                                <>
+                                  <Link
+                                    to={`/boss/projects/${project.id}/parcels`}
+                                    className="things-btn-outline"
+                                    style={{ fontSize: '12.5px', padding: '6px 12px' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Parcels ({project.selectedParcelsCount ?? 0}) &rarr;
+                                  </Link>
+                                  <Link
+                                    to={`/boss/projects/${project.id}/workflow?select=true`}
+                                    className="things-btn-requisition"
+                                    style={{ margin: 0, fontSize: '12.5px', padding: '6px 14px' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Choose Workflow &rarr;
+                                  </Link>
+                                </>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            /* View Mode B: Compact Gazette Tabular Register */
+            <div className="things-table-wrapper">
+              <table className="things-register-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '18%' }}>Docket Reference &amp; Agency</th>
+                    <th style={{ width: '32%' }}>Corridor Title &amp; Statutory Scope</th>
+                    <th style={{ width: '14%' }}>Jurisdiction</th>
+                    <th style={{ width: '14%' }}>Requisition Area</th>
+                    <th style={{ width: '12%' }}>Status</th>
+                    <th style={{ width: '10%', textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProjects.map((project) => (
+                    <tr
+                      key={project.id}
+                      className={project.id === selectedProjectId ? 'row-focused' : ''}
+                      onClick={() => setSelectedProjectId(project.id)}
+                    >
+                      <td>
+                        <div className="things-table-docket-cell">
+                          <span className="things-table-code">{project.code}</span>
+                          <span className="things-table-agency">{project.proponentAuthority}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="things-table-title-cell">
+                          <Link
+                            to={`/boss/projects/${project.id}`}
+                            style={{ color: 'inherit', textDecoration: 'none', fontWeight: 600 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {project.title}
+                          </Link>
+                          <span className="things-table-scope">{project.rfctlarrSection}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '13px' }}>{project.state}</span>
+                          <span style={{ fontSize: '11.5px', color: 'var(--tb-fog)' }}>{project.district}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="things-table-area-cell">
+                          <span className="things-table-area">{(project.requestedAreaAcres ?? 0).toLocaleString()} Acres</span>
+                          <span className="things-table-corridor">({project.requestedAreaHa} Ha)</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`things-status-pill pill-${project.status.toLowerCase()}`}>
+                          {project.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {project.status === 'PROJECT_APPROVED' || project.status === 'WORKFLOW_ACTIVE' ? (
+                          <span style={{ fontSize: '11px', color: 'var(--tb-emerald)', fontWeight: 600, fontFamily: 'monospace' }}>
+                            &#x2713; BOSS EXITED
+                          </span>
+                        ) : (
+                          <Link
+                            to={project.status === 'PARCELS_PENDING' ? `/boss/projects/${project.id}/parcels` : `/boss/projects/${project.id}`}
+                            className="things-btn-table-track"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {project.status === 'PARCELS_PENDING' ? 'Parcels \u2192' : 'Dossier \u2192'}
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Gazette Colophon Footer */}
+          <div className="things-boss-colophon">
+            <span>Central Land Records Nodal Clearinghouse &bull; DoLR &bull; RFCTLARR Compliance Engine</span>
+            <span>Showing {filteredProjects.length} of {projects.length} Registered Infrastructure Corridors</span>
+          </div>
+        </section>
+      </div>
     </div>
   );
 };

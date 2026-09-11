@@ -4,13 +4,16 @@ import { OfficerService, type OcrExtractionResult } from '../../services/Officer
 import { DocumentService, type Document as ProjectDocument } from '../../services/DocumentService';
 import { taskService } from '../../services/api/task.service';
 import type { WorkflowTask } from '../../types/task.types';
+import { apiClient } from '../../services/api/client';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
+import './officer-dashboard.css';
 
 export const OfficerTaskDetailPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
   const [task, setTask] = useState<WorkflowTask | null>(null);
   const [loading, setLoading] = useState(true);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
@@ -45,7 +48,9 @@ export const OfficerTaskDetailPage: React.FC = () => {
   useEffect(() => {
     // Cleanup object URL
     return () => {
-      if (uploadedFileUrl) URL.revokeObjectURL(uploadedFileUrl);
+      if (uploadedFileUrl && uploadedFileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(uploadedFileUrl);
+      }
     };
   }, [uploadedFileUrl]);
 
@@ -234,16 +239,39 @@ export const OfficerTaskDetailPage: React.FC = () => {
     }
   };
 
-  const handleInspectVerifiedDoc = async (doc: any) => {
+  const loadDocumentPreview = async (doc: any) => {
+    setPreviewLoading(true);
     const matchingDoc = findMatchingProjectDoc(doc.name);
-    const fileUrl = matchingDoc
-      ? `/api/v1/documents/${matchingDoc.id}/download`
-      : `/api/v1/documents/tasks/${task?.id}/template/${encodeURIComponent(doc.name)}`;
+    const downloadEndpoint = matchingDoc
+      ? `/documents/${matchingDoc.id}/download`
+      : `/documents/tasks/${task?.id}/template/${encodeURIComponent(doc.name)}`;
 
-    setUploadedFileUrl(fileUrl);
-    setIsUploadedImage(false);
+    try {
+      const res = await apiClient.get(downloadEndpoint, { responseType: 'blob' });
+      const contentType = String((res.headers && res.headers['content-type']) || 'application/pdf');
+      const blob = new Blob([res.data], { type: contentType });
+      if (uploadedFileUrl && uploadedFileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(uploadedFileUrl);
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      setUploadedFileUrl(objectUrl);
+      setIsUploadedImage(contentType.startsWith('image/'));
+    } catch (err) {
+      console.error('Failed to load authenticated blob preview, using token query fallback:', err);
+      const token = localStorage.getItem('bhoomi_auth_token');
+      const fallbackUrl = `/api/v1${downloadEndpoint}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      setUploadedFileUrl(fallbackUrl);
+      setIsUploadedImage(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleInspectVerifiedDoc = async (doc: any) => {
     setOcrStatus({ docId: doc.id, status: 'COMPLETED' });
     setIsOcrVerified(true);
+    setShowOcrModal(true);
+    await loadDocumentPreview(doc);
 
     if (!ocrData && task) {
       try {
@@ -255,19 +283,17 @@ export const OfficerTaskDetailPage: React.FC = () => {
         console.error('Failed to load OCR data for inspection', err);
       }
     }
-    setShowOcrModal(true);
   };
 
   const handleOpenOcrForm = async (doc: any) => {
     setActiveUploadDocId(doc.id);
-    const matchingDoc = findMatchingProjectDoc(doc.name);
-    const fileUrl = uploadedFileUrl || (matchingDoc
-      ? `/api/v1/documents/${matchingDoc.id}/download`
-      : `/api/v1/documents/tasks/${task?.id}/template/${encodeURIComponent(doc.name)}`);
-
-    setUploadedFileUrl(fileUrl);
     setOcrStatus({ docId: doc.id, backendDocId: doc.id, status: 'COMPLETED' });
     setIsOcrVerified(false);
+    setShowOcrModal(true);
+
+    if (!uploadedFileUrl) {
+      await loadDocumentPreview(doc);
+    }
 
     if (!ocrData && task) {
       try {
@@ -282,7 +308,6 @@ export const OfficerTaskDetailPage: React.FC = () => {
         console.error('Failed to load OCR data', err);
       }
     }
-    setShowOcrModal(true);
   };
 
   const handleVerifyOcr = async () => {
@@ -318,10 +343,10 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="landing-page-root" style={{ minHeight: '100vh', backgroundColor: 'var(--color-blush-paper)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-          <BhoomiLogo size={42} strokeWidth={2.4} />
-          <span style={{ fontSize: '18px', fontFamily: 'var(--font-copernicus)', fontStyle: 'italic', color: '#000000' }}>
+      <div className="things-officer-root" style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="things-officer-loading-state">
+          <BhoomiLogo size={40} strokeWidth={2.4} />
+          <span className="things-officer-loading-text">
             Accessing Statutory Task Docket...
           </span>
         </div>
@@ -331,17 +356,19 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
   if (!task) {
     return (
-      <div className="landing-page-root" style={{ minHeight: '100vh', backgroundColor: 'var(--color-blush-paper)', padding: '60px 24px' }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff', border: '1px solid #000000', borderRadius: '0px', padding: '40px', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: 'var(--font-copernicus)', fontSize: '24px', color: '#000000', marginBottom: '12px', fontWeight: 400 }}>
+      <div className="things-officer-root" style={{ minHeight: '100vh', padding: '60px 24px' }}>
+        <div className="things-task-card" style={{ maxWidth: '560px', margin: '0 auto', textAlign: 'center', padding: '40px' }}>
+          <h2 className="things-task-stage-title" style={{ fontSize: '24px', marginBottom: '10px' }}>
             Task Docket Not Found
           </h2>
-          <p style={{ color: 'var(--color-fossil-gray)', marginBottom: '24px', fontStyle: 'italic', fontSize: '15px' }}>
+          <p className="things-task-card-subtitle" style={{ fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 }}>
             The specified task docket ID does not exist or you do not have appropriate statutory permissions.
           </p>
-          <Link to="/officer/dashboard" className="btn-cta-outline" style={{ padding: '8px 18px', fontSize: '13px' }}>
-            &larr; Return to Officer Dashboard
-          </Link>
+          <div>
+            <Link to="/officer/dashboard" className="things-btn-outline">
+              &larr; Return to Officer Dashboard
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -353,8 +380,8 @@ export const OfficerTaskDetailPage: React.FC = () => {
   const isReadyToAccept = !hasMissingDocs && !hasUnverifiedDocs && !ocrBlocking;
 
   return (
-    <div className="landing-page-root" style={{ minHeight: '100vh', backgroundColor: 'var(--color-blush-paper)' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px 80px 24px' }}>
+    <div className="things-officer-root">
+      <div className="things-officer-container">
 
         {/* Hidden file input for uploads */}
         <input
@@ -365,248 +392,125 @@ export const OfficerTaskDetailPage: React.FC = () => {
         />
 
         {/* Back navigation */}
-        <div style={{ marginBottom: '24px' }}>
-          <Link
-            to="/officer/dashboard"
-            className="btn-cta-outline"
-            style={{ padding: '6px 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
+        <div className="things-task-nav-bar">
+          <Link to="/officer/dashboard" className="things-btn-back">
             &larr; Return to Officer Dashboard
           </Link>
         </div>
 
         {/* Sovereign Broadsheet Docket Masthead */}
-        <header style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #000000',
-          borderRadius: '0px',
-          padding: '28px 32px',
-          marginBottom: '32px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          flexWrap: 'wrap',
-          gap: '24px'
-        }}>
-          <div style={{ flex: 1, minWidth: '320px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <span style={{
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '+1.5px',
-                textTransform: 'uppercase',
-                color: '#000000',
-                border: '1px solid #000000',
-                padding: '3px 8px'
-              }}>
-                TASK DOCKET &bull; {task.id}
+        <header className="things-task-masthead">
+          <div className="things-task-masthead-main">
+            <div className="things-task-meta-row">
+              <span className="things-task-docket-badge">
+                TASK DOCKET &bull; #{task.id.split('-').pop()}
               </span>
-              <span style={{
-                padding: '3px 10px',
-                fontSize: '11px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                borderRadius: '0px',
-                letterSpacing: '+1px',
-                border: '1px solid #000000',
-                backgroundColor: task.status === 'ACCEPTED' ? '#000000' : 'var(--color-paper-tint)',
-                color: task.status === 'ACCEPTED' ? '#ffffff' : (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS') ? '#0058fe' : '#000000',
-                borderColor: (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS') ? '#0058fe' : '#000000'
-              }}>
+              <span className={`things-officer-pill status-${task.status.toLowerCase()}`}>
                 {task.status}
               </span>
             </div>
-            <h1 style={{ fontFamily: 'var(--font-copernicus)', fontSize: '34px', fontWeight: 400, color: '#000000', margin: '0 0 10px 0', letterSpacing: '-1.2px', lineHeight: 1.15 }}>
+            <h1 className="things-task-stage-title">
               {task.stageName}
             </h1>
-            <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-fossil-gray)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span>Project: <strong style={{ color: '#000000', fontFamily: 'var(--font-copernicus)' }}>{task.projectTitle || task.projectCode}</strong></span>
-              <span style={{ opacity: 0.5 }}>|</span>
-              <span style={{ fontFamily: 'monospace', color: 'var(--color-fossil-gray)' }}>{task.projectId}</span>
+            <p className="things-task-project-info">
+              <span>Project: <strong className="things-task-project-name">{task.projectTitle || task.projectCode}</strong></span>
+              <span style={{ opacity: 0.4 }}>•</span>
+              <span className="things-task-project-id">{task.projectId}</span>
             </p>
           </div>
 
-          <div style={{
-            backgroundColor: 'var(--color-paper-tint)',
-            border: '1px solid #000000',
-            borderRadius: '0px',
-            padding: '16px 20px',
-            minWidth: '240px'
-          }}>
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '11px', color: '#000000', textTransform: 'uppercase', letterSpacing: '+1.5px', marginBottom: '4px', fontWeight: 700 }}>
-                SLA Target Date
-              </div>
-              <div style={{ fontSize: '16px', fontWeight: 600, color: '#000000', fontFamily: 'monospace' }}>
-                {task.dueDate}
-              </div>
+          <div className="things-task-stamp-card">
+            <div className="things-task-stamp-block">
+              <span className="things-task-stamp-label">SLA Target Date</span>
+              <span className="things-task-stamp-val font-mono">{task.dueDate}</span>
             </div>
-            <div>
-              <div style={{ fontSize: '11px', color: '#000000', textTransform: 'uppercase', letterSpacing: '+1.5px', marginBottom: '4px', fontWeight: 700 }}>
-                Cadastral Jurisdiction
-              </div>
-              <div style={{ fontSize: '14px', fontWeight: 500, color: '#000000' }}>
+            <div className="things-task-stamp-block">
+              <span className="things-task-stamp-label">Cadastral Jurisdiction</span>
+              <span className="things-task-stamp-val">
                 {(task as any).district || 'South West'}, {(task as any).state || 'New Delhi'}
-              </div>
+              </span>
             </div>
           </div>
         </header>
 
         {/* Statutory Rejection Notice Banner */}
         {task.status === 'REJECTED' && (
-          <div style={{
-            marginBottom: '32px',
-            padding: '24px 28px',
-            borderRadius: '0px',
-            backgroundColor: '#ffffff',
-            border: '2px solid #000000',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '20px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', flex: 1, minWidth: '300px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                border: '1px solid #000000',
-                borderRadius: '0px',
-                backgroundColor: 'var(--color-paper-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#000000',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                flexShrink: 0
-              }}>
+          <div className="things-task-rejection-banner">
+            <div className="things-task-rejection-left">
+              <div className="things-task-rejection-icon">
                 &#9888;
               </div>
               <div>
-                <div style={{ fontFamily: 'var(--font-copernicus)', fontWeight: 400, color: '#000000', fontSize: '20px' }}>
+                <h3 className="things-task-rejection-title">
                   Stage Rejected &amp; Remitted to Requesting Authority
-                </div>
-                <div style={{ fontSize: '14px', color: '#000000', marginTop: '6px', lineHeight: '1.5' }}>
+                </h3>
+                <div className="things-task-rejection-reason">
                   Recorded Statutory Defect / Rejection Reason:{' '}
-                  <em style={{ fontFamily: 'var(--font-copernicus)', fontStyle: 'italic', fontWeight: 600 }}>
+                  <strong>
                     "{task.rejectionReason || 'Defects noted in submitted records.'}"
-                  </em>
+                  </strong>
                 </div>
-                <div style={{ fontSize: '13px', color: 'var(--color-fossil-gray)', marginTop: '4px', fontStyle: 'italic' }}>
+                <div className="things-task-rejection-sub">
                   Further officer action is suspended until the Requesting Authority remedies the defects and resubmits.
                 </div>
               </div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#000000',
-                border: '1px solid #000000',
-                padding: '4px 10px',
-                borderRadius: '0px',
-                textTransform: 'uppercase',
-                letterSpacing: '+1.5px'
-              }}>
+              <span className="things-officer-pill status-rejected">
                 Defect Dossier Remitted
               </span>
-              <div style={{ fontSize: '12px', color: 'var(--color-fossil-gray)', marginTop: '8px', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: '12px', color: 'var(--to-fog)', marginTop: '8px', fontFamily: 'var(--to-font-mono)' }}>
                 {task.completedAt ? `Remitted: ${new Date(task.completedAt).toLocaleString()}` : 'Recently Remitted'}
               </div>
             </div>
           </div>
         )}
 
-        {/* Main Content Section: Two-Column Editorial Layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.9fr', gap: '32px', alignItems: 'flex-start' }}>
+        {/* Main Content Section: Two-Column Layout */}
+        <div className="things-task-layout-grid">
 
           {/* Left Column: Statutory Context & Cadastral Parcels */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
             {/* Context Card */}
-            <div style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #000000',
-              borderRadius: '0px',
-              padding: '24px'
-            }}>
-              <h4 style={{
-                fontFamily: 'var(--font-copernicus)',
-                fontSize: '18px',
-                fontWeight: 400,
-                color: '#000000',
-                paddingBottom: '12px',
-                marginBottom: '16px',
-                borderBottom: '1px solid #000000',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <span style={{ color: '#0058fe' }}>&#9432;</span> Previous Stage Context
-              </h4>
-              <div style={{
-                backgroundColor: 'var(--color-blush-paper)',
-                border: '1px solid rgba(0,0,0,0.15)',
-                borderLeft: '3px solid #0058fe',
-                padding: '16px 20px',
-                borderRadius: '0px',
-                color: '#000000',
-                fontSize: '14px',
-                lineHeight: '1.6'
-              }}>
-                <em style={{ fontStyle: 'italic', fontFamily: 'var(--font-copernicus)' }}>
+            <div className="things-task-card">
+              <div className="things-task-card-header">
+                <h4 className="things-task-card-title">
+                  <span style={{ color: 'var(--to-signal-blue)' }}>&#9432;</span> Previous Stage Context
+                </h4>
+              </div>
+              <div className="things-task-context-callout">
+                <em>
                   "{(task as any).previousStageNotes || 'No previous stage context available.'}"
                 </em>
               </div>
             </div>
 
             {/* Parcels Card */}
-            <div style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #000000',
-              borderRadius: '0px',
-              padding: '24px'
-            }}>
-              <h4 style={{
-                fontFamily: 'var(--font-copernicus)',
-                fontSize: '18px',
-                fontWeight: 400,
-                color: '#000000',
-                paddingBottom: '12px',
-                marginBottom: '16px',
-                borderBottom: '1px solid #000000',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <span>&#9638;</span> Relevant Cadastral Parcels ({(task as any).relevantParcels?.length || 0})
-              </h4>
+            <div className="things-task-card">
+              <div className="things-task-card-header">
+                <h4 className="things-task-card-title">
+                  <span>&#9638;</span> Relevant Cadastral Parcels ({(task as any).relevantParcels?.length || 0})
+                </h4>
+              </div>
 
-              <div style={{ overflowX: 'auto', border: '1px solid #000000' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <div className="things-officer-table-wrap">
+                <table className="things-officer-table">
                   <thead>
-                    <tr style={{ backgroundColor: 'var(--color-paper-tint)', borderBottom: '1px solid #000000' }}>
-                      <th style={{ padding: '12px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Parcel ID</th>
-                      <th style={{ padding: '12px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Survey No.</th>
-                      <th style={{ padding: '12px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Village</th>
-                      <th style={{ padding: '12px', fontSize: '11px', color: '#000000', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '+1.5px' }}>Area</th>
+                    <tr>
+                      <th>Parcel ID</th>
+                      <th>Survey No.</th>
+                      <th>Village</th>
+                      <th>Area</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {((task as any).relevantParcels || []).map((parcel: any, idx: number) => (
-                      <tr
-                        key={parcel.id}
-                        style={{
-                          backgroundColor: idx % 2 === 0 ? '#ffffff' : 'var(--color-blush-paper)',
-                          borderBottom: '1px solid rgba(0,0,0,0.1)'
-                        }}
-                      >
-                        <td style={{ padding: '12px', fontFamily: 'monospace', color: '#000000', fontSize: '13px' }}>{parcel.id}</td>
-                        <td style={{ padding: '12px', fontWeight: 700, color: '#000000', fontSize: '13.5px' }}>{parcel.surveyNumber}</td>
-                        <td style={{ padding: '12px', color: '#000000', fontSize: '13.5px' }}>{parcel.village}</td>
-                        <td style={{ padding: '12px', color: '#000000', fontSize: '13.5px' }}>{parcel.area}</td>
+                    {((task as any).relevantParcels || []).map((parcel: any) => (
+                      <tr key={parcel.id}>
+                        <td style={{ fontFamily: 'var(--to-font-mono)', fontSize: '12.5px' }}>{parcel.id}</td>
+                        <td style={{ fontWeight: 600 }}>{parcel.surveyNumber}</td>
+                        <td>{parcel.village}</td>
+                        <td>{parcel.area}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -616,32 +520,18 @@ export const OfficerTaskDetailPage: React.FC = () => {
           </div>
 
           {/* Right Column: Evidence, OCR Intelligence & Statutory Affirmation */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
             {/* Evidence & Documents Card */}
-            <div style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #000000',
-              borderRadius: '0px',
-              padding: '24px'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                flexWrap: 'wrap',
-                gap: '12px',
-                paddingBottom: '14px',
-                marginBottom: '20px',
-                borderBottom: '1px solid #000000'
-              }}>
+            <div className="things-task-card">
+              <div className="things-task-card-header">
                 <div>
-                  <h4 style={{ margin: 0, fontFamily: 'var(--font-copernicus)', fontSize: '18px', fontWeight: 400, color: '#000000', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h4 className="things-task-card-title">
                     <span>&#128194;</span> Evidence &amp; Documents
                   </h4>
-                  <span style={{ fontSize: '12px', color: 'var(--color-fossil-gray)', marginTop: '3px', display: 'block', fontStyle: 'italic' }}>
+                  <p className="things-task-card-subtitle">
                     Download soft copies, verify physical ground scans, and affirm statutory compliance
-                  </span>
+                  </p>
                 </div>
 
                 {/* Download Full Requisition Dossier button */}
@@ -649,16 +539,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   type="button"
                   onClick={handleDownloadFullDossier}
                   disabled={downloadingDoc === 'DOSSIER'}
-                  className="btn-cta-outline"
-                  style={{
-                    fontSize: '12px',
-                    padding: '6px 12px',
-                    borderRadius: '0px',
-                    cursor: downloadingDoc === 'DOSSIER' ? 'wait' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
+                  className="things-btn-outline"
                   title="Download all submitted requisition documents and schedules for this project"
                 >
                   <span>&#11015;</span> {downloadingDoc === 'DOSSIER' ? 'Downloading...' : 'Download Full Requisition Dossier'}
@@ -667,23 +548,22 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
               {task.status === 'REJECTED' && (
                 <div style={{
-                  marginBottom: '16px',
                   padding: '12px 16px',
-                  borderRadius: '0px',
-                  backgroundColor: 'var(--color-paper-tint)',
-                  border: '1px solid #000000',
+                  borderRadius: '8px',
+                  backgroundColor: '#fff8f8',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
                   fontSize: '13px',
-                  color: '#000000',
+                  color: '#991b1b',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px'
                 }}>
-                  <span style={{ fontSize: '16px' }}>&#9888;</span>
+                  <span style={{ fontSize: '15px' }}>&#9888;</span>
                   <span><strong>Scrutiny Suspended:</strong> This task has been rejected and remitted to the Proponent. Document uploads and affirmations are locked pending resubmission.</span>
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {task.requiredDocuments?.map(doc => {
                   const isTaskClosed = task.status === 'ACCEPTED' || task.status === 'REJECTED';
                   const isMissing = !isTaskClosed && doc.status === 'MISSING';
@@ -697,23 +577,13 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   return (
                     <div
                       key={doc.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '16px',
-                        borderRadius: '0px',
-                        backgroundColor: isVerified ? 'var(--color-paper-tint)' : 'var(--color-blush-paper)',
-                        border: '1px solid #000000',
-                        flexWrap: 'wrap',
-                        gap: '12px'
-                      }}
+                      className={`things-task-doc-row ${isVerified ? 'is-verified' : ''}`}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#000000', fontFamily: 'var(--font-copernicus)' }}>
+                      <div className="things-task-doc-info">
+                        <span className="things-task-doc-name">
                           {doc.name}
                         </span>
-                        <span style={{ fontSize: '12px', color: isVerified ? '#000000' : isUploaded ? '#0058fe' : 'var(--color-fossil-gray)', fontStyle: 'italic' }}>
+                        <span className={`things-task-doc-sub ${isVerified ? 'verified' : isUploaded ? 'uploaded' : ''}`}>
                           {isVerified
                             ? '✓ Certified Soft Copy Digitized & Verified in Registry'
                             : isUploaded
@@ -722,22 +592,13 @@ export const OfficerTaskDetailPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div className="things-task-doc-actions">
                         {/* 1. Download Soft Copy button */}
                         <button
                           type="button"
                           onClick={() => handleDownloadSoftCopy(doc.name)}
                           disabled={isDownloading}
-                          className="btn-cta-outline"
-                          style={{
-                            fontSize: '12px',
-                            padding: '6px 12px',
-                            borderRadius: '0px',
-                            cursor: isDownloading ? 'wait' : 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px'
-                          }}
+                          className="things-btn-outline"
                           title="Download official soft copy or template to inspect or print physical record"
                         >
                           <span>&#11015;</span> {isDownloading ? 'Downloading...' : 'Download Soft Copy'}
@@ -745,36 +606,20 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
                         {/* Closed Task Read-only Status Badges */}
                         {isTaskClosed && doc.status === 'MISSING' && (
-                          <span style={{
-                            border: '1px solid #000000',
-                            color: '#000000',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '4px 8px',
-                            borderRadius: '0px',
-                            letterSpacing: '+1px'
-                          }}>
+                          <span className="things-officer-pill status-rejected">
                             {task.status === 'REJECTED' ? 'MISSING AT REJECTION' : 'MISSING'}
                           </span>
                         )}
 
                         {isTaskClosed && doc.status === 'UPLOADED' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{
-                              border: '1px solid #000000',
-                              color: '#000000',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              padding: '4px 8px',
-                              borderRadius: '0px'
-                            }}>
+                            <span className="things-officer-pill status-pending">
                               UPLOADED
                             </span>
                             <button
                               type="button"
                               onClick={() => handleInspectVerifiedDoc(doc)}
-                              className="btn-cta-outline"
-                              style={{ fontSize: '11.5px', padding: '5px 10px', borderRadius: '0px' }}
+                              className="things-btn-outline"
                             >
                               &#128065; Inspect Scan
                             </button>
@@ -787,16 +632,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                             type="button"
                             onClick={() => handleUploadClick(doc.id)}
                             disabled={isUploading}
-                            className="btn-cta-black"
-                            style={{
-                              fontSize: '12px',
-                              padding: '6px 14px',
-                              borderRadius: '0px',
-                              cursor: isUploading ? 'wait' : 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px'
-                            }}
+                            className="things-btn-primary"
                             title="Upload scanned image or photo of physical stamped hard copy"
                           >
                             <span>&#128247;</span> {isUploading ? 'Uploading Scan...' : 'Upload Hard Copy'}
@@ -805,18 +641,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
                         {/* State 2: Processing AI */}
                         {isCurrentlyProcessingOcr && !isOcrVerified && (
-                          <span style={{
-                            backgroundColor: '#0058fe',
-                            color: '#ffffff',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '+1px',
-                            padding: '5px 10px',
-                            borderRadius: '0px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}>
+                          <span className="things-ocr-running-badge">
                             &#9889; AI OCR RUNNING...
                           </span>
                         )}
@@ -827,16 +652,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenOcrForm(doc)}
-                              className="btn-cta-blue"
-                              style={{
-                                fontSize: '12px',
-                                padding: '6px 14px',
-                                borderRadius: '0px',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                              }}
+                              className="things-btn-primary"
                               title="Click to open side-by-side viewer with AI OCR soft copy form filling suggestions"
                             >
                               <span>&#9889;</span> Review Soft Copy Form (AI OCR)
@@ -845,14 +661,13 @@ export const OfficerTaskDetailPage: React.FC = () => {
                               type="button"
                               onClick={() => handleUploadClick(doc.id)}
                               style={{
-                                fontSize: '11.5px',
-                                fontFamily: 'var(--font-copernicus)',
-                                fontStyle: 'italic',
+                                fontSize: '12px',
                                 backgroundColor: 'transparent',
-                                color: '#000000',
+                                color: 'var(--to-fog)',
                                 border: 'none',
                                 cursor: 'pointer',
-                                textDecoration: 'underline'
+                                textDecoration: 'underline',
+                                padding: '4px 6px'
                               }}
                               title="Re-upload a different photo/scan if needed"
                             >
@@ -864,23 +679,13 @@ export const OfficerTaskDetailPage: React.FC = () => {
                         {/* State 4: Verified */}
                         {isVerified && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{
-                              border: '1px solid #000000',
-                              backgroundColor: '#000000',
-                              color: '#ffffff',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              letterSpacing: '+1px',
-                              padding: '4px 8px',
-                              borderRadius: '0px'
-                            }}>
+                            <span className="things-officer-pill status-completed">
                               &#10003; VERIFIED
                             </span>
                             <button
                               type="button"
                               onClick={() => handleInspectVerifiedDoc(doc)}
-                              className="btn-cta-outline"
-                              style={{ fontSize: '11.5px', padding: '5px 10px', borderRadius: '0px' }}
+                              className="things-btn-outline"
                               title="Inspect verified soft copy form values and physical scan side-by-side"
                             >
                               &#128065; Inspect Soft Copy
@@ -895,28 +700,23 @@ export const OfficerTaskDetailPage: React.FC = () => {
             </div>
 
             {/* Stage Affirmation Card */}
-            <div style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #000000',
-              borderRadius: '0px',
-              padding: '24px'
-            }}>
+            <div className="things-task-card">
               {task.status === 'REJECTED' ? (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '20px' }}>&#9888;</span>
-                    <h4 style={{ margin: 0, fontFamily: 'var(--font-copernicus)', fontSize: '18px', fontWeight: 400, color: '#000000' }}>
+                    <span style={{ fontSize: '20px', color: 'var(--to-rose)' }}>&#9888;</span>
+                    <h4 className="things-task-card-title" style={{ margin: 0 }}>
                       Stage Rejected &amp; Remitted
                     </h4>
                   </div>
-                  <p style={{ fontSize: '14px', color: '#000000', margin: '0 0 16px 0', lineHeight: '1.6' }}>
+                  <p style={{ fontSize: '13.5px', color: 'var(--to-ink)', margin: '0 0 16px 0', lineHeight: '1.6' }}>
                     This statutory stage was rejected and remitted to the Requesting Authority. Further officer action is locked until the Proponent rectifies defects and resubmits the stage.
                   </p>
-                  <div style={{ padding: '14px 16px', backgroundColor: 'var(--color-blush-paper)', border: '1px solid #000000' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#000000', textTransform: 'uppercase', letterSpacing: '+1.5px', display: 'block', marginBottom: '4px' }}>
+                  <div style={{ padding: '14px 16px', backgroundColor: '#fafbfc', border: '1px solid var(--to-hairline)', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--to-fog)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>
                       Recorded Statutory Rejection Reason:
                     </span>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#000000', fontStyle: 'italic', fontFamily: 'var(--font-copernicus)' }}>
+                    <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--to-ink)', fontStyle: 'italic' }}>
                       "{task.rejectionReason || 'Defects noted in submitted records.'}"
                     </p>
                   </div>
@@ -924,39 +724,32 @@ export const OfficerTaskDetailPage: React.FC = () => {
               ) : task.status === 'ACCEPTED' ? (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '20px' }}>&#10003;</span>
-                    <h4 style={{ margin: 0, fontFamily: 'var(--font-copernicus)', fontSize: '18px', fontWeight: 400, color: '#000000' }}>
+                    <span style={{ fontSize: '20px', color: 'var(--to-emerald)' }}>&#10003;</span>
+                    <h4 className="things-task-card-title" style={{ margin: 0 }}>
                       Stage Affirmation Completed
                     </h4>
                   </div>
-                  <p style={{ fontSize: '14px', color: '#000000', margin: 0, lineHeight: '1.6' }}>
+                  <p style={{ fontSize: '13.5px', color: 'var(--to-ink)', margin: 0, lineHeight: '1.6' }}>
                     This statutory stage has been affirmed and accepted. The workflow has progressed to the subsequent statutory phase in accordance with RFCTLARR Act 2013.
                   </p>
                 </div>
               ) : (
                 <div>
-                  <h4 style={{ fontFamily: 'var(--font-copernicus)', fontSize: '18px', fontWeight: 400, color: '#000000', marginBottom: '8px' }}>
+                  <h4 className="things-task-card-title" style={{ marginBottom: '6px' }}>
                     Stage Affirmation
                   </h4>
-                  <p style={{ fontSize: '14px', color: 'var(--color-fossil-gray)', marginBottom: '20px', lineHeight: '1.55', fontStyle: 'italic' }}>
+                  <p className="things-task-card-subtitle" style={{ marginBottom: '20px', lineHeight: '1.55' }}>
                     By accepting this stage, you digitally affirm the verification of physical and digital records per the statutory requirements of the Act.
                   </p>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {/* Affirm & Accept Stage button */}
                     <button
                       type="button"
                       onClick={handleAccept}
                       disabled={submitting || !isReadyToAccept}
-                      className={(!submitting && isReadyToAccept) ? 'btn-cta-black' : 'btn-cta-outline'}
-                      style={{
-                        width: '100%',
-                        padding: '14px',
-                        borderRadius: '0px',
-                        fontSize: '14px',
-                        cursor: (!submitting && isReadyToAccept) ? 'pointer' : 'not-allowed',
-                        opacity: (!submitting && isReadyToAccept) ? 1 : 0.4
-                      }}
+                      className="things-btn-success"
+                      style={{ width: '100%' }}
                     >
                       {submitting ? 'Processing Affirmation...' : '✓ Affirm & Accept Stage'}
                     </button>
@@ -966,31 +759,15 @@ export const OfficerTaskDetailPage: React.FC = () => {
                       type="button"
                       onClick={() => setShowRejectModal(true)}
                       disabled={submitting}
-                      className="btn-cta-outline"
-                      style={{
-                        width: '100%',
-                        padding: '14px',
-                        borderRadius: '0px',
-                        fontSize: '14px',
-                        cursor: submitting ? 'not-allowed' : 'pointer'
-                      }}
+                      className="things-btn-danger-outline"
+                      style={{ width: '100%' }}
                     >
                       Reject to Proponent
                     </button>
                   </div>
 
                   {!isReadyToAccept && (
-                    <div style={{
-                      marginTop: '16px',
-                      padding: '12px 16px',
-                      backgroundColor: 'var(--color-blush-paper)',
-                      border: '1px solid #000000',
-                      borderRadius: '0px',
-                      color: '#000000',
-                      fontSize: '13px',
-                      textAlign: 'center',
-                      fontStyle: 'italic'
-                    }}>
+                    <div className="things-task-affirm-note">
                       {hasMissingDocs
                         ? 'Cannot affirm: Missing required physical evidence.'
                         : hasUnverifiedDocs
@@ -1005,33 +782,16 @@ export const OfficerTaskDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Phase 9: AI Intelligence Fullscreen Modal (Broadsheet Style) */}
+        {/* Phase 9: AI Intelligence Fullscreen Modal (Things Style) */}
         {showOcrModal && ocrStatus && (
-          <div style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            zIndex: 9999,
-            display: 'flex',
-            padding: '32px',
-            boxSizing: 'border-box'
-          }}>
-            <div style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              height: '100%',
-              borderRadius: '0px',
-              border: '2px solid #000000',
-              display: 'flex',
-              overflow: 'hidden',
-              boxShadow: 'none'
-            }}>
+          <div className="things-modal-overlay">
+            <div className="things-ocr-modal-box">
               {/* Left: Document Viewer */}
-              <div style={{ flex: '1.3', backgroundColor: '#000000', borderRight: '1px solid #000000', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '16px 24px', backgroundColor: 'var(--color-paper-tint)', borderBottom: '1px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '18px' }}>&#128065;</span>
-                    <span style={{ fontWeight: 600, color: '#000000', fontSize: '14px', fontFamily: 'var(--font-copernicus)' }}>
+              <div className="things-ocr-viewer-pane">
+                <div className="things-ocr-viewer-header">
+                  <div className="things-ocr-viewer-title">
+                    <span>&#128065;</span>
+                    <span>
                       {isUploadedImage ? 'Scanned Hard Copy Evidence (Physical Scan)' : 'Statutory Soft Copy / Document Viewer'}
                     </span>
                   </div>
@@ -1040,15 +800,19 @@ export const OfficerTaskDetailPage: React.FC = () => {
                       href={uploadedFileUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="btn-cta-outline"
-                      style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '0px' }}
+                      className="things-btn-outline"
+                      style={{ fontSize: '11.5px', padding: '4px 10px', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.2)' }}
                     >
                       Open in New Tab &#8599;
                     </a>
                   )}
                 </div>
-                <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', boxSizing: 'border-box' }}>
-                  {uploadedFileUrl ? (
+                <div className="things-ocr-viewer-body">
+                  {previewLoading ? (
+                    <div style={{ color: 'var(--to-fog)', textAlign: 'center' }}>
+                      <p style={{ fontSize: '14px' }}>Loading certified document preview...</p>
+                    </div>
+                  ) : uploadedFileUrl ? (
                     isUploadedImage ? (
                       <img
                         src={uploadedFileUrl}
@@ -1057,31 +821,30 @@ export const OfficerTaskDetailPage: React.FC = () => {
                           maxWidth: '100%',
                           maxHeight: '100%',
                           objectFit: 'contain',
-                          borderRadius: '0px',
-                          border: '1px solid #ffffff'
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255, 255, 255, 0.15)'
                         }}
                       />
                     ) : (
                       <iframe
                         src={uploadedFileUrl}
                         title="Document Viewer"
-                        style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#ffffff', borderRadius: '0px' }}
+                        style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#ffffff', borderRadius: '6px' }}
                       />
                     )
                   ) : (
-                    <div style={{ color: '#ffffff', textAlign: 'center', fontFamily: 'var(--font-copernicus)', fontStyle: 'italic' }}>
-                      <p style={{ fontSize: '15px' }}>Document Preview Initializing...</p>
+                    <div style={{ color: 'var(--to-fog)', textAlign: 'center' }}>
+                      <p style={{ fontSize: '14px' }}>Document Preview Initializing...</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Right: Gemini Intelligence Panel */}
-              <div style={{ flex: '1', display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-
-                <div style={{ padding: '20px 28px', borderBottom: '1px solid #000000', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontFamily: 'var(--font-copernicus)', fontSize: '18px', fontWeight: 400, color: '#000000', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#0058fe' }}>&#10022;</span> Gemini Intelligence &bull; Soft Copy Form Filling
+              <div className="things-ocr-panel-pane">
+                <div className="things-ocr-panel-header">
+                  <h3 className="things-ocr-panel-title">
+                    <span style={{ color: 'var(--to-signal-blue)' }}>&#10022;</span> Gemini Intelligence &bull; Soft Copy Form Filling
                   </h3>
                   <button
                     onClick={() => {
@@ -1095,66 +858,57 @@ export const OfficerTaskDetailPage: React.FC = () => {
                       }
                       setOcrStatus(null);
                     }}
-                    style={{
-                      border: '1px solid #000000',
-                      backgroundColor: 'transparent',
-                      padding: '2px 8px',
-                      fontSize: '18px',
-                      cursor: 'pointer',
-                      color: '#000000',
-                      lineHeight: 1,
-                      borderRadius: '0px'
-                    }}
+                    className="things-ocr-close-btn"
                     title="Close viewer"
                   >
                     &times;
                   </button>
                 </div>
 
-                <div style={{ padding: '28px', overflowY: 'auto', flex: 1 }}>
+                <div className="things-ocr-panel-body">
                   {!isOcrVerified ? (
-                    <p style={{ fontSize: '14px', color: 'var(--color-fossil-gray)', marginBottom: '24px', lineHeight: '1.55', fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '13.5px', color: 'var(--to-fog)', marginBottom: '20px', lineHeight: '1.55' }}>
                       AI has scanned the uploaded physical hard copy and extracted statutory parameters. Review and adjust the suggested values below to complete the digital soft copy record.
                     </p>
                   ) : (
-                    <p style={{ fontSize: '14px', color: '#000000', marginBottom: '24px', lineHeight: '1.55', fontWeight: 600 }}>
+                    <p style={{ fontSize: '13.5px', color: 'var(--to-ink)', marginBottom: '20px', lineHeight: '1.55', fontWeight: 600 }}>
                       Verified soft copy form values recorded in the statutory registry.
                     </p>
                   )}
 
                   {/* Polling States */}
                   {ocrStatus.status === 'OCR_PROCESSING' && (
-                    <div style={{ padding: '32px 24px', backgroundColor: 'var(--color-blush-paper)', border: '1px solid #000000', textAlign: 'center', borderRadius: '0px' }}>
-                      <div style={{ color: '#0058fe', fontWeight: 600, marginBottom: '8px', fontSize: '15px' }}>Running Cloud Vision OCR...</div>
-                      <div style={{ fontSize: '13px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Extracting raw text from hard copy scan.</div>
+                    <div style={{ padding: '28px 20px', backgroundColor: '#fafbfc', border: '1px solid var(--to-hairline)', textAlign: 'center', borderRadius: '10px' }}>
+                      <div style={{ color: 'var(--to-signal-blue)', fontWeight: 600, marginBottom: '6px', fontSize: '14.5px' }}>Running Cloud Vision OCR...</div>
+                      <div style={{ fontSize: '12.5px', color: 'var(--to-fog)' }}>Extracting raw text from hard copy scan.</div>
                     </div>
                   )}
                   {ocrStatus.status === 'GEMINI_EXTRACTING' && (
-                    <div style={{ padding: '32px 24px', backgroundColor: 'var(--color-blush-paper)', border: '1px solid #000000', textAlign: 'center', borderRadius: '0px' }}>
-                      <div style={{ color: '#000000', fontWeight: 600, marginBottom: '8px', fontSize: '15px' }}>Gemini LLM Structuring Data...</div>
-                      <div style={{ fontSize: '13px', color: 'var(--color-fossil-gray)', fontStyle: 'italic' }}>Populating soft copy form filling suggestions from scanned evidence.</div>
+                    <div style={{ padding: '28px 20px', backgroundColor: '#fafbfc', border: '1px solid var(--to-hairline)', textAlign: 'center', borderRadius: '10px' }}>
+                      <div style={{ color: 'var(--to-ink)', fontWeight: 600, marginBottom: '6px', fontSize: '14.5px' }}>Gemini LLM Structuring Data...</div>
+                      <div style={{ fontSize: '12.5px', color: 'var(--to-fog)' }}>Populating soft copy form filling suggestions from scanned evidence.</div>
                     </div>
                   )}
 
                   {(ocrStatus.status === 'EMPTY' || ocrStatus.status === 'FAILED') && (
-                    <div style={{ padding: '28px 24px', backgroundColor: 'var(--color-blush-paper)', border: '1px solid #000000', borderRadius: '0px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '18px' }}>&#9888;</span>
-                        <span style={{ fontWeight: 600, fontSize: '15px', color: '#000000', fontFamily: 'var(--font-copernicus)' }}>
+                    <div style={{ padding: '24px 20px', backgroundColor: '#fff8f8', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '18px', color: 'var(--to-rose)' }}>&#9888;</span>
+                        <span style={{ fontWeight: 700, fontSize: '14.5px', color: '#991b1b' }}>
                           {ocrStatus.status === 'EMPTY' ? 'No Statutory Fields Could Be Read' : 'AI Extraction Unavailable'}
                         </span>
                       </div>
-                      <p style={{ fontSize: '13.5px', color: '#000000', lineHeight: 1.6, margin: '0 0 8px 0' }}>
+                      <p style={{ fontSize: '13px', color: 'var(--to-ink)', lineHeight: 1.55, margin: '0 0 8px 0' }}>
                         {ocrStatus.status === 'EMPTY'
                           ? <>The AI classified this scan{ocrStatus.documentType ? <> as <strong>{ocrStatus.documentType.replace(/_/g, ' ')}</strong></> : null} but could not extract any field values from it. This usually means the scan is too faint, skewed, or handwritten.</>
                           : 'The AI parser could not be reached, or it did not respond in time. No values have been auto-filled.'}
                       </p>
                       {ocrStatus.missingFields && ocrStatus.missingFields.length > 0 && (
-                        <p style={{ fontSize: '12.5px', color: 'var(--color-fossil-gray)', margin: '0 0 8px 0', fontStyle: 'italic' }}>
+                        <p style={{ fontSize: '12px', color: 'var(--to-fog)', margin: '0 0 8px 0' }}>
                           Expected but not found: {ocrStatus.missingFields.join(', ')}
                         </p>
                       )}
-                      <p style={{ fontSize: '13px', color: '#000000', margin: '0 0 18px 0', lineHeight: 1.6 }}>
+                      <p style={{ fontSize: '12.5px', color: 'var(--to-ash)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
                         Nothing has been pre-filled, since affirming unverified values would enter them into the statutory registry. Re-upload a clearer scan to try again.
                       </p>
                       <button
@@ -1165,8 +919,8 @@ export const OfficerTaskDetailPage: React.FC = () => {
                           setOcrStatus(null);
                           handleUploadClick(docId);
                         }}
-                        className="btn-cta-black"
-                        style={{ width: '100%', padding: '12px', fontSize: '13.5px', borderRadius: '0px', cursor: 'pointer' }}
+                        className="things-btn-primary"
+                        style={{ width: '100%', justifyContent: 'center' }}
                       >
                         &#128247; Re-upload Scan &amp; Retry AI Extraction
                       </button>
@@ -1175,7 +929,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
                   {/* Extraction Results */}
                   {ocrStatus.status === 'COMPLETED' && ocrData && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
                       {(() => {
                         const flattenObject = (obj: any, prefix = ''): Record<string, string> => {
@@ -1197,13 +951,13 @@ export const OfficerTaskDetailPage: React.FC = () => {
                           const isEditable = !isOcrVerified;
 
                           return (
-                            <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <label style={{ fontSize: '11px', fontWeight: 700, color: '#000000', textTransform: 'uppercase', letterSpacing: '+1px' }}>
+                            <div key={key} className="things-ocr-field-group">
+                              <div className="things-ocr-field-header">
+                                <label className="things-ocr-field-label">
                                   {key.replace(/([A-Z])/g, ' $1')}
                                 </label>
                                 {confidence && (
-                                  <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700, border: '1px solid #000000', padding: '2px 6px', borderRadius: '0px', fontFamily: 'monospace' }}>
+                                  <span className="things-ocr-confidence-badge">
                                     {confidence}% AI Confidence
                                   </span>
                                 )}
@@ -1213,18 +967,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                                 value={value as string}
                                 onChange={(e) => handleOcrDataChange(key, e.target.value)}
                                 readOnly={!isEditable}
-                                style={{
-                                  width: '100%',
-                                  padding: '10px 12px',
-                                  borderRadius: '0px',
-                                  border: '1px solid #000000',
-                                  backgroundColor: isEditable ? '#ffffff' : 'var(--color-blush-paper)',
-                                  color: '#000000',
-                                  fontSize: '14px',
-                                  fontFamily: 'var(--font-body-serif)',
-                                  boxSizing: 'border-box',
-                                  outline: 'none'
-                                }}
+                                className="things-ocr-input"
                               />
                             </div>
                           );
@@ -1235,30 +978,28 @@ export const OfficerTaskDetailPage: React.FC = () => {
                         <button
                           onClick={handleVerifyOcr}
                           disabled={ocrSubmitting}
-                          className="btn-cta-black"
+                          className="things-btn-primary"
                           style={{
-                            marginTop: '16px',
+                            marginTop: '12px',
                             width: '100%',
-                            padding: '14px',
-                            borderRadius: '0px',
-                            fontSize: '14px',
-                            cursor: ocrSubmitting ? 'wait' : 'pointer'
+                            padding: '12px',
+                            fontSize: '13.5px',
+                            justifyContent: 'center'
                           }}
                         >
                           {ocrSubmitting ? 'Saving Soft Copy...' : '✓ Affirm AI Extraction & Save Soft Copy'}
                         </button>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
                           <div style={{
-                            padding: '14px',
-                            backgroundColor: 'var(--color-paper-tint)',
-                            border: '1px solid #000000',
-                            borderRadius: '0px',
-                            color: '#000000',
-                            fontSize: '14px',
+                            padding: '12px',
+                            backgroundColor: 'var(--to-emerald-tint)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            borderRadius: '8px',
+                            color: '#059669',
+                            fontSize: '13.5px',
                             fontWeight: 600,
-                            textAlign: 'center',
-                            fontFamily: 'var(--font-copernicus)'
+                            textAlign: 'center'
                           }}>
                             ✓ Soft Copy Form Verified &amp; Saved
                           </div>
@@ -1268,12 +1009,8 @@ export const OfficerTaskDetailPage: React.FC = () => {
                               setShowOcrModal(false);
                               setOcrStatus(null);
                             }}
-                            className="btn-cta-outline"
-                            style={{
-                              padding: '10px',
-                              fontSize: '13px',
-                              borderRadius: '0px'
-                            }}
+                            className="things-btn-outline"
+                            style={{ width: '100%', justifyContent: 'center' }}
                           >
                             Close Viewer
                           </button>
@@ -1289,29 +1026,12 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
         {/* Sovereign Rejection Modal */}
         {showRejectModal && (
-          <div style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            zIndex: 9999,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '20px'
-          }}>
-            <div style={{
-              backgroundColor: 'var(--color-blush-paper)',
-              border: '2px solid #000000',
-              borderRadius: '0px',
-              padding: '32px',
-              width: '540px',
-              maxWidth: '100%',
-              boxShadow: 'none'
-            }}>
-              <h3 style={{ margin: '0 0 12px 0', fontFamily: 'var(--font-copernicus)', fontSize: '24px', fontWeight: 400, color: '#000000' }}>
+          <div className="things-modal-overlay">
+            <div className="things-reject-modal-box">
+              <h3 className="things-reject-title">
                 Reject Workflow Stage
               </h3>
-              <p style={{ fontSize: '14px', color: 'var(--color-fossil-gray)', marginBottom: '20px', lineHeight: '1.55', fontStyle: 'italic' }}>
+              <p className="things-reject-desc">
                 Provide an official statutory reason for rejection under RFCTLARR Act 2013. This formal remittal notice will be transmitted to the Requesting Authority for corrective action.
               </p>
 
@@ -1319,34 +1039,15 @@ export const OfficerTaskDetailPage: React.FC = () => {
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="e.g. Missing signature on physical scan of Form B or boundary mismatch..."
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  minHeight: '120px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #000000',
-                  color: '#000000',
-                  padding: '14px',
-                  borderRadius: '0px',
-                  marginBottom: '24px',
-                  fontFamily: 'var(--font-body-serif)',
-                  fontSize: '14px',
-                  resize: 'vertical',
-                  outline: 'none'
-                }}
+                className="things-reject-textarea"
               />
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setShowRejectModal(false)}
                   disabled={submitting}
-                  className="btn-cta-outline"
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: '0px',
-                    fontSize: '13px'
-                  }}
+                  className="things-btn-outline"
                 >
                   Cancel
                 </button>
@@ -1354,14 +1055,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   type="button"
                   onClick={handleReject}
                   disabled={!rejectReason.trim() || submitting}
-                  className="btn-cta-black"
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: '0px',
-                    fontSize: '13px',
-                    cursor: (!rejectReason.trim() || submitting) ? 'not-allowed' : 'pointer',
-                    opacity: (!rejectReason.trim() || submitting) ? 0.4 : 1
-                  }}
+                  className="things-btn-danger"
                 >
                   {submitting ? 'Rejecting...' : 'Confirm Rejection'}
                 </button>

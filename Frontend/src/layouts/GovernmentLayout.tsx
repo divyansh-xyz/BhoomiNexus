@@ -36,7 +36,7 @@ export const GovernmentLayout: React.FC = () => {
     location.pathname.startsWith('/boss/projects');
 
   return (
-    <div className="gov-workspace-shell">
+    <div className={`gov-workspace-shell ${location.pathname.startsWith('/projects') ? 'theme-things-requestor' : location.pathname.startsWith('/boss') ? 'theme-things-boss' : location.pathname.startsWith('/officer') ? 'theme-things-officer' : ''}`}>
       {/* Sovereign Official Top Masthead */}
       <header className="gov-top-masthead">
         <div className="gov-masthead-inner">
@@ -69,7 +69,7 @@ export const GovernmentLayout: React.FC = () => {
           <div className="gov-masthead-right" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             {user && (
               <>
-                <NotificationBell />
+                {user.role !== 'BOSS' && <NotificationBell />}
                 {!hideMastheadActions && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-carbon-ink)' }}>
