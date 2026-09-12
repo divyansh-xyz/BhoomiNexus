@@ -12,7 +12,7 @@ declare global {
         department?: string;
         state?: string;
         district?: string;
-        scope?: 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PROJECT';
+        scope?: 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PROJECT' | 'TASK';
       };
     }
   }

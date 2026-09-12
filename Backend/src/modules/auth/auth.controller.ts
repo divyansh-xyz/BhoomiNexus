@@ -30,7 +30,7 @@ const getPermissionsForRole = (role: string): string[] => {
   }
 };
 
-const getScopeForRole = (role: string): 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PROJECT' => {
+const getScopeForRole = (role: string): 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PROJECT' | 'TASK' => {
   switch (role) {
     case "NATIONAL_AUTHORITY":
     case "ADMIN":
@@ -39,6 +39,12 @@ const getScopeForRole = (role: string): 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PRO
       return "STATE";
     case "DISTRICT_AUTHORITY":
       return "DISTRICT";
+    case "COMPENSATION_OFFICER":
+    case "POSSESSION_OFFICER":
+    case "PROCESSING_OFFICER":
+      return "TASK";
+    case "REQUESTING_AUTHORITY":
+    case "BOSS":
     default:
       return "PROJECT";
   }
