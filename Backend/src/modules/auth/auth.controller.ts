@@ -6,6 +6,44 @@ import { env } from "../../config/env";
 import { ApiError } from "../../utils/apiError";
 import { createAuditEvent } from "../../utils/audit";
 
+const getPermissionsForRole = (role: string): string[] => {
+  switch (role) {
+    case "ADMIN":
+      return ["*"];
+    case "NATIONAL_AUTHORITY":
+      return ["national:read", "states:read", "districts:read", "projects:read", "gis:read", "dashboard:read"];
+    case "STATE_AUTHORITY":
+      return ["state:read", "districts:read", "projects:read", "gis:read", "dashboard:read"];
+    case "DISTRICT_AUTHORITY":
+      return ["district:read", "projects:read", "tasks:read", "gis:read", "dashboard:read"];
+    case "REQUESTING_AUTHORITY":
+      return ["projects:create", "projects:read", "projects:edit", "documents:upload"];
+    case "BOSS":
+      return ["projects:read", "land_records:fetch", "parcels:confirm", "workflow:design", "workflow:activate"];
+    case "COMPENSATION_OFFICER":
+      return ["tasks:read", "compensation:read", "compensation:write", "evidence:upload"];
+    case "POSSESSION_OFFICER":
+      return ["tasks:read", "possession:read", "possession:write", "evidence:upload"];
+    case "PROCESSING_OFFICER":
+    default:
+      return ["tasks:read", "tasks:execute", "evidence:upload"];
+  }
+};
+
+const getScopeForRole = (role: string): 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PROJECT' => {
+  switch (role) {
+    case "NATIONAL_AUTHORITY":
+    case "ADMIN":
+      return "NATIONAL";
+    case "STATE_AUTHORITY":
+      return "STATE";
+    case "DISTRICT_AUTHORITY":
+      return "DISTRICT";
+    default:
+      return "PROJECT";
+  }
+};
+
 export const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
@@ -22,8 +60,19 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return next(new ApiError(401, "Invalid email or password"));
     }
 
+    const scope = getScopeForRole(user.role_id);
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role_id, name: user.name, designation: user.designation },
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role_id,
+        name: user.name,
+        designation: user.designation,
+        department: user.department,
+        state: user.state || null,
+        district: user.district || null,
+        scope,
+      },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN as any }
     );
@@ -52,11 +101,16 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           name: user.name,
           email: user.email,
           role: user.role_id,
+          authority: user.department || user.role_id,
           department: user.department,
           designation: user.designation,
           cadre: user.cadre,
           phone: user.phone,
           officeLocation: user.office_location,
+          state: user.state || null,
+          district: user.district || null,
+          scope,
+          permissions: getPermissionsForRole(user.role_id),
         }
       },
     });
@@ -68,7 +122,9 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 export const getMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await pool.query(
-      "SELECT id, name, email, role_id as role, department, designation, cadre, phone, office_location as \"officeLocation\" FROM users WHERE id = $1",
+      `SELECT id, name, email, role_id as role, department, designation, cadre, phone,
+              office_location as "officeLocation", state, district
+       FROM users WHERE id = $1`,
       [req.user!.id]
     );
 
@@ -76,9 +132,19 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
       return next(new ApiError(404, "User not found"));
     }
 
+    const user = result.rows[0];
+    const scope = getScopeForRole(user.role);
+
     res.json({
       success: true,
-      data: { user: result.rows[0] },
+      data: {
+        user: {
+          ...user,
+          authority: user.department || user.role,
+          scope,
+          permissions: getPermissionsForRole(user.role),
+        }
+      },
     });
   } catch (error) {
     next(error);
@@ -87,8 +153,6 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
 
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // For JWT, logout is handled client side by destroying the token,
-    // but we can log the action in audit_logs
     await createAuditEvent({
       userId: req.user!.id,
       userRole: req.user!.role,
@@ -114,9 +178,20 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
     if (result.rows.length === 0) return next(new ApiError(401, "Invalid refresh token"));
 
     const user = result.rows[0];
+    const scope = getScopeForRole(user.role_id);
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role_id, name: user.name, designation: user.designation },
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role_id,
+        name: user.name,
+        designation: user.designation,
+        department: user.department,
+        state: user.state || null,
+        district: user.district || null,
+        scope,
+      },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN as any }
     );

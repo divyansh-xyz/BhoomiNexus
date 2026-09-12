@@ -22,6 +22,10 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       role: string;
       name?: string;
       designation?: string;
+      department?: string;
+      state?: string;
+      district?: string;
+      scope?: 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PROJECT';
     };
 
     req.user = {
@@ -30,6 +34,14 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       role: decoded.role,
       name: decoded.name || "",
       designation: decoded.designation || "",
+      department: decoded.department || "",
+      state: decoded.state || "",
+      district: decoded.district || "",
+      scope: decoded.scope || (
+        decoded.role === "NATIONAL_AUTHORITY" ? "NATIONAL" :
+        decoded.role === "STATE_AUTHORITY" ? "STATE" :
+        decoded.role === "DISTRICT_AUTHORITY" ? "DISTRICT" : "PROJECT"
+      ),
     };
     next();
   } catch (error) {
