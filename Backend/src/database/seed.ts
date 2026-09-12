@@ -8,56 +8,82 @@ const seedData = async () => {
     
     await client.query("BEGIN");
 
-    // 1. Insert Roles
+    // 1. Insert Roles (V1 + V2)
     console.log("Seeding Roles...");
     const roles = [
       { id: "REQUESTING_AUTHORITY", name: "Requesting Authority", description: "Initiates projects" },
       { id: "BOSS", name: "BOSS / Higher Officer", description: "Initializes workflows" },
       { id: "PROCESSING_OFFICER", name: "Processing Officer", description: "Executes stages" },
-      { id: "ADMIN", name: "Administrator", description: "System Admin" }
+      { id: "ADMIN", name: "Administrator", description: "System Admin" },
+      { id: "NATIONAL_AUTHORITY", name: "National Authority", description: "National Land Acquisition Authority" },
+      { id: "STATE_AUTHORITY", name: "State Authority", description: "State Land Revenue Authority" },
+      { id: "DISTRICT_AUTHORITY", name: "District Authority", description: "District Collector / Land Acquisition Authority" },
+      { id: "COMPENSATION_OFFICER", name: "Compensation Officer", description: "Assesses and disburses statutory land compensation" },
+      { id: "POSSESSION_OFFICER", name: "Possession Officer", description: "Enforces physical possession and clearance of acquired land" },
     ];
 
     for (const role of roles) {
       await client.query(
-        "INSERT INTO roles (id, name, description) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING",
+        `INSERT INTO roles (id, name, description) VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
         [role.id, role.name, role.description]
       );
     }
 
-    // 2. Insert Users
+    // 2. Insert Users (V1 + V2 Demo Authorities & Officers)
     console.log("Seeding Users...");
     const passwordHash = await bcrypt.hash("Demo@123", 10);
     const users = [
       { name: "Rajesh Sharma", email: "requestor@bhoomi.gov.in", role: "REQUESTING_AUTHORITY",
         dept: "Ministry of Road Transport & Highways", designation: "Executive Engineer",
-        cadre: "IAS", phone: "+91-11-23384823", office: "Bhawan, New Delhi" },
+        cadre: "IAS", phone: "+91-11-23384823", office: "Bhawan, New Delhi", state: null, district: null },
       { name: "Dr. Vikramaditya Sen", email: "boss@bhoomi.gov.in", role: "BOSS",
         dept: "National Land Acquisition Authority", designation: "Bureau Officer & Section Supervisor",
-        cadre: "IAS", phone: "+91-11-23071234", office: "Krishi Bhawan, New Delhi" },
+        cadre: "IAS", phone: "+91-11-23071234", office: "Krishi Bhawan, New Delhi", state: null, district: null },
       { name: "Ananya Patel", email: "officer@bhoomi.gov.in", role: "PROCESSING_OFFICER",
         dept: "Revenue & Land Records Branch", designation: "Processing & Field Officer",
-        cadre: "State Revenue", phone: "+91-20-25501234", office: "Collectorate, Pune" },
+        cadre: "State Revenue", phone: "+91-20-25501234", office: "Collectorate, Pune", state: "Maharashtra", district: "Pune" },
       { name: "S. K. Verma", email: "admin@bhoomi.gov.in", role: "ADMIN",
         dept: "NIC / BhoomiNexus System Administration", designation: "System Administrator",
-        cadre: "NIC", phone: "+91-11-24305678", office: "NIC HQ, New Delhi" },
+        cadre: "NIC", phone: "+91-11-24305678", office: "NIC HQ, New Delhi", state: null, district: null },
+      // V2 Demo Authorities
+      { name: "Alok Shekhar", email: "national@bhoomi.gov.in", role: "NATIONAL_AUTHORITY",
+        dept: "National Land Acquisition Authority", designation: "Director General (Land)",
+        cadre: "IAS", phone: "+91-11-23019876", office: "NITI Aayog, New Delhi", state: null, district: null },
+      { name: "Sunil Deshmukh", email: "state.mh@bhoomi.gov.in", role: "STATE_AUTHORITY",
+        dept: "Revenue & Forest Department, Govt of Maharashtra", designation: "Principal Secretary (Revenue)",
+        cadre: "IAS", phone: "+91-22-22025111", office: "Mantralaya, Mumbai", state: "Maharashtra", district: null },
+      { name: "Dr. Suhas Diwase", email: "district.pune@bhoomi.gov.in", role: "DISTRICT_AUTHORITY",
+        dept: "District Collectorate, Pune", designation: "Collector & District Magistrate",
+        cadre: "IAS", phone: "+91-20-26123345", office: "Collector Office, Pune", state: "Maharashtra", district: "Pune" },
+      { name: "Kishan Jawale", email: "district.raigad@bhoomi.gov.in", role: "DISTRICT_AUTHORITY",
+        dept: "District Collectorate, Raigad", designation: "Collector & District Magistrate",
+        cadre: "IAS", phone: "+91-2141-222001", office: "Collector Office, Alibag, Raigad", state: "Maharashtra", district: "Raigad" },
+      // V2 Demo Operational Officers
+      { name: "Mahesh Patil", email: "comp.officer@bhoomi.gov.in", role: "COMPENSATION_OFFICER",
+        dept: "Special Land Acquisition Office No. 15", designation: "Competent Authority for Land Acquisition (CALA)",
+        cadre: "State Revenue", phone: "+91-20-26124455", office: "CALA Cell, Pune", state: "Maharashtra", district: "Pune" },
+      { name: "Vinayak Kulkarni", email: "possession.officer@bhoomi.gov.in", role: "POSSESSION_OFFICER",
+        dept: "Revenue & Land Survey Branch", designation: "Special Tehsildar (Possession & Encroachment)",
+        cadre: "State Revenue", phone: "+91-20-26125566", office: "Tehsil Office, Haveli, Pune", state: "Maharashtra", district: "Pune" },
       // Additional processing officers for workflow assignment
       { name: "Priya Deshmukh", email: "officer2@bhoomi.gov.in", role: "PROCESSING_OFFICER",
         dept: "Survey & Settlement", designation: "Deputy Surveyor",
-        cadre: "State Revenue", phone: "+91-20-25501235", office: "Survey Office, Pune" },
+        cadre: "State Revenue", phone: "+91-20-25501235", office: "Survey Office, Pune", state: "Maharashtra", district: "Pune" },
       { name: "Ravi Kumar Singh", email: "officer3@bhoomi.gov.in", role: "PROCESSING_OFFICER",
         dept: "Revenue Department", designation: "Tehsildar",
-        cadre: "State Revenue", phone: "+91-522-2612345", office: "Tehsil Office, Lucknow" },
+        cadre: "State Revenue", phone: "+91-522-2612345", office: "Tehsil Office, Lucknow", state: "Uttar Pradesh", district: "Lucknow" },
       { name: "Meera Nair", email: "officer4@bhoomi.gov.in", role: "PROCESSING_OFFICER",
         dept: "Environment & Forest", designation: "Environmental Officer",
-        cadre: "IFS", phone: "+91-80-22255678", office: "Forest Office, Bengaluru" },
+        cadre: "IFS", phone: "+91-80-22255678", office: "Forest Office, Bengaluru", state: "Karnataka", district: "Bengaluru Urban" },
     ];
 
     for (const user of users) {
       await client.query(
-        `INSERT INTO users (name, email, password_hash, role_id, department, designation, cadre, phone, office_location)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (email) DO UPDATE SET
-         name = $1, designation = $6, cadre = $7, phone = $8, office_location = $9`,
-        [user.name, user.email, passwordHash, user.role, user.dept, user.designation, user.cadre, user.phone, user.office]
+        `INSERT INTO users (name, email, password_hash, role_id, department, designation, cadre, phone, office_location, state, district)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (email) DO UPDATE SET
+         name = $1, role_id = $4, department = $5, designation = $6, cadre = $7, phone = $8, office_location = $9, state = $10, district = $11`,
+        [user.name, user.email, passwordHash, user.role, user.dept, user.designation, user.cadre, user.phone, user.office, user.state, user.district]
       );
     }
 
@@ -248,60 +274,383 @@ const seedData = async () => {
 
             // Clean & seed candidate parcels with valid polygons
             await client.query(`DELETE FROM project_parcels WHERE project_id = $1`, [projId]);
-            const parcelCount = 20;
 
-            for (let i = 0; i < parcelCount; i++) {
-              const pArea = parseFloat((2 + (i % 6) * 1.4).toFixed(2));
-              const wpIdx = i % (coords.length - 1);
-              const frac = ((i * 7) % 10) / 10;
-              const ptLat = coords[wpIdx][0] + (coords[wpIdx + 1][0] - coords[wpIdx][0]) * frac + (Math.sin(i) * 0.0035);
-              const ptLon = coords[wpIdx][1] + (coords[wpIdx + 1][1] - coords[wpIdx][1]) * frac + (Math.cos(i) * 0.0035);
-              const dLat = 0.0022;
-              const dLon = 0.0022;
+            if (p.code === "PRJ-MH-4421") {
+              // Phase 3 — Minimal Seed Geography and Demo Dataset
+              // Strictly following State (Maharashtra) -> District (Pune, Raigad) -> Project -> Parcel
+              const v2Parcels = [
+                // District North (Pune) — 5 Parcels
+                {
+                  ulpin: "ULPIN-MH-PUN-001",
+                  surveyNumber: "42/1",
+                  owner: "Ramesh K. Joshi",
+                  village: "Lonavala",
+                  district: "Pune",
+                  state: "Maharashtra",
+                  areaAcres: 3.50,
+                  landType: "AGRICULTURAL",
+                  marketRate: 1500000,
+                  acquisitionStatus: "IN_PROGRESS",
+                  compensationStatus: "PENDING",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 92,
+                  polygon: [
+                    [73.4070, 18.7540],
+                    [73.4095, 18.7540],
+                    [73.4095, 18.7565],
+                    [73.4070, 18.7565],
+                    [73.4070, 18.7540]
+                  ],
+                  assessedComp: 5250000,
+                  approvedComp: 5250000,
+                  paidComp: 0,
+                  cohort: "Cohort 1 - Priority Agricultural"
+                },
+                {
+                  ulpin: "ULPIN-MH-PUN-002",
+                  surveyNumber: "42/2",
+                  owner: "Suresh K. Joshi & Brothers",
+                  village: "Lonavala",
+                  district: "Pune",
+                  state: "Maharashtra",
+                  areaAcres: 2.80,
+                  landType: "AGRICULTURAL",
+                  marketRate: 1500000,
+                  acquisitionStatus: "IN_PROGRESS",
+                  compensationStatus: "PENDING",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 88,
+                  polygon: [
+                    [73.4110, 18.7570],
+                    [73.4132, 18.7570],
+                    [73.4132, 18.7592],
+                    [73.4110, 18.7592],
+                    [73.4110, 18.7570]
+                  ],
+                  assessedComp: 4200000,
+                  approvedComp: 4200000,
+                  paidComp: 0,
+                  cohort: "Cohort 1 - Priority Agricultural"
+                },
+                {
+                  ulpin: "ULPIN-MH-PUN-003",
+                  surveyNumber: "43/1",
+                  owner: "Khandala Resorts Pvt Ltd",
+                  village: "Khandala",
+                  district: "Pune",
+                  state: "Maharashtra",
+                  areaAcres: 4.10,
+                  landType: "COMMERCIAL",
+                  marketRate: 2800000,
+                  acquisitionStatus: "IN_PROGRESS",
+                  compensationStatus: "PENDING",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 75,
+                  polygon: [
+                    [73.4140, 18.7600],
+                    [73.4170, 18.7600],
+                    [73.4170, 18.7630],
+                    [73.4140, 18.7630],
+                    [73.4140, 18.7600]
+                  ],
+                  assessedComp: 11480000,
+                  approvedComp: 11480000,
+                  paidComp: 0,
+                  cohort: "Cohort 2 - Commercial & Industrial"
+                },
+                {
+                  ulpin: "ULPIN-MH-PUN-004",
+                  surveyNumber: "44/1",
+                  owner: "Babanrao Patil",
+                  village: "Khandala",
+                  district: "Pune",
+                  state: "Maharashtra",
+                  areaAcres: 1.90,
+                  landType: "AGRICULTURAL",
+                  marketRate: 1600000,
+                  acquisitionStatus: "PROPOSED",
+                  compensationStatus: "NOT_STARTED",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 82,
+                  polygon: [
+                    [73.4175, 18.7640],
+                    [73.4195, 18.7640],
+                    [73.4195, 18.7660],
+                    [73.4175, 18.7660],
+                    [73.4175, 18.7640]
+                  ],
+                  assessedComp: 3040000,
+                  approvedComp: 0,
+                  paidComp: 0,
+                  cohort: "Cohort 1 - Priority Agricultural"
+                },
+                {
+                  ulpin: "ULPIN-MH-PUN-005",
+                  surveyNumber: "45/1",
+                  owner: "Western Express Logistics Hub",
+                  village: "Khandala",
+                  district: "Pune",
+                  state: "Maharashtra",
+                  areaAcres: 5.20,
+                  landType: "INDUSTRIAL",
+                  marketRate: 2400000,
+                  acquisitionStatus: "PROPOSED",
+                  compensationStatus: "NOT_STARTED",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 95,
+                  polygon: [
+                    [73.4210, 18.7675],
+                    [73.4245, 18.7675],
+                    [73.4245, 18.7710],
+                    [73.4210, 18.7710],
+                    [73.4210, 18.7675]
+                  ],
+                  assessedComp: 12480000,
+                  approvedComp: 0,
+                  paidComp: 0,
+                  cohort: "Cohort 2 - Commercial & Industrial"
+                },
+                // District South (Raigad) — 3 Parcels
+                {
+                  ulpin: "ULPIN-MH-RAI-001",
+                  surveyNumber: "88/1",
+                  owner: "Dattatray G. Mhatre",
+                  village: "Khalapur",
+                  district: "Raigad",
+                  state: "Maharashtra",
+                  areaAcres: 6.00,
+                  landType: "AGRICULTURAL",
+                  marketRate: 1400000,
+                  acquisitionStatus: "IN_PROGRESS",
+                  compensationStatus: "PENDING",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 90,
+                  polygon: [
+                    [73.2785, 18.8235],
+                    [73.2825, 18.8235],
+                    [73.2825, 18.8270],
+                    [73.2785, 18.8270],
+                    [73.2785, 18.8235]
+                  ],
+                  assessedComp: 8400000,
+                  approvedComp: 8400000,
+                  paidComp: 0,
+                  cohort: "Cohort 3 - Raigad Southern Segment"
+                },
+                {
+                  ulpin: "ULPIN-MH-RAI-002",
+                  surveyNumber: "88/2",
+                  owner: "Anant N. Gaikwad",
+                  village: "Khalapur",
+                  district: "Raigad",
+                  state: "Maharashtra",
+                  areaAcres: 3.40,
+                  landType: "AGRICULTURAL",
+                  marketRate: 1400000,
+                  acquisitionStatus: "PROPOSED",
+                  compensationStatus: "NOT_STARTED",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 85,
+                  polygon: [
+                    [73.2825, 18.8270],
+                    [73.2855, 18.8270],
+                    [73.2855, 18.8305],
+                    [73.2825, 18.8305],
+                    [73.2825, 18.8270]
+                  ],
+                  assessedComp: 4760000,
+                  approvedComp: 0,
+                  paidComp: 0,
+                  cohort: "Cohort 3 - Raigad Southern Segment"
+                },
+                {
+                  ulpin: "ULPIN-MH-RAI-003",
+                  surveyNumber: "89/1",
+                  owner: "Khalapur Agro-Commercial Traders",
+                  village: "Khalapur",
+                  district: "Raigad",
+                  state: "Maharashtra",
+                  areaAcres: 2.50,
+                  landType: "COMMERCIAL",
+                  marketRate: 2600000,
+                  acquisitionStatus: "PROPOSED",
+                  compensationStatus: "NOT_STARTED",
+                  possessionStatus: "NOT_STARTED",
+                  intersectPercent: 78,
+                  polygon: [
+                    [73.2870, 18.8305],
+                    [73.2905, 18.8305],
+                    [73.2905, 18.8338],
+                    [73.2870, 18.8338],
+                    [73.2870, 18.8305]
+                  ],
+                  assessedComp: 6500000,
+                  approvedComp: 0,
+                  paidComp: 0,
+                  cohort: "Cohort 3 - Raigad Southern Segment"
+                },
+              ];
 
-              const polyGeoJson = {
-                type: "Polygon",
-                coordinates: [[
-                  [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
-                  [parseFloat((ptLon + dLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
-                  [parseFloat((ptLon + dLon).toFixed(6)), parseFloat((ptLat + dLat).toFixed(6))],
-                  [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat + dLat).toFixed(6))],
-                  [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
-                ]]
-              };
+              for (const parcel of v2Parcels) {
+                const polyGeoJson = {
+                  type: "Polygon",
+                  coordinates: [parcel.polygon]
+                };
 
-              const parcelRes = await client.query(
-                `INSERT INTO land_parcels
-                 (ulpin, survey_number, owner_reference, village, district, state, area_acres, area_ha, land_type, market_rate_per_acre, geometry)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ST_SetSRID(ST_GeomFromGeoJSON($11), 4326))
-                 RETURNING id`,
-                [
-                  `ULPIN-${Math.floor(100000 + (i * 37191) % 900000)}`,
-                  `SV-${100 + i * 17}`,
-                  `Owner-${200 + i * 23}`,
-                  "Revenue Circle " + (1 + (i % 4)),
-                  p.district,
-                  p.state,
-                  pArea,
-                  parseFloat((pArea * 0.404686).toFixed(4)),
-                  i % 3 === 0 ? "COMMERCIAL" : "AGRICULTURAL",
-                  Math.round(1200000 + i * 150000),
-                  JSON.stringify(polyGeoJson)
-                ]
-              );
+                let pId: string;
+                const existingParcel = await client.query(
+                  "SELECT id FROM land_parcels WHERE ulpin = $1",
+                  [parcel.ulpin]
+                );
 
-              const pId = parcelRes.rows[0].id;
+                if (existingParcel.rows.length > 0) {
+                  pId = existingParcel.rows[0].id;
+                  await client.query(
+                    `UPDATE land_parcels SET
+                       survey_number = $1, owner_reference = $2, village = $3, district = $4,
+                       state = $5, area_acres = $6, area_ha = $7, land_type = $8,
+                       market_rate_per_acre = $9, geometry = ST_SetSRID(ST_GeomFromGeoJSON($10), 4326),
+                       acquisition_status = $11, compensation_status = $12, possession_status = $13
+                     WHERE id = $14`,
+                    [
+                      parcel.surveyNumber,
+                      parcel.owner,
+                      parcel.village,
+                      parcel.district,
+                      parcel.state,
+                      parcel.areaAcres,
+                      parseFloat((parcel.areaAcres * 0.404686).toFixed(4)),
+                      parcel.landType,
+                      parcel.marketRate,
+                      JSON.stringify(polyGeoJson),
+                      parcel.acquisitionStatus,
+                      parcel.compensationStatus,
+                      parcel.possessionStatus,
+                      pId
+                    ]
+                  );
+                } else {
+                  const insParcel = await client.query(
+                    `INSERT INTO land_parcels
+                     (ulpin, survey_number, owner_reference, village, district, state, area_acres, area_ha, land_type, market_rate_per_acre, geometry, acquisition_status, compensation_status, possession_status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ST_SetSRID(ST_GeomFromGeoJSON($11), 4326), $12, $13, $14)
+                     RETURNING id`,
+                    [
+                      parcel.ulpin,
+                      parcel.surveyNumber,
+                      parcel.owner,
+                      parcel.village,
+                      parcel.district,
+                      parcel.state,
+                      parcel.areaAcres,
+                      parseFloat((parcel.areaAcres * 0.404686).toFixed(4)),
+                      parcel.landType,
+                      parcel.marketRate,
+                      JSON.stringify(polyGeoJson),
+                      parcel.acquisitionStatus,
+                      parcel.compensationStatus,
+                      parcel.possessionStatus,
+                    ]
+                  );
+                  pId = insParcel.rows[0].id;
+                }
+
+                await client.query(
+                  `INSERT INTO project_parcels (project_id, parcel_id, status, intersect_percent)
+                   VALUES ($1, $2, 'CANDIDATE', $3)
+                   ON CONFLICT (project_id, parcel_id) DO UPDATE SET intersect_percent = EXCLUDED.intersect_percent`,
+                  [projId, pId, parcel.intersectPercent]
+                );
+
+                // Seed initial compensation record for demo dataset
+                if (parcel.assessedComp > 0) {
+                  const existingComp = await client.query(
+                    "SELECT id FROM compensation_records WHERE project_id = $1 AND parcel_id = $2",
+                    [projId, pId]
+                  );
+                  if (existingComp.rows.length === 0) {
+                    await client.query(
+                      `INSERT INTO compensation_records
+                       (project_id, parcel_id, beneficiary_reference, assessed_amount, approved_amount, paid_amount, pending_amount, payment_status, remarks, created_by)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                      [
+                        projId,
+                        pId,
+                        parcel.owner,
+                        parcel.assessedComp,
+                        parcel.approvedComp,
+                        parcel.paidComp,
+                        parcel.approvedComp - parcel.paidComp,
+                        parcel.paidComp >= parcel.approvedComp && parcel.approvedComp > 0 ? 'COMPLETED' : 'PENDING',
+                        `Initial seed assessment for ${parcel.cohort}`,
+                        requestorId
+                      ]
+                    );
+                  }
+                }
+              }
+
               await client.query(
-                `INSERT INTO project_parcels (project_id, parcel_id, status, intersect_percent)
-                 VALUES ($1, $2, 'CANDIDATE', $3)`,
-                [projId, pId, 65 + (i % 35)]
+                `UPDATE projects SET candidate_parcels_count = $1 WHERE id = $2`,
+                [v2Parcels.length, projId]
+              );
+            } else {
+              // Secondary projects fallback
+              const parcelCount = 10;
+              for (let i = 0; i < parcelCount; i++) {
+                const pArea = parseFloat((2 + (i % 6) * 1.4).toFixed(2));
+                const wpIdx = i % (coords.length - 1);
+                const frac = ((i * 7) % 10) / 10;
+                const ptLat = coords[wpIdx][0] + (coords[wpIdx + 1][0] - coords[wpIdx][0]) * frac + (Math.sin(i) * 0.0035);
+                const ptLon = coords[wpIdx][1] + (coords[wpIdx + 1][1] - coords[wpIdx][1]) * frac + (Math.cos(i) * 0.0035);
+                const dLat = 0.0022;
+                const dLon = 0.0022;
+
+                const polyGeoJson = {
+                  type: "Polygon",
+                  coordinates: [[
+                    [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
+                    [parseFloat((ptLon + dLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
+                    [parseFloat((ptLon + dLon).toFixed(6)), parseFloat((ptLat + dLat).toFixed(6))],
+                    [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat + dLat).toFixed(6))],
+                    [parseFloat((ptLon).toFixed(6)), parseFloat((ptLat).toFixed(6))],
+                  ]]
+                };
+
+                const parcelRes = await client.query(
+                  `INSERT INTO land_parcels
+                   (ulpin, survey_number, owner_reference, village, district, state, area_acres, area_ha, land_type, market_rate_per_acre, geometry)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ST_SetSRID(ST_GeomFromGeoJSON($11), 4326))
+                   RETURNING id`,
+                  [
+                    `ULPIN-${p.code}-${Math.floor(100000 + (i * 37191) % 900000)}`,
+                    `SV-${100 + i * 17}`,
+                    `Owner-${200 + i * 23}`,
+                    "Revenue Circle " + (1 + (i % 4)),
+                    p.district,
+                    p.state,
+                    pArea,
+                    parseFloat((pArea * 0.404686).toFixed(4)),
+                    i % 3 === 0 ? "COMMERCIAL" : "AGRICULTURAL",
+                    Math.round(1200000 + i * 150000),
+                    JSON.stringify(polyGeoJson)
+                  ]
+                );
+
+                const pId = parcelRes.rows[0].id;
+                await client.query(
+                  `INSERT INTO project_parcels (project_id, parcel_id, status, intersect_percent)
+                   VALUES ($1, $2, 'CANDIDATE', $3)
+                   ON CONFLICT (project_id, parcel_id) DO NOTHING`,
+                  [projId, pId, 65 + (i % 35)]
+                );
+              }
+
+              await client.query(
+                `UPDATE projects SET candidate_parcels_count = $1 WHERE id = $2`,
+                [parcelCount, projId]
               );
             }
-
-            await client.query(
-              `UPDATE projects SET candidate_parcels_count = $1 WHERE id = $2`,
-              [parcelCount, projId]
-            );
 
             // Seed initial statutory documents for the project if not present
             const existingDocs = await client.query(`SELECT id FROM documents WHERE project_id = $1`, [projId]);
