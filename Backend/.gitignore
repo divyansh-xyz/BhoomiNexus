@@ -45,10 +45,3 @@ build/
 # OS metadata
 .DS_Store
 Thumbs.db
-
-# User Uploads
-uploads/
-# External Tools & Temp
-ngrok
-ngrok.tgz
-tmp_wa/
