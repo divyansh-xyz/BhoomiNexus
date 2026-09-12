@@ -3,6 +3,7 @@ import { pool } from "../../config/db";
 import { ApiError } from "../../utils/apiError";
 import { createAuditEvent } from "../../utils/audit";
 import { NotificationService } from "../notifications/notifications.service";
+import * as workflowExecutionService from "./workflowExecution.service";
 
 export const getTasks = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -46,6 +47,44 @@ export const getTasks = async (req: Request, res: Response, next: NextFunction) 
     const result = await pool.query(query, params);
 
     const tasks = result.rows.map(mapTaskRow);
+
+    // Merge V2 tasks if user is authenticated
+    if (req.user) {
+      try {
+        const v2Tasks = await workflowExecutionService.getV2Tasks(req.user.id, {
+          projectId: projectId as string,
+        });
+        for (const vt of v2Tasks) {
+          tasks.push({
+            id: vt.id,
+            projectId: vt.project_id,
+            projectCode: vt.project_code,
+            projectTitle: vt.project_title,
+            stageName: vt.node_name,
+            department: vt.responsible_role,
+            status: vt.status,
+            startedAt: vt.started_at,
+            completedAt: vt.completed_at,
+            rejectionReason: vt.rejection_reason,
+            assignedOfficer: {
+              id: req.user.id,
+              name: vt.officer_name,
+              designation: vt.officer_designation,
+            },
+            relevantParcels: [{
+              id: vt.parcel_id,
+              surveyNumber: vt.survey_number,
+              ulpin: vt.ulpin,
+              village: vt.village,
+              area: `${vt.area_acres} Acres`,
+            }],
+          });
+        }
+      } catch (err) {
+        // Continue with V1 tasks
+      }
+    }
+
     res.json(tasks);
   } catch (error) {
     next(error);
@@ -54,7 +93,7 @@ export const getTasks = async (req: Request, res: Response, next: NextFunction) 
 
 export const getTaskById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const result = await pool.query(
       `SELECT t.*, p.code AS project_code, p.title AS project_title,
@@ -69,7 +108,38 @@ export const getTaskById = async (req: Request, res: Response, next: NextFunctio
       [id]
     );
 
-    if (result.rows.length === 0) return next(new ApiError(404, "Task not found"));
+    if (result.rows.length === 0) {
+      const v2Task = await workflowExecutionService.getV2TaskById(id);
+      if (v2Task) {
+        return res.json({
+          id: v2Task.id,
+          projectId: v2Task.project_id,
+          projectCode: v2Task.project_code,
+          projectTitle: v2Task.project_title,
+          stageName: v2Task.node_name,
+          department: v2Task.responsible_role,
+          status: v2Task.status,
+          startedAt: v2Task.started_at,
+          completedAt: v2Task.completed_at,
+          rejectionReason: v2Task.rejection_reason,
+          assignedOfficer: {
+            id: v2Task.officer_id,
+            name: v2Task.officer_name,
+            designation: v2Task.officer_designation,
+            department: v2Task.officer_department,
+          },
+          relevantParcels: [{
+            id: v2Task.land_parcel_id,
+            surveyNumber: v2Task.survey_number,
+            ulpin: v2Task.ulpin,
+            village: v2Task.village,
+            area: `${v2Task.area_acres} Acres`,
+          }],
+          evidence: v2Task.evidence || [],
+        });
+      }
+      return next(new ApiError(404, "Task not found"));
+    }
 
     const taskRow = result.rows[0];
     const task = mapTaskRow(taskRow);
@@ -98,10 +168,13 @@ export const getTaskById = async (req: Request, res: Response, next: NextFunctio
 
 export const startTask = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const existing = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
-    if (existing.rows.length === 0) return next(new ApiError(404, "Task not found"));
+    if (existing.rows.length === 0) {
+      const v2Started = await workflowExecutionService.startV2Task(id, req.user!.id);
+      return res.json({ success: true, data: v2Started });
+    }
 
     const task = existing.rows[0];
     if (task.status !== "ASSIGNED") {
@@ -146,7 +219,10 @@ export const acceptTask = async (req: Request, res: Response, next: NextFunction
     const id = req.params.id as string;
 
     const existing = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
-    if (existing.rows.length === 0) return next(new ApiError(404, "Task not found"));
+    if (existing.rows.length === 0) {
+      const v2Accepted = await workflowExecutionService.acceptV2Task(id, req.user!.id);
+      return res.json(v2Accepted);
+    }
 
     const task = existing.rows[0];
     if (task.status !== "IN_PROGRESS" && task.status !== "ASSIGNED") {
@@ -315,7 +391,10 @@ export const rejectTask = async (req: Request, res: Response, next: NextFunction
     const { reason } = req.body;
 
     const existing = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
-    if (existing.rows.length === 0) return next(new ApiError(404, "Task not found"));
+    if (existing.rows.length === 0) {
+      const v2Rejected = await workflowExecutionService.rejectV2Task(id, req.user!.id, reason);
+      return res.json(v2Rejected);
+    }
 
     const task = existing.rows[0];
     if (task.status !== "IN_PROGRESS" && task.status !== "ASSIGNED") {

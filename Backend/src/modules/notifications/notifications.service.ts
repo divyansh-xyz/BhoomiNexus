@@ -6,7 +6,19 @@ export interface CreateNotificationDTO {
   role?: string | null;
   projectId?: string | null;
   taskId?: string | null;
-  type: "BOSS_APPROVED" | "STAGE_REJECTED" | "STAGE_ACCEPTED" | "TASK_ASSIGNED" | "STAGE_RESUBMITTED" | "PROCESS_COMPLETED" | "SYSTEM";
+  type:
+    | "BOSS_APPROVED"
+    | "STAGE_REJECTED"
+    | "STAGE_ACCEPTED"
+    | "TASK_ASSIGNED"
+    | "STAGE_RESUBMITTED"
+    | "PROCESS_COMPLETED"
+    | "SYSTEM"
+    | "WORKFLOW_ACTIVATED"
+    | "COMPENSATION_UPDATED"
+    | "COMPENSATION_COMPLETED"
+    | "POSSESSION_COMPLETED"
+    | "ACQUISITION_COMPLETED";
   title: string;
   message: string;
   link?: string | null;

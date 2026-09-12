@@ -18,6 +18,8 @@ import documentsRoutes from "./modules/documents/documents.route";
 import grievanceRoutes from "./modules/grievances/grievances.route";
 import whatsappRoutes from "./modules/whatsapp/whatsapp.route";
 import notificationsRoutes from "./modules/notifications/notifications.route";
+import compensationRoutes from "./modules/compensation/compensation.route";
+import possessionRoutes from "./modules/possession/possession.route";
 
 import { authenticate } from "./middlewares/auth.middleware";
 import { authorize } from "./middlewares/rbac.middleware";
@@ -53,6 +55,8 @@ app.use("/api/v1/documents", documentsRoutes);
 app.use("/api/v1", grievanceRoutes);
 app.use("/api/v1/integrations/whatsapp", whatsappRoutes);
 app.use("/api/v1/notifications", notificationsRoutes);
+app.use("/api/v1/compensation", compensationRoutes);
+app.use("/api/v1/possession", possessionRoutes);
 
 app.use((req, res, next) => {
   res.status(404).json({ success: false, error: { message: "Route not found" } });
