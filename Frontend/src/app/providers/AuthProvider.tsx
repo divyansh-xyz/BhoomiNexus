@@ -64,29 +64,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Development role switcher (Implementation Plan.md Section 79)
+  // Development role switcher (Phase 2 & Implementation Plan V2)
   const switchRole = useCallback((newRole: UserRole) => {
     setUser((prevUser) => {
       if (!prevUser) return null;
+
+      let department = 'Ministry of Rural Development';
+      let designation = 'Government Officer';
+      let state = prevUser.state || 'Uttar Pradesh';
+      let district = prevUser.district || 'Agra';
+      let authority = prevUser.authority || 'BhoomiNexus Authority';
+      let level: 'NATIONAL' | 'STATE' | 'DISTRICT' | 'PROJECT' | 'TASK' = 'TASK';
+
+      switch (newRole) {
+        case 'NATIONAL_AUTHORITY':
+          department = 'Department of Land Resources (DoLR)';
+          designation = 'Joint Secretary & National Director';
+          authority = 'National Land Acquisition Authority';
+          level = 'NATIONAL';
+          state = 'National';
+          district = 'All Districts';
+          break;
+        case 'STATE_AUTHORITY':
+          department = 'Revenue & Land Reforms Department';
+          designation = 'Principal Secretary (Revenue)';
+          authority = 'State Land Acquisition Directorate';
+          level = 'STATE';
+          state = 'Uttar Pradesh';
+          district = 'All UP Districts';
+          break;
+        case 'DISTRICT_AUTHORITY':
+          department = 'District Collectorate';
+          designation = 'District Magistrate / Collector';
+          authority = 'District Land Acquisition Office';
+          level = 'DISTRICT';
+          state = 'Uttar Pradesh';
+          district = 'Agra';
+          break;
+        case 'COMPENSATION_OFFICER':
+          department = 'Special Land Acquisition Office (SLAO)';
+          designation = 'Special Land Acquisition Officer (Valuation & Awards)';
+          authority = 'District Administration';
+          level = 'TASK';
+          state = 'Uttar Pradesh';
+          district = 'Agra';
+          break;
+        case 'POSSESSION_OFFICER':
+          department = 'Tehsil Land Records & Demarcation Branch';
+          designation = 'Tehsildar & Possession Magistrate';
+          authority = 'Sub-Divisional Administration';
+          level = 'TASK';
+          state = 'Uttar Pradesh';
+          district = 'Agra';
+          break;
+        case 'BOSS':
+          department = 'National Land Acquisition Authority';
+          designation = 'Bureau Officer & Section Supervisor';
+          authority = 'Bureau of Statutory Scrutiny (BOSS)';
+          level = 'PROJECT';
+          break;
+        case 'REQUESTING_AUTHORITY':
+          department = 'Ministry of Road Transport & Highways (MoRTH)';
+          designation = 'Chief Project Director / Proponent';
+          authority = 'National Highways Authority of India (NHAI)';
+          level = 'PROJECT';
+          break;
+        case 'PROCESSING_OFFICER':
+          department = 'Revenue & Land Records Branch';
+          designation = 'Processing & Field Officer';
+          authority = 'District Administration';
+          level = 'TASK';
+          state = 'Uttar Pradesh';
+          district = 'Agra';
+          break;
+        case 'ADMIN':
+          department = 'National Informatics Centre (NIC)';
+          designation = 'System Administrator';
+          authority = 'MoRD System Directorate';
+          level = 'NATIONAL';
+          break;
+      }
+
       const updatedUser: User = {
         ...prevUser,
         role: newRole,
-        department:
-          newRole === 'BOSS'
-            ? 'National Land Acquisition Authority'
-            : newRole === 'REQUESTING_AUTHORITY'
-            ? 'Ministry of Road Transport & Highways'
-            : newRole === 'PROCESSING_OFFICER'
-            ? 'Revenue & Land Records Branch'
-            : 'NIC System Administration',
-        designation:
-          newRole === 'BOSS'
-            ? 'Bureau Officer & Section Supervisor'
-            : newRole === 'REQUESTING_AUTHORITY'
-            ? 'Executive Engineer / Project Proponent'
-            : newRole === 'PROCESSING_OFFICER'
-            ? 'Processing & Field Officer'
-            : 'System Administrator',
+        department,
+        designation,
+        authority,
+        state,
+        district,
+        administrativeScope: {
+          level,
+          state,
+          district,
+          authority,
+          department,
+        },
       };
       localStorage.setItem('bhoomi_user', JSON.stringify(updatedUser));
       return updatedUser;

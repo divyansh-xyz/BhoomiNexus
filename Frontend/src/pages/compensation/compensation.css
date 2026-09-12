@@ -1,0 +1,489 @@
+/* ==========================================================================
+   COMPENSATION V2 — THINGS / APPLE RESTRAINT DESIGN SYSTEM
+   Derived from DESIGN.md & V2 API Endpoints and Behaviour.md
+   Colors: Mist (#f2f5f7), Paper (#ffffff), Ink (#1e293b), Hairline (#e2e8f0),
+           Signal Blue (#2563eb), Emerald (#059669), Amber (#d97706), Rose (#dc2626)
+   ========================================================================== */
+
+:root {
+  --comp-bg: #f8fafc;
+  --comp-surface: #ffffff;
+  --comp-border: #e2e8f0;
+  --comp-border-subtle: #f1f5f9;
+  --comp-ink: #0f172a;
+  --comp-ink-secondary: #475569;
+  --comp-ink-muted: #64748b;
+  --comp-signal-blue: #2563eb;
+  --comp-emerald: #059669;
+  --comp-amber: #d97706;
+  --comp-rose: #dc2626;
+  --comp-radius-card: 12px;
+  --comp-radius-btn: 6px;
+  --comp-radius-pill: 9999px;
+  --comp-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --comp-shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --comp-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+.comp-workspace {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--comp-ink);
+}
+
+/* Header Masthead */
+.comp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.comp-slao-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #b45309;
+  background: #fef3c7;
+  padding: 4px 10px;
+  border-radius: var(--comp-radius-pill);
+  border: 1px solid #fde68a;
+  margin-bottom: 8px;
+}
+
+.comp-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--comp-ink);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.comp-subtitle {
+  font-size: 13px;
+  color: var(--comp-ink-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Milestone Stepper */
+.comp-stepper-container {
+  background: var(--comp-surface);
+  border: 1px solid var(--comp-border);
+  border-radius: var(--comp-radius-card);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--comp-shadow-sm);
+}
+
+.comp-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.comp-step-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+}
+
+.comp-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 2px solid #e2e8f0;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.comp-step-item.active .comp-step-circle {
+  background: #eff6ff;
+  color: var(--comp-signal-blue);
+  border-color: var(--comp-signal-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.comp-step-item.completed .comp-step-circle {
+  background: var(--comp-emerald);
+  color: #ffffff;
+  border-color: var(--comp-emerald);
+}
+
+.comp-step-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.comp-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--comp-ink);
+}
+
+.comp-step-item:not(.active):not(.completed) .comp-step-title {
+  color: #94a3b8;
+}
+
+.comp-step-sub {
+  font-size: 11px;
+  color: var(--comp-ink-muted);
+}
+
+.comp-step-line {
+  flex: 1;
+  height: 2px;
+  background: #e2e8f0;
+  margin: 0 12px;
+}
+
+.comp-step-line.completed {
+  background: var(--comp-emerald);
+}
+
+/* KPI Summary Cards Grid */
+.comp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.comp-kpi-card {
+  background: var(--comp-surface);
+  border: 1px solid var(--comp-border);
+  border-radius: var(--comp-radius-card);
+  padding: 18px 20px;
+  box-shadow: var(--comp-shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.comp-kpi-card:hover {
+  box-shadow: var(--comp-shadow-hover);
+}
+
+.comp-kpi-label {
+  font-size: 12px;
+  color: var(--comp-ink-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.comp-kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--comp-ink);
+  line-height: 1.2;
+}
+
+.comp-kpi-caption {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* Task & Parcel Dual Card Banner */
+.comp-demo-banner {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: var(--comp-radius-card);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.comp-demo-pill {
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: var(--comp-radius-pill);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.comp-demo-pill.parcel1 {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.comp-demo-pill.parcel2 {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+/* 10 Dimensions Grid on Task Detail Page */
+.comp-dimensions-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.comp-dim-col-8 {
+  grid-column: span 8;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.comp-dim-col-4 {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .comp-dim-col-8,
+  .comp-dim-col-4 {
+    grid-column: span 12;
+  }
+}
+
+.comp-card {
+  background: var(--comp-surface);
+  border: 1px solid var(--comp-border);
+  border-radius: var(--comp-radius-card);
+  padding: 20px 24px;
+  box-shadow: var(--comp-shadow-sm);
+}
+
+.comp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--comp-border-subtle);
+}
+
+.comp-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--comp-ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comp-card-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--comp-radius-pill);
+}
+
+/* Dimension Attributes Table */
+.comp-attr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px 20px;
+}
+
+.comp-attr-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--comp-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+
+.comp-attr-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--comp-ink);
+}
+
+.comp-attr-value.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Beneficiary Bank Mandate Card */
+.comp-bank-chip {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  position: relative;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.comp-bank-chip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.comp-bank-chip-number {
+  font-family: monospace;
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  margin-bottom: 12px;
+}
+
+.comp-bank-chip-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+/* Status Badges */
+.comp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.comp-badge-assessed {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.comp-badge-approved {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.comp-badge-paid,
+.comp-badge-disbursed {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.comp-badge-pending {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.comp-badge-disputed {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Action Buttons */
+.comp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: var(--comp-radius-btn);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+
+.comp-btn:active {
+  transform: scale(0.99);
+}
+
+.comp-btn-primary {
+  background: var(--comp-signal-blue);
+  color: #ffffff;
+}
+
+.comp-btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.comp-btn-success {
+  background: var(--comp-emerald);
+  color: #ffffff;
+}
+
+.comp-btn-success:hover {
+  background: #047857;
+}
+
+.comp-btn-amber {
+  background: var(--comp-amber);
+  color: #ffffff;
+}
+
+.comp-btn-amber:hover {
+  background: #b45309;
+}
+
+.comp-btn-outline {
+  background: var(--comp-surface);
+  border-color: var(--comp-border);
+  color: var(--comp-ink-secondary);
+}
+
+.comp-btn-outline:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Modals */
+.comp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.comp-modal-card {
+  background: var(--comp-surface);
+  border-radius: 14px;
+  padding: 24px 28px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--comp-border);
+}

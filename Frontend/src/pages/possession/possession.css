@@ -1,0 +1,409 @@
+/* ==========================================================================
+   POSSESSION V2 — THINGS / APPLE RESTRAINT DESIGN SYSTEM
+   Derived from DESIGN.md & V2 API Endpoints and Behaviour.md
+   Colors: Mist (#f2f5f7), Paper (#ffffff), Ink (#0f172a), Hairline (#e2e8f0),
+           Teal (#0d9488), Emerald (#059669), Signal Blue (#2563eb), Amber (#d97706)
+   ========================================================================== */
+
+:root {
+  --poss-bg: #f8fafc;
+  --poss-surface: #ffffff;
+  --poss-border: #e2e8f0;
+  --poss-border-subtle: #f1f5f9;
+  --poss-ink: #0f172a;
+  --poss-ink-secondary: #475569;
+  --poss-ink-muted: #64748b;
+  --poss-teal: #0d9488;
+  --poss-teal-dark: #0f766e;
+  --poss-teal-tint: rgba(13, 148, 136, 0.08);
+  --poss-emerald: #059669;
+  --poss-signal-blue: #2563eb;
+  --poss-amber: #d97706;
+  --poss-rose: #dc2626;
+  --poss-radius-card: 12px;
+  --poss-radius-btn: 6px;
+  --poss-radius-pill: 9999px;
+  --poss-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --poss-shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --poss-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+.poss-workspace {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--poss-ink);
+}
+
+/* Header Masthead */
+.poss-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.poss-tehsil-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0f766e;
+  background: #ccfbf1;
+  padding: 4px 10px;
+  border-radius: var(--poss-radius-pill);
+  border: 1px solid #99f6e4;
+  margin-bottom: 8px;
+}
+
+.poss-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--poss-ink);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.poss-subtitle {
+  font-size: 13px;
+  color: var(--poss-ink-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 5-Step Direct Execution Stepper (NO SECOND APPROVAL STEP) */
+.poss-stepper-container {
+  background: var(--poss-surface);
+  border: 1px solid var(--poss-border);
+  border-radius: var(--poss-radius-card);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--poss-shadow-sm);
+}
+
+.poss-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.poss-step-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+}
+
+.poss-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 2px solid #e2e8f0;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.poss-step-item.active .poss-step-circle {
+  background: #f0fdfa;
+  color: var(--poss-teal);
+  border-color: var(--poss-teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+.poss-step-item.completed .poss-step-circle {
+  background: var(--poss-teal);
+  color: #ffffff;
+  border-color: var(--poss-teal);
+}
+
+.poss-step-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.poss-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--poss-ink);
+}
+
+.poss-step-item:not(.active):not(.completed) .poss-step-title {
+  color: #94a3b8;
+}
+
+.poss-step-sub {
+  font-size: 11px;
+  color: var(--poss-ink-muted);
+}
+
+.poss-step-line {
+  flex: 1;
+  height: 2px;
+  background: #e2e8f0;
+  margin: 0 12px;
+}
+
+.poss-step-line.completed {
+  background: var(--poss-teal);
+}
+
+/* KPI Summary Cards Grid */
+.poss-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.poss-kpi-card {
+  background: var(--poss-surface);
+  border: 1px solid var(--poss-border);
+  border-radius: var(--poss-radius-card);
+  padding: 18px 20px;
+  box-shadow: var(--poss-shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.poss-kpi-card:hover {
+  box-shadow: var(--poss-shadow-hover);
+}
+
+.poss-kpi-label {
+  font-size: 12px;
+  color: var(--poss-ink-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.poss-kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--poss-ink);
+  line-height: 1.2;
+}
+
+.poss-kpi-caption {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* Direct Execution Banner */
+.poss-direct-banner {
+  background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+  border: 1px solid #99f6e4;
+  border-radius: var(--poss-radius-card);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Cards & Layout */
+.poss-card {
+  background: var(--poss-surface);
+  border: 1px solid var(--poss-border);
+  border-radius: var(--poss-radius-card);
+  padding: 20px 24px;
+  box-shadow: var(--poss-shadow-sm);
+}
+
+.poss-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--poss-border-subtle);
+}
+
+.poss-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--poss-ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Attributes Grid */
+.poss-attr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px 20px;
+}
+
+.poss-attr-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--poss-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+
+.poss-attr-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--poss-ink);
+}
+
+.poss-attr-value.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Geotagged Photo Card */
+.poss-geotag-card {
+  background: #0f172a;
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+}
+
+.poss-geotag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(13, 148, 136, 0.85);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: var(--poss-radius-pill);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Vesting Certificate Seal */
+.poss-vesting-seal {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1.5px solid #86efac;
+  border-radius: var(--poss-radius-card);
+  padding: 20px 24px;
+  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.06);
+}
+
+/* Status Badges */
+.poss-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.poss-badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.poss-badge-scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.poss-badge-completed,
+.poss-badge-taken {
+  background: #ccfbf1;
+  color: #115e59;
+  border: 1px solid #99f6e4;
+}
+
+.poss-badge-disputed {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Action Buttons */
+.poss-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: var(--poss-radius-btn);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+
+.poss-btn:active {
+  transform: scale(0.99);
+}
+
+.poss-btn-teal {
+  background: var(--poss-teal);
+  color: #ffffff;
+}
+
+.poss-btn-teal:hover {
+  background: var(--poss-teal-dark);
+}
+
+.poss-btn-outline {
+  background: var(--poss-surface);
+  border-color: var(--poss-border);
+  color: var(--poss-ink-secondary);
+}
+
+.poss-btn-outline:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Modals */
+.poss-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.poss-modal-card {
+  background: var(--poss-surface);
+  border-radius: 14px;
+  padding: 24px 28px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--poss-border);
+}

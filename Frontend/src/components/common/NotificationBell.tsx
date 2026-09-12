@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { NotificationService, type NotificationItem } from '../../services/api/notification.service';
 
 export const NotificationBell: React.FC = () => {
@@ -8,7 +8,7 @@ export const NotificationBell: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'ALL' | 'UNREAD'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'STATUTORY' | 'ALERTS'>('ALL');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = async (silent = false) => {
@@ -27,12 +27,21 @@ export const NotificationBell: React.FC = () => {
   useEffect(() => {
     fetchNotifications();
 
-    // Background polling every 10 seconds for real-time alerts
+    // 1. Background polling every 10 seconds
     const interval = setInterval(() => {
       fetchNotifications(true);
     }, 10000);
 
-    return () => clearInterval(interval);
+    // 2. Instant reactive listener for programmatic emissions across tabs/pages
+    const handleCustomEvent = () => {
+      fetchNotifications(true);
+    };
+    window.addEventListener('bhoomi-notification-event', handleCustomEvent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('bhoomi-notification-event', handleCustomEvent);
+    };
   }, []);
 
   // Close dropdown on outside click
@@ -95,6 +104,24 @@ export const NotificationBell: React.FC = () => {
 
   const filteredNotifications = notifications.filter((n) => {
     if (filter === 'UNREAD') return !n.read;
+    if (filter === 'STATUTORY') {
+      return [
+        'WORKFLOW_ACTIVATED',
+        'STAGE_REJECTED',
+        'STAGE_RESUBMITTED',
+        'COMPENSATION_COMPLETED',
+        'POSSESSION_COMPLETED',
+        'ACQUISITION_COMPLETED',
+      ].includes(n.type);
+    }
+    if (filter === 'ALERTS') {
+      return [
+        'WILLINGNESS_NON_SUBMISSION',
+        'GRIEVANCE_FILED',
+        'TASK_ASSIGNED',
+        'STAGE_REJECTED',
+      ].includes(n.type);
+    }
     return true;
   });
 
@@ -113,22 +140,64 @@ export const NotificationBell: React.FC = () => {
 
   const getTypeTheme = (type: string) => {
     switch (type) {
-      case 'BOSS_APPROVED':
+      case 'POSSESSION_COMPLETED':
         return {
-          badge: 'BOSS APPROVED',
-          bgColor: '#ecfdf5',
+          badge: 'POSSESSION VESTED',
+          bgColor: '#ccfbf1',
+          borderColor: '#14b8a6',
+          textColor: '#0f766e',
+          icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" y1="22" x2="4" y2="15" />
+            </svg>
+          ),
+        };
+      case 'COMPENSATION_COMPLETED':
+        return {
+          badge: 'COMPENSATION PAID',
+          bgColor: '#d1fae5',
           borderColor: '#10b981',
           textColor: '#065f46',
           icon: (
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="M9 12l2 2 4-4" />
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <path d="M8 10h8a2 2 0 0 1 0 4H8" />
+            </svg>
+          ),
+        };
+      case 'COMPENSATION_UPDATED':
+        return {
+          badge: 'VALUATION UPDATE',
+          bgColor: '#fef3c7',
+          borderColor: '#f59e0b',
+          textColor: '#92400e',
+          icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <line x1="12" y1="6" x2="12" y2="8" />
+              <line x1="12" y1="16" x2="12" y2="18" />
+            </svg>
+          ),
+        };
+      case 'ACQUISITION_COMPLETED':
+        return {
+          badge: 'ACQUISITION ACCEPTED',
+          bgColor: '#eff6ff',
+          borderColor: '#3b82f6',
+          textColor: '#1e40af',
+          icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
           ),
         };
       case 'STAGE_REJECTED':
         return {
-          badge: 'STAGE REJECTED',
+          badge: 'DEFECT REJECTED',
           bgColor: '#fef2f2',
           borderColor: '#ef4444',
           textColor: '#991b1b',
@@ -140,16 +209,16 @@ export const NotificationBell: React.FC = () => {
             </svg>
           ),
         };
-      case 'STAGE_ACCEPTED':
+      case 'STAGE_RESUBMITTED':
         return {
-          badge: 'STAGE CLEARED',
-          bgColor: '#eff6ff',
-          borderColor: '#3b82f6',
-          textColor: '#1e40af',
+          badge: 'STAGE RESUBMITTED',
+          bgColor: '#f0f9ff',
+          borderColor: '#0284c7',
+          textColor: '#075985',
           icon: (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
           ),
         };
@@ -166,22 +235,61 @@ export const NotificationBell: React.FC = () => {
             </svg>
           ),
         };
-      case 'PROCESS_COMPLETED':
+      case 'WORKFLOW_ACTIVATED':
         return {
-          badge: 'COMPLETED',
-          bgColor: '#fefce8',
-          borderColor: '#eab308',
-          textColor: '#854d0e',
+          badge: 'WORKFLOW ACTIVE',
+          bgColor: '#e0e7ff',
+          borderColor: '#6366f1',
+          textColor: '#3730a3',
           icon: (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="7" />
-              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2" />
+              <polyline points="2 17 12 22 22 17" />
+              <polyline points="2 12 12 17 22 12" />
+            </svg>
+          ),
+        };
+      case 'WILLINGNESS_NON_SUBMISSION':
+        return {
+          badge: 'CONSENT NOTICE',
+          bgColor: '#fff7ed',
+          borderColor: '#f97316',
+          textColor: '#9a3412',
+          icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          ),
+        };
+      case 'GRIEVANCE_FILED':
+        return {
+          badge: 'GRIEVANCE FILED',
+          bgColor: '#fdf2f8',
+          borderColor: '#ec4899',
+          textColor: '#9d174d',
+          icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#db2777" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          ),
+        };
+      case 'BOSS_APPROVED':
+        return {
+          badge: 'BOSS APPROVED',
+          bgColor: '#ecfdf5',
+          borderColor: '#10b981',
+          textColor: '#065f46',
+          icon: (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="M9 12l2 2 4-4" />
             </svg>
           ),
         };
       default:
         return {
-          badge: 'NOTICE',
+          badge: 'STATUTORY NOTICE',
           bgColor: '#f8fafc',
           borderColor: '#64748b',
           textColor: '#334155',
@@ -211,8 +319,8 @@ export const NotificationBell: React.FC = () => {
           justifyContent: 'center',
           width: '36px',
           height: '36px',
-          borderRadius: '4px',
-          border: '1px solid rgba(0, 0, 0, 0.15)',
+          borderRadius: '6px',
+          border: '1px solid #dfe3e8',
           backgroundColor: isOpen ? '#1e293b' : '#ffffff',
           color: isOpen ? '#ffffff' : '#1e293b',
           cursor: 'pointer',
@@ -254,7 +362,6 @@ export const NotificationBell: React.FC = () => {
               justifyContent: 'center',
               border: '2px solid #ffffff',
               boxShadow: '0 2px 4px rgba(220, 38, 38, 0.35)',
-              animation: 'bell-pulse 2s infinite ease-in-out',
             }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -270,13 +377,13 @@ export const NotificationBell: React.FC = () => {
             position: 'absolute',
             top: 'calc(100% + 8px)',
             right: 0,
-            width: '410px',
+            width: '430px',
             maxWidth: '92vw',
-            maxHeight: '540px',
+            maxHeight: '560px',
             backgroundColor: '#ffffff',
-            borderRadius: '6px',
+            borderRadius: '10px',
             border: '1px solid #cbd5e1',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
             zIndex: 9999,
             display: 'flex',
             flexDirection: 'column',
@@ -297,7 +404,7 @@ export const NotificationBell: React.FC = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                Statutory Notifications
+                V2 Statutory Notifications Hub
               </span>
               {unreadCount > 0 && (
                 <span
@@ -329,10 +436,7 @@ export const NotificationBell: React.FC = () => {
                   cursor: 'pointer',
                   padding: '2px 6px',
                   borderRadius: '3px',
-                  transition: 'color 0.15s',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#93c5fd')}
               >
                 Mark all read
               </button>
@@ -344,53 +448,41 @@ export const NotificationBell: React.FC = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              padding: '6px 12px',
+              padding: '6px 10px',
               backgroundColor: '#f8fafc',
               borderBottom: '1px solid #e2e8f0',
-              gap: '8px',
+              gap: '6px',
+              overflowX: 'auto',
             }}
           >
-            <button
-              type="button"
-              onClick={() => setFilter('ALL')}
-              style={{
-                border: 'none',
-                background: filter === 'ALL' ? '#ffffff' : 'transparent',
-                color: filter === 'ALL' ? '#0f172a' : '#64748b',
-                fontSize: '11px',
-                fontWeight: filter === 'ALL' ? 700 : 500,
-                padding: '4px 10px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                boxShadow: filter === 'ALL' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-              }}
-            >
-              All ({notifications.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('UNREAD')}
-              style={{
-                border: 'none',
-                background: filter === 'UNREAD' ? '#ffffff' : 'transparent',
-                color: filter === 'UNREAD' ? '#dc2626' : '#64748b',
-                fontSize: '11px',
-                fontWeight: filter === 'UNREAD' ? 700 : 500,
-                padding: '4px 10px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                boxShadow: filter === 'UNREAD' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-              }}
-            >
-              Unread ({unreadCount})
-            </button>
+            {(['ALL', 'UNREAD', 'STATUTORY', 'ALERTS'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFilter(tab)}
+                style={{
+                  border: 'none',
+                  background: filter === tab ? '#ffffff' : 'transparent',
+                  color: filter === tab ? '#0f172a' : '#64748b',
+                  fontSize: '11px',
+                  fontWeight: filter === tab ? 700 : 500,
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  boxShadow: filter === tab ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {tab === 'ALL' ? `All (${notifications.length})` : tab === 'UNREAD' ? `Unread (${unreadCount})` : tab}
+              </button>
+            ))}
           </div>
 
           {/* Notifications Scrollable List */}
           <div
             style={{
               overflowY: 'auto',
-              maxHeight: '400px',
+              maxHeight: '410px',
               display: 'flex',
               flexDirection: 'column',
               backgroundColor: '#ffffff',
@@ -398,7 +490,7 @@ export const NotificationBell: React.FC = () => {
           >
             {loading && notifications.length === 0 ? (
               <div style={{ padding: '30px', textAlign: 'center', color: '#64748b', fontSize: '12.5px' }}>
-                Fetching protocol updates...
+                Fetching statutory notifications...
               </div>
             ) : filteredNotifications.length === 0 ? (
               <div
@@ -412,27 +504,12 @@ export const NotificationBell: React.FC = () => {
                   color: '#64748b',
                 }}
               >
-                <div
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '20px',
-                    backgroundColor: '#f1f5f9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
-                </div>
+                <div style={{ fontSize: '24px' }}>🔔</div>
                 <div style={{ fontWeight: 600, fontSize: '13px', color: '#1e293b' }}>
-                  {filter === 'UNREAD' ? 'No unread notifications' : 'No notifications on record'}
+                  {filter === 'UNREAD' ? 'Zero unread notifications' : 'No notifications in this category'}
                 </div>
-                <div style={{ fontSize: '11.5px', color: '#94a3b8', maxWidth: '240px' }}>
-                  Requisition approvals and stage remissions will appear here in real time.
+                <div style={{ fontSize: '11.5px', color: '#94a3b8', maxWidth: '260px' }}>
+                  All statutory lifecycle transitions will appear here in real time.
                 </div>
               </div>
             ) : (
@@ -531,7 +608,7 @@ export const NotificationBell: React.FC = () => {
                               color: '#cbd5e1',
                               cursor: 'pointer',
                               padding: '2px',
-                              fontSize: '12px',
+                              fontSize: '13px',
                               lineHeight: 1,
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
@@ -578,10 +655,7 @@ export const NotificationBell: React.FC = () => {
                             color: '#2563eb',
                           }}
                         >
-                          <span>Open Dossier / Task</span>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
+                          <span>Open Statutory Dossier &rarr;</span>
                         </div>
                       )}
                     </div>
@@ -591,21 +665,33 @@ export const NotificationBell: React.FC = () => {
             )}
           </div>
 
-          {/* Footer */}
+          {/* Footer with link to Sovereign Notification Center */}
           <div
             style={{
-              padding: '8px 14px',
+              padding: '10px 14px',
               backgroundColor: '#f8fafc',
               borderTop: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              fontSize: '10.5px',
-              color: '#64748b',
+              fontSize: '11.5px',
             }}
           >
-            <span>BhoomiNexus Sovereign Dispatch</span>
-            <span style={{ fontFamily: 'monospace' }}>Auto-Sync: 10s</span>
+            <Link
+              to="/notifications"
+              onClick={() => setIsOpen(false)}
+              style={{
+                color: '#2563eb',
+                fontWeight: 600,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span>📜 Open Notification Center &amp; Event Registry &rarr;</span>
+            </Link>
+            <span style={{ fontSize: '10px', color: '#94a3b8', fontFamily: 'monospace' }}>Auto-Sync: 10s</span>
           </div>
         </div>
       )}

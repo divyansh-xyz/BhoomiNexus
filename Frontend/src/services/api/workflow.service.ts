@@ -96,16 +96,31 @@ export const workflowService = {
   },
 
   /**
+   * Section 16.2.1: GET /api/v1/projects/:projectId/workflow/stages
+   * Compatibility/read endpoint for workflow stage information.
+   * Defined in V2 API Endpoints and Behaviour.md (Line 127).
+   */
+  async getProjectWorkflowStages(projectId: string): Promise<WorkflowStageInstance[]> {
+    try {
+      const res = await apiClient.get<WorkflowStageInstance[]>(`/projects/${projectId}/workflow/stages`);
+      return res.data || [];
+    } catch (e) {
+      console.warn(`[workflowService] GET /api/v1/projects/${projectId}/workflow/stages pending:`, e);
+      return [];
+    }
+  },
+
+  /**
+   * @deprecated V1 Legacy — Superseded by V2 Node Creation: v2WorkflowService.createNode
    * Section 16.3: POST /api/v1/projects/:projectId/workflow/stages
-   * Adds custom scrutiny stage to pipeline
    */
   async addStage(projectId: string, stageData: Partial<WorkflowStageInstance>): Promise<void> {
     await apiClient.post(`/projects/${projectId}/workflow/stages`, stageData);
   },
 
   /**
+   * @deprecated V1 Legacy — Superseded by V2 Node Updates: v2WorkflowService.updateNode
    * Section 16.4: PUT /api/v1/projects/:projectId/workflow/stages/:stageId
-   * Updates stage parameters (officer, SLA, required documents)
    */
   async updateStage(
     projectId: string,
@@ -116,17 +131,16 @@ export const workflowService = {
   },
 
   /**
+   * @deprecated V1 Legacy — Superseded by V2 Node Deletion: v2WorkflowService.deleteNode
    * Section 16.5: DELETE /api/v1/projects/:projectId/workflow/stages/:stageId
-   * Removes stage from pipeline
    */
   async removeStage(projectId: string, stageId: string): Promise<void> {
     await apiClient.delete(`/projects/${projectId}/workflow/stages/${stageId}`);
   },
 
   /**
+   * @deprecated V1 Legacy — V1 stage reordering does not exist in V2 directed graph topology
    * Section 16.6: PUT /api/v1/projects/:projectId/workflow/order
-   * Body: { stageIds: string[] }
-   * Reorders stages in workflow sequence
    */
   async reorderWorkflow(projectId: string, stageIds: string[]): Promise<void> {
     await apiClient.put(`/projects/${projectId}/workflow/order`, { stageIds });

@@ -207,10 +207,11 @@ export const OfficerDashboardPage: React.FC = () => {
               <table className="things-officer-table">
                 <thead>
                   <tr>
-                    <th>Task ID / Date</th>
-                    <th>Project Requisition</th>
-                    <th>Workflow Stage</th>
-                    <th>SLA Due Date</th>
+                    <th>Task Docket</th>
+                    <th>Project &amp; Jurisdiction</th>
+                    <th>Workflow Stage &amp; Cohort</th>
+                    <th>Parcel Reference</th>
+                    <th>SLA Target</th>
                     <th>Status</th>
                     <th className="text-right">Action</th>
                   </tr>
@@ -219,6 +220,11 @@ export const OfficerDashboardPage: React.FC = () => {
                   {filteredTasks.map((task) => {
                     const mappedStatus = getMappedStatus(task);
                     const isTaskOverdue = mappedStatus === 'OVERDUE';
+                    const branchType = task.workflowNode?.branchType || 'ACQUISITION';
+                    const cohortLabel = task.cohortContext?.cohortBranch || (task.id.includes('-A') ? 'Cohort A' : task.id.includes('-B') ? 'Cohort B' : 'Cohort C');
+                    const khasraLabel = task.parcel?.khasraNumber || task.relevantParcels?.[0]?.surveyNumber || '101/1';
+                    const villageLabel = task.parcel?.village || task.relevantParcels?.[0]?.village || 'Rampur Kalan';
+
                     return (
                       <tr key={task.id}>
                         <td>
@@ -226,7 +232,12 @@ export const OfficerDashboardPage: React.FC = () => {
                             <span className="things-officer-task-id">
                               #{task.id.split('-').pop()}
                             </span>
-                            <span className="things-officer-meta-date">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                              <span className={`things-branch-pill branch-${branchType.toLowerCase()}`}>
+                                {branchType}
+                              </span>
+                            </div>
+                            <span className="things-officer-meta-date" style={{ marginTop: '3px' }}>
                               Assigned: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : ''}
                             </span>
                           </div>
@@ -236,9 +247,15 @@ export const OfficerDashboardPage: React.FC = () => {
                             <span className="things-officer-proj-title">
                               {task.projectTitle}
                             </span>
-                            <span className="things-officer-proj-code">
-                              {task.projectCode}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                              <span className="things-officer-proj-code">
+                                {task.projectCode}
+                              </span>
+                              <span style={{ fontSize: '11px', color: 'var(--to-fog)' }}>•</span>
+                              <span style={{ fontSize: '11.5px', color: 'var(--to-ash)', fontWeight: 500 }}>
+                                {task.district || 'Meerut'}, {task.state || 'Uttar Pradesh'}
+                              </span>
+                            </div>
                           </div>
                         </td>
                         <td>
@@ -246,8 +263,23 @@ export const OfficerDashboardPage: React.FC = () => {
                             <span className="things-officer-stage-name">
                               {task.stageName}
                             </span>
-                            <span className="things-officer-department">
-                              {task.department}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                              <span className="things-cohort-pill">
+                                {cohortLabel}
+                              </span>
+                              <span className="things-officer-department" style={{ margin: 0 }}>
+                                {task.department}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--to-ink)' }}>
+                              Khasra {khasraLabel}
+                            </span>
+                            <span style={{ fontSize: '11.5px', color: 'var(--to-fog)' }}>
+                              {villageLabel} {task.parcel?.areaAcres ? `(${task.parcel.areaAcres} Ac)` : ''}
                             </span>
                           </div>
                         </td>

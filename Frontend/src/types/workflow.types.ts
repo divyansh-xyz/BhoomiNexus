@@ -28,13 +28,34 @@ export interface WorkflowStageTemplate {
   requiredDocuments: string[];
 }
 
+export type WorkflowTemplateCategory =
+  | 'LINEAR_HIGHWAY'
+  | 'DEFENSE_CORRIDOR'
+  | 'TRIBAL_SCHEDULE_V'
+  | 'COMPENSATION_STANDARD'
+  | 'POSSESSION_STANDARD'
+  | 'METRO_TRANSIT'
+  | 'FREIGHT_CORRIDOR'
+  | 'INDUSTRIAL_ZONE'
+  | string;
+
+export interface WorkflowTemplateNodeFragment {
+  name: string;
+  nodeType: string;
+  responsibility: string;
+  slaDays: number;
+  requiredDocuments: string[];
+}
+
 export interface WorkflowTemplate {
   id: string;
   name: string;
-  category: 'LINEAR_HIGHWAY' | 'METRO_TRANSIT' | 'FREIGHT_CORRIDOR' | 'INDUSTRIAL_ZONE';
+  category: WorkflowTemplateCategory;
   description: string;
   statutoryAct: string;
-  defaultStages: WorkflowStageTemplate[];
+  defaultStages?: WorkflowStageTemplate[];
+  fragmentNodes?: WorkflowTemplateNodeFragment[];
+  totalSlaDays?: number;
 }
 
 export interface WorkflowStageInstance {

@@ -5,6 +5,27 @@ import BhoomiLogo from '../common/BhoomiLogo';
 import { useAuth } from '../../hooks/useAuth';
 import type { UserRole } from '../../types/auth.types';
 
+import { getRoleHomeDashboard } from '../auth/RoleGuard';
+
+interface DemoAccount {
+  label: string;
+  email: string;
+  role: UserRole;
+  badge: string;
+  color: string;
+}
+
+const DEMO_ACCOUNTS: DemoAccount[] = [
+  { label: 'National Authority', email: 'national@bhoomi.gov.in', role: 'NATIONAL_AUTHORITY', badge: 'DoLR MoRD', color: '#6366f1' },
+  { label: 'State Authority', email: 'state.mh@bhoomi.gov.in', role: 'STATE_AUTHORITY', badge: 'Maharashtra', color: '#2563eb' },
+  { label: 'District Authority', email: 'collector.pune@bhoomi.gov.in', role: 'DISTRICT_AUTHORITY', badge: 'Pune District', color: '#059669' },
+  { label: 'Compensation Officer', email: 'compensation.pune@bhoomi.gov.in', role: 'COMPENSATION_OFFICER', badge: 'SLAO Haveli', color: '#d97706' },
+  { label: 'Possession Officer', email: 'possession.pune@bhoomi.gov.in', role: 'POSSESSION_OFFICER', badge: 'Revenue Div', color: '#0d9488' },
+  { label: 'BOSS Reviewer', email: 'boss@bhoomi.gov.in', role: 'BOSS', badge: 'Central Oversight', color: '#4f46e5' },
+  { label: 'Processing Officer', email: 'officer@bhoomi.gov.in', role: 'PROCESSING_OFFICER', badge: 'Field Scrutiny', color: '#b45309' },
+  { label: 'Requesting Authority', email: 'requestor@bhoomi.gov.in', role: 'REQUESTING_AUTHORITY', badge: 'NHAI Proponent', color: '#16a34a' },
+];
+
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   placeholder?: string;
@@ -82,14 +103,18 @@ export const Component: React.FC = () => {
 
   const routeByRole = (role: UserRole): string => {
     if (redirectParam) return redirectParam;
-    switch (role) {
-      case 'BOSS':
-        return '/boss/dashboard';
-      case 'PROCESSING_OFFICER':
-        return '/officer/dashboard';
-      case 'REQUESTING_AUTHORITY':
-      default:
-        return '/projects';
+    return getRoleHomeDashboard(role);
+  };
+
+  const handleSelectDemoAccount = async (account: DemoAccount) => {
+    setEmail(account.email);
+    setPassword('sovereign2026');
+    setErrorMsg(null);
+    try {
+      await login(account.email, 'sovereign2026', account.role);
+      navigate(routeByRole(account.role));
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Authentication failed.');
     }
   };
 
@@ -99,12 +124,24 @@ export const Component: React.FC = () => {
     try {
       let inferredRole: UserRole = 'PROCESSING_OFFICER';
       const lower = email.toLowerCase().trim();
-      if (lower === 'requestor@bhoomi.gov.in' || lower.includes('request') || lower.includes('proponent')) {
+      if (lower.includes('national') || lower.includes('dolr')) {
+        inferredRole = 'NATIONAL_AUTHORITY';
+      } else if (lower.includes('state')) {
+        inferredRole = 'STATE_AUTHORITY';
+      } else if (lower.includes('district') || lower.includes('collector')) {
+        inferredRole = 'DISTRICT_AUTHORITY';
+      } else if (lower.includes('compensation') || lower.includes('slao')) {
+        inferredRole = 'COMPENSATION_OFFICER';
+      } else if (lower.includes('possession') || lower.includes('tehsildar')) {
+        inferredRole = 'POSSESSION_OFFICER';
+      } else if (lower === 'requestor@bhoomi.gov.in' || lower.includes('request') || lower.includes('proponent')) {
         inferredRole = 'REQUESTING_AUTHORITY';
       } else if (lower === 'boss@bhoomi.gov.in' || lower.includes('boss')) {
         inferredRole = 'BOSS';
       } else if (lower === 'officer@bhoomi.gov.in' || lower.includes('officer')) {
         inferredRole = 'PROCESSING_OFFICER';
+      } else if (lower.includes('admin')) {
+        inferredRole = 'ADMIN';
       }
       await login(email, password, inferredRole);
       navigate(routeByRole(inferredRole));
@@ -209,6 +246,61 @@ export const Component: React.FC = () => {
                 <div className="login-shimmer-sweep" />
               </button>
             </form>
+
+            {/* Quick Demo Switcher */}
+            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+                  V2 Federation Fast Login
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>1-Click Role Simulation</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                {DEMO_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.role}
+                    type="button"
+                    onClick={() => handleSelectDemoAccount(acc)}
+                    disabled={isLoading}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #e2e8f0',
+                      backgroundColor: '#f8fafc',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#ffffff';
+                      e.currentTarget.style.borderColor = acc.color;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f8fafc';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{acc.label}</span>
+                    <span
+                      style={{
+                        fontSize: '8.5px',
+                        padding: '1px 4px',
+                        borderRadius: '4px',
+                        backgroundColor: `${acc.color}18`,
+                        color: acc.color,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {acc.badge}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Back link */}
             <div className="login-bottom-link-row">

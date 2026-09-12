@@ -5,10 +5,22 @@ import type { UserRole } from '../../types/auth.types';
 
 export const getRoleHomeDashboard = (role?: UserRole): string => {
   switch (role) {
+    case 'NATIONAL_AUTHORITY':
+      return '/dashboard/national';
+    case 'STATE_AUTHORITY':
+      return '/dashboard/state';
+    case 'DISTRICT_AUTHORITY':
+      return '/dashboard/district';
+    case 'COMPENSATION_OFFICER':
+      return '/compensation/dashboard';
+    case 'POSSESSION_OFFICER':
+      return '/possession/dashboard';
     case 'BOSS':
       return '/boss/dashboard';
     case 'PROCESSING_OFFICER':
       return '/officer/dashboard';
+    case 'ADMIN':
+      return '/dashboard/admin';
     case 'REQUESTING_AUTHORITY':
     default:
       return '/projects';
