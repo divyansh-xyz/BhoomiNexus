@@ -17,7 +17,6 @@ router.get("/", getDocuments);
 
 // GET /api/v1/documents/tasks/:taskId/template/:docType
 router.get("/tasks/:taskId/template/:docType", downloadTaskDocumentTemplate);
-
 // Configure multer for local file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -52,7 +51,6 @@ router.get("/:id/extraction", getDocumentExtraction);
 
 // POST /api/v1/documents/:id/verify
 router.post("/:id/verify", verifyDocumentExtraction);
-
 // GET /api/v1/documents/:id/versions
 router.get("/:id/versions", getDocumentVersions);
 

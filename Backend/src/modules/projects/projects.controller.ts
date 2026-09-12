@@ -128,7 +128,6 @@ export const createProject = async (req: Request, res: Response, next: NextFunct
         [project.id, documentIds]
       );
     }
-
     res.status(201).json(mapProjectRow(project));
   } catch (error) {
     next(error);
@@ -539,7 +538,6 @@ function mapProjectRow(row: any): any {
     updatedAt: row.updated_at,
   };
 }
-
 /**
  * Phase 11: Enriched mapper used by getProjects list endpoint.
  * Includes workflow progress, parcel progress, current stage, and pending action

@@ -55,7 +55,6 @@ const forwardToAiParser = async (docId: string, filePath: string, originalName: 
     return null;
   }
 };
-
 export const uploadDocument = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) return next(new ApiError(400, "No file uploaded"));
@@ -104,7 +103,6 @@ export const uploadDocument = async (req: Request, res: Response, next: NextFunc
         console.warn("[uploadDocument] Forwarding to AI Parser failed:", err);
       }
     }
-
     await pool.query(
       `INSERT INTO document_versions (document_id, version_number, file_path, file_size, hash, uploader_id)
        VALUES ($1, 1, $2, $3, $4, $5)`,
@@ -333,6 +331,7 @@ export const createDocumentVersion = async (req: Request, res: Response, next: N
     next(error);
   }
 };
+
 
 export const getDocuments = async (req: Request, res: Response, next: NextFunction) => {
   try {

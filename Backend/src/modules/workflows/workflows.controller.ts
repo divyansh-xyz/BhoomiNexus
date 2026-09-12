@@ -3,6 +3,10 @@ import { pool } from "../../config/db";
 import { ApiError } from "../../utils/apiError";
 import { createAuditEvent } from "../../utils/audit";
 import { NotificationService } from "../notifications/notifications.service";
+import * as workflowGraphService from "./workflowGraph.service";
+import * as workflowTemplatesService from "./workflowTemplates.service";
+import * as workflowValidationService from "./workflowValidation.service";
+import * as workflowActivationService from "./workflowActivation.service";
 
 export const getTemplates = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -10,7 +14,6 @@ export const getTemplates = async (req: Request, res: Response, next: NextFuncti
       `SELECT id, name, category, description, statutory_act AS "statutoryAct"
        FROM workflow_templates WHERE is_published = true ORDER BY name`
     );
-    
     const templates = result.rows;
     const templateIds = templates.map(t => t.id);
     
@@ -405,7 +408,6 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
     const firstStage = await pool.query(`SELECT * FROM workflow_instance_stages WHERE workflow_id = $1 ORDER BY stage_order LIMIT 1`, [wfId]);
     let createdTaskId: string | null = null;
     let assignedOfficerName = 'Assigned Processing Officer';
-
     if (firstStage.rows.length > 0) {
       const fs = firstStage.rows[0];
       await pool.query(`UPDATE workflow_instance_stages SET status = 'ACTIVE' WHERE id = $1`, [fs.id]);
@@ -434,7 +436,6 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
     }
 
     const auditTimestamp = new Date().toISOString();
-
     await createAuditEvent({
       userId: req.user!.id,
       userRole: req.user!.role,
@@ -502,3 +503,221 @@ export const activateWorkflow = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
+
+// ==========================================
+// V2 WORKFLOW GRAPH & COHORT CONTROLLER APIS
+// ==========================================
+
+export const getProjectWorkflowGraph = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const graph = await workflowGraphService.getWorkflowGraph(projectId);
+    res.json({ success: true, data: graph });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const initializeWorkflowV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const userId = req.user?.id || "system";
+    const graph = await workflowGraphService.initializeProjectWorkflow(projectId, userId);
+    res.status(201).json({ success: true, message: "Workflow initialized successfully with standard branches", data: graph });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createWorkflowNodeV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const userId = req.user?.id || "system";
+    const node = await workflowGraphService.createNode(projectId, req.body, userId);
+    res.status(201).json({ success: true, data: node });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateWorkflowNodeV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const nodeId = req.params.nodeId as string;
+    const userId = req.user?.id || "system";
+    const node = await workflowGraphService.updateNode(projectId, nodeId, req.body, userId);
+    res.json({ success: true, data: node });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteWorkflowNodeV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const nodeId = req.params.nodeId as string;
+    const userId = req.user?.id || "system";
+    const result = await workflowGraphService.deleteNode(projectId, nodeId, userId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createWorkflowEdgeV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const userId = req.user?.id || "system";
+    const edge = await workflowGraphService.createEdge(projectId, req.body, userId);
+    res.status(201).json({ success: true, data: edge });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteWorkflowEdgeV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const edgeId = req.params.edgeId as string;
+    const userId = req.user?.id || "system";
+    const result = await workflowGraphService.deleteEdge(projectId, edgeId, userId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const splitWorkflowNodeV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const nodeId = req.params.nodeId as string;
+    const userId = req.user?.id || "system";
+    const result = await workflowGraphService.splitNode(projectId, nodeId, req.body, userId);
+    res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const moveCohortParcelsV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const userId = req.user?.id || "system";
+    const result = await workflowGraphService.moveCohortParcels(projectId, req.body, userId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getNodeParcelsV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const nodeId = req.params.nodeId as string;
+    const parcels = await workflowGraphService.getNodeParcels(projectId, nodeId);
+    res.json({ success: true, data: parcels });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const saveWorkflowDesignV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const userId = req.user?.id || "system";
+    const graph = await workflowGraphService.saveWorkflowDesign(projectId, req.body, userId);
+    res.json({ success: true, data: graph });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getContextualTemplatesV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.query.projectId as string | undefined;
+    const nodeId = req.query.nodeId as string | undefined;
+    const templates = await workflowTemplatesService.getContextualTemplates(projectId, nodeId);
+    res.json({ success: true, data: templates });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const previewTemplateV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { templateId } = req.body;
+    const template = await workflowTemplatesService.previewTemplate(templateId);
+    res.json({ success: true, data: template });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const applyTemplateV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const nodeId = req.params.nodeId as string;
+    const { templateId } = req.body;
+    const userId = req.user?.id || "system";
+    const result = await workflowTemplatesService.applyTemplateToNode(projectId, nodeId, templateId, userId);
+    res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const validateWorkflowV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const result = await workflowValidationService.validateWorkflowGraph(projectId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const activateWorkflowV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const userId = req.user?.id || "system";
+    const result = await workflowActivationService.activateWorkflow(projectId, userId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWorkflowExecutionV2 = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const instance = await workflowGraphService.getWorkflowInstance(projectId);
+    const executionsRes = await pool.query(
+      `SELECT we.*,
+              lp.ulpin, lp.survey_number, lp.village, lp.area_acres,
+              wn.name AS node_name, wn.node_key,
+              wt.id AS task_id, wt.status AS task_status, wt.assigned_to,
+              u.name AS assigned_to_name
+       FROM workflow_executions we
+       JOIN land_parcels lp ON lp.id = we.parcel_id
+       JOIN workflow_nodes wn ON wn.id = we.node_id
+       LEFT JOIN workflow_tasks wt ON wt.workflow_execution_id = we.id
+       LEFT JOIN users u ON u.id = wt.assigned_to
+       WHERE we.workflow_instance_id = $1
+       ORDER BY we.created_at ASC`,
+      [instance.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        workflowInstanceId: instance.id,
+        status: instance.status,
+        activatedAt: instance.activated_at,
+        executions: executionsRes.rows,
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

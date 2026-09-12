@@ -11,11 +11,13 @@ interface AuditEventPayload {
   projectId?: string | any;
   parcelId?: string | any;
   metadata?: any;
+  details?: any;
   source?: string;
 }
 
 export const createAuditEvent = async (payload: AuditEventPayload) => {
   try {
+    const meta = payload.metadata || payload.details;
     await pool.query(
       `INSERT INTO audit_logs (user_id, user_role, action, entity_type, entity_id, old_value, new_value, project_id, parcel_id, metadata, source)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -29,7 +31,7 @@ export const createAuditEvent = async (payload: AuditEventPayload) => {
         payload.newValue ? JSON.stringify(payload.newValue) : null,
         payload.projectId || null,
         payload.parcelId || null,
-        payload.metadata ? JSON.stringify(payload.metadata) : null,
+        meta ? JSON.stringify(meta) : null,
         payload.source || "SYSTEM",
       ]
     );
