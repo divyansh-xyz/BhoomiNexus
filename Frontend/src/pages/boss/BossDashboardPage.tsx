@@ -166,7 +166,7 @@ export const BossDashboardPage: React.FC = () => {
     });
 
     const activeProject = projects.find((p) => p.id === selectedProjectId);
-    if (activeProject && activeProject.corridorCoordinates.length > 0) {
+    if (activeProject && activeProject.corridorCoordinates?.length > 0) {
       const bounds = L.latLngBounds(activeProject.corridorCoordinates);
       mapRef.current.flyToBounds(bounds.pad(0.4), { duration: 0.8 });
     }
@@ -490,7 +490,7 @@ export const BossDashboardPage: React.FC = () => {
                       <div className="spec-cell">
                         <span className="spec-label">Requisition Land Area:</span>
                         <div className="spec-val-primary">
-                          {project.requestedAreaAcres.toLocaleString()}<span className="spec-unit"> Acres</span>
+                          {(project.requestedAreaAcres ?? 0).toLocaleString()}<span className="spec-unit"> Acres</span>
                           <span className="spec-secondary">({project.requestedAreaHa} Ha)</span>
                         </div>
                       </div>
@@ -513,8 +513,8 @@ export const BossDashboardPage: React.FC = () => {
 
                       <div className="spec-cell">
                         <span className="spec-label">Statutory Nodal Officer:</span>
-                        <div className="spec-val text-truncate">{project.nodalOfficer.name}</div>
-                        <span className="spec-secondary text-truncate">{project.nodalOfficer.designation}</span>
+                        <div className="spec-val text-truncate">{project.nodalOfficer?.name ?? 'Unassigned'}</div>
+                        <span className="spec-secondary text-truncate">{project.nodalOfficer?.designation ?? 'Pending Assignment'}</span>
                       </div>
                     </div>
 
@@ -538,100 +538,78 @@ export const BossDashboardPage: React.FC = () => {
                     </div>
 
                     <div className="docket-buttons">
-                      <Link
-                        to={`/boss/projects/${project.id}`}
-                        className="btn-cta-outline"
-                        style={{ fontSize: '13px', padding: '8px 18px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Inspect Dossier &rarr;
-                      </Link>
-
-                      {isPendingParcels ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/boss/projects/${project.id}/parcels`);
-                          }}
-                          className="btn-cta-blue"
-                          style={{ fontSize: '13px', padding: '8px 22px' }}
-                        >
-                          Determine Land Parcels &rarr;
-                        </button>
-                      ) : project.status === 'PARCELS_CONFIRMED' ? (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <Link
-                            to={`/boss/projects/${project.id}/parcels`}
-                            className="btn-cta-outline"
-                            style={{ fontSize: '13px', padding: '8px 14px' }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Parcels ({project.selectedParcelsCount ?? 250})
-                          </Link>
-                          <Link
-                            to={`/boss/projects/${project.id}`}
-                            className="btn-cta-blue"
-                            style={{ fontSize: '13px', padding: '8px 18px', color: '#ffffff', backgroundColor: '#15803d', borderColor: '#15803d', fontWeight: 700 }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Review &amp; Approve &rarr;
-                          </Link>
-                        </div>
-                      ) : project.status === 'WORKFLOW_CONFIGURED' ? (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <Link
-                            to={`/boss/projects/${project.id}/workflow`}
-                            className="btn-cta-outline"
-                            style={{ fontSize: '13px', padding: '8px 14px' }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Manage Pipeline
-                          </Link>
-                          <Link
-                            to={`/boss/projects/${project.id}`}
-                            className="btn-cta-blue"
-                            style={{ fontSize: '13px', padding: '8px 18px', color: '#ffffff', backgroundColor: '#15803d', borderColor: '#15803d', fontWeight: 700 }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Approve Forward &rarr;
-                          </Link>
-                        </div>
-                      ) : project.status === 'PROJECT_APPROVED' || project.status === 'WORKFLOW_ACTIVE' ? (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {project.status === 'PROJECT_APPROVED' || project.status === 'WORKFLOW_ACTIVE' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              fontSize: '12px',
+                              fontSize: '11.5px',
                               fontFamily: 'monospace',
                               fontWeight: 700,
                               color: '#15803d',
-                              backgroundColor: '#dcfce7',
-                              padding: '6px 12px',
+                              backgroundColor: '#f0fdf4',
+                              padding: '6px 14px',
                               border: '1px solid #86efac',
+                              letterSpacing: '0.04em',
                             }}
                           >
-                            ✓ APPROVED (IN PIPELINE)
+                            ✓ STATUTORY SANCTION GRANTED • BOSS EXITED
                           </span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              color: '#64748b',
+                              fontStyle: 'italic',
+                              fontFamily: 'serif',
+                            }}
+                          >
+                            Active under Processing Officers (Pipeline tracked by Requesting Authority)
+                          </span>
+                        </div>
+                      ) : (
+                        <>
                           <Link
                             to={`/boss/projects/${project.id}`}
                             className="btn-cta-outline"
-                            style={{ fontSize: '13px', padding: '8px 14px' }}
+                            style={{ fontSize: '13px', padding: '8px 18px' }}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            Track Pipeline &rarr;
+                            Inspect Dossier &rarr;
                           </Link>
-                        </div>
-                      ) : (
-                        <Link
-                          to={`/boss/projects/${project.id}`}
-                          className="btn-cta-black"
-                          style={{ fontSize: '13px', padding: '8px 20px' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Review Pre-Feasibility &rarr;
-                        </Link>
+
+                          {isPendingParcels ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/boss/projects/${project.id}/parcels`);
+                              }}
+                              className="btn-cta-blue"
+                              style={{ fontSize: '13px', padding: '8px 22px' }}
+                            >
+                              Determine Land Parcels &rarr;
+                            </button>
+                          ) : project.status === 'PARCELS_CONFIRMED' ? (
+                            <Link
+                              to={`/boss/projects/${project.id}/parcels`}
+                              className="btn-cta-outline"
+                              style={{ fontSize: '13px', padding: '8px 14px' }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Parcels ({project.selectedParcelsCount ?? 0}) &rarr;
+                            </Link>
+                          ) : project.status === 'WORKFLOW_CONFIGURED' ? (
+                            <Link
+                              to={`/boss/projects/${project.id}/workflow`}
+                              className="btn-cta-outline"
+                              style={{ fontSize: '13px', padding: '8px 14px' }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Manage Pipeline &rarr;
+                            </Link>
+                          ) : null}
+                        </>
                       )}
                     </div>
                   </div>
@@ -686,7 +664,7 @@ export const BossDashboardPage: React.FC = () => {
                     </td>
                     <td>
                       <div className="boss-area-cell">
-                        <span className="boss-area-acres">{project.requestedAreaAcres.toLocaleString()} Acres</span>
+                        <span className="boss-area-acres">{(project.requestedAreaAcres ?? 0).toLocaleString()} Acres</span>
                         <span className="boss-area-ha">({project.requestedAreaHa} Ha)</span>
                       </div>
                     </td>
@@ -696,14 +674,20 @@ export const BossDashboardPage: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <Link
-                        to={project.status === 'PARCELS_PENDING' ? `/boss/projects/${project.id}/parcels` : `/boss/projects/${project.id}`}
-                        className="btn-cta-outline"
-                        style={{ padding: '6px 12px', fontSize: '11.5px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {project.status === 'PARCELS_PENDING' ? 'Parcels \u2192' : 'Dossier \u2192'}
-                      </Link>
+                      {project.status === 'PROJECT_APPROVED' || project.status === 'WORKFLOW_ACTIVE' ? (
+                        <span style={{ fontSize: '11px', color: '#15803d', fontWeight: 600, fontFamily: 'monospace' }}>
+                          ✓ BOSS EXITED
+                        </span>
+                      ) : (
+                        <Link
+                          to={project.status === 'PARCELS_PENDING' ? `/boss/projects/${project.id}/parcels` : `/boss/projects/${project.id}`}
+                          className="btn-cta-outline"
+                          style={{ padding: '6px 12px', fontSize: '11.5px' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {project.status === 'PARCELS_PENDING' ? 'Parcels \u2192' : 'Dossier \u2192'}
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

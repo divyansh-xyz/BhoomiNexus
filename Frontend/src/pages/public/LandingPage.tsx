@@ -11,6 +11,7 @@ import {
 } from '../../data/india-states';
 import {
   useNationalOverview,
+  usePublicStates,
   usePublicStateOverview,
   usePublicStateProjects,
   useSubmitInquiry,
@@ -31,20 +32,17 @@ export const LandingPage: React.FC = () => {
         ? (apiOverview as any).projectsInProgress
         : nationalOverview.projectsInProgress,
     areaUnderAcquisitionHa:
-      apiOverview && typeof apiOverview === 'object' && typeof (apiOverview as any).areaUnderAcquisitionHa === 'number'
-        ? (apiOverview as any).areaUnderAcquisitionHa
-        : apiOverview && typeof apiOverview === 'object' && typeof (apiOverview as any).landAcquired === 'number'
-        ? (apiOverview as any).landAcquired
+      apiOverview && typeof apiOverview === 'object' && typeof (apiOverview as any).landProposed === 'number'
+        ? Math.round(((apiOverview as any).landProposed + ((apiOverview as any).landAcquired || 0)) * 0.404686)
         : nationalOverview.areaUnderAcquisitionHa,
     totalPipelineValueCr:
-      apiOverview && typeof apiOverview === 'object' && typeof (apiOverview as any).totalPipelineValueCr === 'number'
-        ? (apiOverview as any).totalPipelineValueCr
-        : apiOverview && typeof apiOverview === 'object' && typeof (apiOverview as any).compensationPaid === 'number'
-        ? Math.round((apiOverview as any).compensationPaid / 10000000)
+      apiOverview && typeof apiOverview === 'object' && typeof (apiOverview as any).compensationPaid === 'number'
+        ? (apiOverview as any).compensationPaid
         : nationalOverview.totalPipelineValueCr,
   };
 
   // Hook into API Contract: GET /api/v1/public/states/:stateId & /projects (Sections 6.3 & 6.4)
+  const { data: apiStates } = usePublicStates();
   const { data: apiStateOverview } = usePublicStateOverview(
     selectedState?.id,
     selectedState?.name
@@ -213,6 +211,7 @@ export const LandingPage: React.FC = () => {
             onStateSelect={handleStateSelect}
             onReset={handleClosePanel}
             selectedStateId={selectedState ? selectedState.id : null}
+            statesData={apiStates}
           />
 
           {selectedState && (

@@ -64,8 +64,8 @@ export const Component: React.FC = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [mapMode, setMapMode] = useState<'blueprint' | 'satellite'>('blueprint');
 
-  const [email, setEmail] = useState('officer.revenue@nic.in');
-  const [password, setPassword] = useState('••••••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -87,11 +87,9 @@ export const Component: React.FC = () => {
         return '/boss/dashboard';
       case 'PROCESSING_OFFICER':
         return '/officer/dashboard';
-      case 'ADMIN':
-        return '/dashboard/admin';
       case 'REQUESTING_AUTHORITY':
       default:
-        return '/dashboard';
+        return '/projects';
     }
   };
 
@@ -100,78 +98,20 @@ export const Component: React.FC = () => {
     setErrorMsg(null);
     try {
       let inferredRole: UserRole = 'PROCESSING_OFFICER';
-      const lower = email.toLowerCase();
-      if (lower.includes('nhai') || lower.includes('proponent') || lower.includes('request')) {
+      const lower = email.toLowerCase().trim();
+      if (lower === 'requestor@bhoomi.gov.in' || lower.includes('request') || lower.includes('proponent')) {
         inferredRole = 'REQUESTING_AUTHORITY';
-      } else if (lower.includes('boss') || lower.includes('central')) {
+      } else if (lower === 'boss@bhoomi.gov.in' || lower.includes('boss')) {
         inferredRole = 'BOSS';
-      } else if (lower.includes('admin')) {
-        inferredRole = 'ADMIN';
+      } else if (lower === 'officer@bhoomi.gov.in' || lower.includes('officer')) {
+        inferredRole = 'PROCESSING_OFFICER';
       }
-      await login(email, inferredRole);
+      await login(email, password, inferredRole);
       navigate(routeByRole(inferredRole));
     } catch (err: any) {
       setErrorMsg(err?.message || 'Authentication failed. Please check your credentials.');
     }
   };
-
-
-  const handleSSOLogin = async (provider: string) => {
-    setErrorMsg(null);
-    try {
-      const ssoEmail = `officer.${provider.toLowerCase().replace(/[^a-z]/g, '')}@nic.in`;
-      setEmail(ssoEmail);
-      await login(ssoEmail, 'PROCESSING_OFFICER');
-      navigate(routeByRole('PROCESSING_OFFICER'));
-    } catch (err: any) {
-      setErrorMsg(err?.message || `${provider} SSO authentication failed.`);
-    }
-  };
-
-  const governmentSsoList = [
-    {
-      name: 'Jan Parichay SSO',
-      abbr: 'JP',
-      title: 'Jan Parichay National Single Sign-On',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          <path d="m9 12 2 2 4-4" />
-        </svg>
-      ),
-      action: () => handleSSOLogin('JanParichay'),
-    },
-    {
-      name: 'MeriPehchan Digital ID',
-      abbr: 'MP',
-      title: 'MeriPehchan Citizen & Officer Identity',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M7 7h10" />
-          <path d="M7 12h10" />
-          <path d="M7 17h10" />
-        </svg>
-      ),
-      action: () => handleSSOLogin('MeriPehchan'),
-    },
-    {
-      name: 'NIC Gov Exchange',
-      abbr: 'NIC',
-      title: 'National Informatics Centre Gov Identity',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="m4.93 4.93 4.24 4.24" />
-          <path d="m14.83 9.17 4.24-4.24" />
-          <path d="m14.83 14.83 4.24 4.24" />
-          <path d="m9.17 14.83-4.24 4.24" />
-          <circle cx="12" cy="12" r="4" />
-        </svg>
-      ),
-      action: () => handleSSOLogin('NIC'),
-    },
-  ];
 
   return (
     <div className="login-outer-viewport">
@@ -201,35 +141,6 @@ export const Component: React.FC = () => {
 
             <h1 className="login-card-headline">Officer Sign in</h1>
 
-            {/* Sovereign Identity SSO Row */}
-            <div className="login-social-row">
-              <span className="login-social-label">Sign in via Sovereign Identity Provider</span>
-              <ul className="login-social-list">
-                {governmentSsoList.map((item, idx) => (
-                  <li key={idx} className="login-social-item">
-                    <button
-                      type="button"
-                      onClick={item.action}
-                      title={item.title}
-                      className="login-social-circle group"
-                    >
-                      <div className="login-social-fill-sweep" />
-                      <span className="login-social-icon-glyph group-hover-rotate">
-                        {item.icon}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Divider Rule */}
-            <div className="login-subtle-divider">
-              <div className="login-divider-hairline" />
-              <span className="login-divider-label">or use official credentials</span>
-              <div className="login-divider-hairline" />
-            </div>
-
             {errorMsg && (
               <div className="login-error-callout">
                 {errorMsg}
@@ -241,7 +152,7 @@ export const Component: React.FC = () => {
               <div className="login-inputs-stack">
                 <AppInput
                   label="Official Email / Employee ID"
-                  placeholder="officer.revenue@nic.in"
+                  placeholder="e.g. officer@bhoomi.gov.in"
                   type="text"
                   required
                   value={email}
@@ -256,7 +167,7 @@ export const Component: React.FC = () => {
 
                 <AppInput
                   label="Security Password"
-                  placeholder="••••••••••••"
+                  placeholder="••••••••"
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}

@@ -3,7 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import PublicLayout from '../layouts/PublicLayout';
 import GovernmentLayout from '../layouts/GovernmentLayout';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
-import RoleGuard from '../components/auth/RoleGuard';
+import RoleGuard, { getRoleHomeDashboard } from '../components/auth/RoleGuard';
+import { useAuth } from '../hooks/useAuth';
 import LoginPage from '../pages/auth/LoginPage';
 import LandingPage from '../pages/public/LandingPage';
 import BossDashboardPage from '../pages/boss/BossDashboardPage';
@@ -15,6 +16,8 @@ import CreateProjectPage from '../pages/proponent/CreateProjectPage';
 import ProponentProjectDetailPage from '../pages/proponent/ProponentProjectDetailPage';
 import OfficerDashboardPage from '../pages/officer/OfficerDashboardPage';
 import OfficerTaskDetailPage from '../pages/officer/OfficerTaskDetailPage';
+import DocumentListPage from '../pages/documents/DocumentListPage';
+import DocumentDetailPage from '../pages/documents/DocumentDetailPage';
 
 const AdminOnlyPlaceholder: React.FC = () => (
   <div style={{ padding: '2rem' }}>
@@ -22,6 +25,11 @@ const AdminOnlyPlaceholder: React.FC = () => (
     <p>Administrative control settings.</p>
   </div>
 );
+
+const DashboardRedirect: React.FC = () => {
+  const { user } = useAuth();
+  return <Navigate to={getRoleHomeDashboard(user?.role)} replace />;
+};
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -37,23 +45,30 @@ export const AppRoutes: React.FC = () => {
       {/* Protected Government Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<GovernmentLayout />}>
-          <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
+          <Route path="/dashboard" element={<DashboardRedirect />} />
 
-          {/* Phase 3 — Requesting Authority / Proponent Routes */}
-          <Route path="/projects" element={<ProponentProjectsPage />} />
-          <Route path="/projects/new" element={<CreateProjectPage />} />
-          <Route path="/projects/:projectId" element={<ProponentProjectDetailPage />} />
+          {/* Requesting Authority / Proponent Routes */}
+          <Route element={<RoleGuard allowedRoles={['REQUESTING_AUTHORITY']} />}>
+            <Route path="/projects" element={<ProponentProjectsPage />} />
+            <Route path="/projects/new" element={<CreateProjectPage />} />
+            <Route path="/projects/:projectId" element={<ProponentProjectDetailPage />} />
+          </Route>
           
-          {/* Phase 4 & Phase 5 — BOSS Scrutiny, Cadastral Determination & Workflow Config */}
-          <Route path="/boss/dashboard" element={<BossDashboardPage />} />
-          <Route path="/boss/projects/:projectId" element={<BossProjectReviewPage />} />
-          <Route path="/boss/projects/:projectId/parcels" element={<BossParcelDeterminationPage />} />
-          <Route path="/boss/projects/:projectId/workflow" element={<BossWorkflowConfigPage />} />
-          <Route path="/boss/projects/:projectId/workflow/templates" element={<BossWorkflowConfigPage initialSelectTemplate={true} />} />
+          {/* BOSS Scrutiny, Cadastral Determination & Workflow Config */}
+          <Route element={<RoleGuard allowedRoles={['BOSS']} />}>
+            <Route path="/boss/dashboard" element={<BossDashboardPage />} />
+            <Route path="/boss/projects/:projectId" element={<BossProjectReviewPage />} />
+            <Route path="/boss/projects/:projectId/parcels" element={<BossParcelDeterminationPage />} />
+            <Route path="/boss/projects/:projectId/workflow" element={<BossWorkflowConfigPage />} />
+            <Route path="/boss/projects/:projectId/workflow/templates" element={<BossWorkflowConfigPage initialSelectTemplate={true} />} />
+          </Route>
 
-          {/* Phase 7 — Officer Dashboard & Tasks */}
-          <Route path="/officer/dashboard" element={<OfficerDashboardPage />} />
-          <Route path="/officer/tasks/:taskId" element={<OfficerTaskDetailPage />} />
+          {/* Officer Dashboard & Tasks */}
+          <Route element={<RoleGuard allowedRoles={['PROCESSING_OFFICER']} />}>
+            <Route path="/officer/dashboard" element={<OfficerDashboardPage />} />
+            <Route path="/officer/tasks/:taskId" element={<OfficerTaskDetailPage />} />
+          </Route>
+
           <Route
             path="/dashboard/admin"
             element={
@@ -62,6 +77,10 @@ export const AppRoutes: React.FC = () => {
               </RoleGuard>
             }
           />
+
+          {/* Global Document Repository */}
+          <Route path="/documents" element={<DocumentListPage />} />
+          <Route path="/documents/:documentId" element={<DocumentDetailPage />} />
         </Route>
       </Route>
 

@@ -5,11 +5,11 @@ interface AuditEventPayload {
   userRole?: string;
   action: string;
   entityType: string;
-  entityId: string;
+  entityId: string | any;
   oldValue?: any;
   newValue?: any;
-  projectId?: string;
-  parcelId?: string;
+  projectId?: string | any;
+  parcelId?: string | any;
   metadata?: any;
   source?: string;
 }

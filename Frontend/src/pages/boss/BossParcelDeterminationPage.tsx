@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { bossService } from '../../services/api/boss.service';
+import { workflowService } from '../../services/api/workflow.service';
 import type { ProjectRequest, LandParcel } from '../../types/boss.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
 
@@ -25,6 +26,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
   // Confirmation state
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmationSuccess, setConfirmationSuccess] = useState(false);
+  const [hasWorkflow, setHasWorkflow] = useState(false);
 
   // Leaflet refs
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -42,15 +44,29 @@ export const BossParcelDeterminationPage: React.FC = () => {
   const loadProjectAndParcels = async (id: string) => {
     setLoading(true);
     try {
-      const proj = await bossService.getProjectById(id);
+      let candidateParcels = await bossService.getProjectParcels(id);
+      if (!candidateParcels || candidateParcels.length === 0) {
+        candidateParcels = await bossService.fetchCandidateLandRecords(id);
+      }
+      const [proj, wf] = await Promise.all([
+        bossService.getProjectById(id),
+        workflowService.getProjectWorkflow(id).catch(() => null),
+      ]);
       setProject(proj);
-
-      const candidateParcels = await bossService.fetchCandidateLandRecords(id);
       setParcels(candidateParcels);
 
-      // Pre-select parcels with status === 'SELECTED'
+      const workflowSelected =
+        (!!wf && (wf.stages || []).length > 0) ||
+        proj?.status === 'WORKFLOW_CONFIGURED' ||
+        proj?.status === 'WORKFLOW_ACTIVE' ||
+        proj?.status === 'PROJECT_APPROVED';
+      setHasWorkflow(workflowSelected);
+
+      // Pre-select parcels with status === 'CONFIRMED' or 'SELECTED'
       const initialSelected = new Set(
-        candidateParcels.filter((p) => p.status === 'SELECTED').map((p) => p.id)
+        candidateParcels
+          .filter((p) => p.status === 'CONFIRMED' || p.status === 'SELECTED')
+          .map((p) => p.id)
       );
       setSelectedParcelIds(initialSelected);
 
@@ -84,12 +100,12 @@ export const BossParcelDeterminationPage: React.FC = () => {
   const metrics = useMemo(() => {
     const candidateCount = parcels.length;
     const selectedCount = selectedParcelIds.size;
-    const requestedArea = project?.requestedAreaAcres ?? 0;
+    const requestedArea = Number(project?.requestedAreaAcres ?? 0);
 
     let selectedArea = 0;
     for (const p of parcels) {
       if (selectedParcelIds.has(p.id)) {
-        selectedArea += p.areaAcres;
+        selectedArea += Number(p.areaAcres || 0);
       }
     }
 
@@ -100,9 +116,9 @@ export const BossParcelDeterminationPage: React.FC = () => {
       candidateCount,
       selectedCount,
       requestedArea,
-      selectedArea: parseFloat(selectedArea.toFixed(2)),
-      variance: parseFloat(variance.toFixed(2)),
-      percentCovered: parseFloat(percentCovered.toFixed(1)),
+      selectedArea: parseFloat(Number(selectedArea).toFixed(2)),
+      variance: parseFloat(Number(variance).toFixed(2)),
+      percentCovered: parseFloat(Number(percentCovered).toFixed(1)),
     };
   }, [parcels, selectedParcelIds, project]);
 
@@ -248,6 +264,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
     const allBounds = L.latLngBounds([]);
 
     parcels.forEach((p) => {
+      if (!p.coordinates || p.coordinates.length === 0) return;
       const isSelected = selectedParcelIds.has(p.id);
       const isActive = activeParcel?.id === p.id;
 
@@ -284,9 +301,11 @@ export const BossParcelDeterminationPage: React.FC = () => {
       p.coordinates.forEach((c) => allBounds.extend(c));
     });
 
-    if (allBounds.isValid() && !hasFittedBoundsRef.current) {
+    if (allBounds.isValid()) {
       map.fitBounds(allBounds.pad(0.12));
       hasFittedBoundsRef.current = true;
+    } else if (project?.corridorCoordinates && project.corridorCoordinates.length > 0) {
+      map.fitBounds(L.polyline(project.corridorCoordinates).getBounds().pad(0.2));
     }
   }, [parcels, selectedParcelIds, activeParcel]);
 
@@ -411,7 +430,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
           <div className="telemetry-card">
             <span className="telemetry-eyebrow">Requested Land Area</span>
             <div className="telemetry-value">
-              {metrics.requestedArea.toFixed(1)}<span className="telemetry-unit"> Acres</span>
+              {Number(metrics?.requestedArea || 0).toFixed(1)}<span className="telemetry-unit"> Acres</span>
             </div>
             <span className="telemetry-desc">Proponent Requisition</span>
           </div>
@@ -419,10 +438,10 @@ export const BossParcelDeterminationPage: React.FC = () => {
           <div className="telemetry-card highlight-card">
             <span className="telemetry-eyebrow">Selected Land Area</span>
             <div className="telemetry-value text-signal-blue">
-              {metrics.selectedArea.toFixed(1)}<span className="telemetry-unit"> Acres</span>
+              {Number(metrics?.selectedArea || 0).toFixed(1)}<span className="telemetry-unit"> Acres</span>
             </div>
             <span className="telemetry-desc">
-              {(metrics.selectedArea * 0.404686).toFixed(1)} Hectares Determined
+              {(Number(metrics?.selectedArea || 0) * 0.404686).toFixed(1)} Hectares Determined
             </span>
           </div>
 
@@ -670,7 +689,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="meta-label">Circle Rate:</span>
-                  <span className="meta-value">&#8377;{activeParcel.marketRatePerAcre.toLocaleString()} / Acre</span>
+                  <span className="meta-value">&#8377;{(activeParcel.marketRatePerAcre ?? 0).toLocaleString()} / Acre</span>
                 </div>
               </div>
             </div>
@@ -680,17 +699,8 @@ export const BossParcelDeterminationPage: React.FC = () => {
 
       {/* Confirmation Success Modal */}
       {confirmationSuccess && (
-        <div className="boss-modal-backdrop" onClick={() => setConfirmationSuccess(false)}>
+        <div className="boss-modal-backdrop">
           <div className="boss-modal-card" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setConfirmationSuccess(false)}
-              className="modal-close-btn"
-              title="Close Dialog"
-            >
-              &times;
-            </button>
-
             {/* Sovereign Gazette Header Badge */}
             <div className="modal-gazette-badge">
               <span>SOVEREIGN LAND RECORDS REGISTRY</span>
@@ -717,7 +727,7 @@ export const BossParcelDeterminationPage: React.FC = () => {
               <div className="modal-summary-item">
                 <span className="item-label">Total Confirmed Area:</span>
                 <span className="item-value font-mono">
-                  {metrics.selectedArea} Acres ({((metrics.selectedArea) * 0.404686).toFixed(2)} Ha)
+                  {Number(metrics?.selectedArea || 0).toFixed(1)} Acres ({(Number(metrics?.selectedArea || 0) * 0.404686).toFixed(2)} Ha)
                 </span>
               </div>
               <div className="modal-summary-item">
@@ -739,30 +749,43 @@ export const BossParcelDeterminationPage: React.FC = () => {
             </div>
 
             <div className="modal-actions-container">
-              <button
-                type="button"
-                onClick={() => navigate(`/boss/projects/${project?.id}/workflow?select=true`)}
-                className="modal-btn-primary"
-              >
-                Choose Workflow &rarr;
-              </button>
+              {hasWorkflow ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/boss/projects/${project?.id}`)}
+                  className="modal-btn-primary"
+                  style={{ backgroundColor: '#0f172a', borderColor: '#0f172a' }}
+                >
+                  Return to Project Dossier &rarr;
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/boss/projects/${project?.id}/workflow?select=true`)}
+                    className="modal-btn-primary"
+                  >
+                    Choose Workflow &rarr;
+                  </button>
 
-              <div className="modal-actions-secondary-row">
-                <button
-                  type="button"
-                  onClick={() => setConfirmationSuccess(false)}
-                  className="modal-btn-secondary"
-                >
-                  &larr; Review Workbench
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/boss/dashboard')}
-                  className="modal-btn-secondary-black"
-                >
-                  BOSS Worklist &rarr;
-                </button>
-              </div>
+                  <div className="modal-actions-secondary-row">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/boss/projects/${project?.id}`)}
+                      className="modal-btn-secondary"
+                    >
+                      &larr; Project Dossier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/boss/dashboard')}
+                      className="modal-btn-secondary-black"
+                    >
+                      BOSS Worklist &rarr;
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

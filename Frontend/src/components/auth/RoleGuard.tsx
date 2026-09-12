@@ -3,6 +3,18 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import type { UserRole } from '../../types/auth.types';
 
+export const getRoleHomeDashboard = (role?: UserRole): string => {
+  switch (role) {
+    case 'BOSS':
+      return '/boss/dashboard';
+    case 'PROCESSING_OFFICER':
+      return '/officer/dashboard';
+    case 'REQUESTING_AUTHORITY':
+    default:
+      return '/projects';
+  }
+};
+
 interface RoleGuardProps {
   allowedRoles: UserRole[];
   children?: React.ReactNode;
@@ -16,12 +28,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ allowedRoles, children }) 
   }
 
   if (!allowedRoles.includes(user.role)) {
-    return (
-      <div style={{ padding: '2rem' }}>
-        <h3>Access Denied</h3>
-        <p>Your role ({user.role}) is not authorized to access this module.</p>
-      </div>
-    );
+    return <Navigate to={getRoleHomeDashboard(user.role)} replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

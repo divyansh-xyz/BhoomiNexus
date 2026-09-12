@@ -17,11 +17,12 @@ export const getNationalOverview = async (req: Request, res: Response, next: Nex
     const data = result.rows[0];
 
     res.json({
-      projectsUnderway: parseInt(data.total_projects) - parseInt(data.completed_projects),
+      totalProjects: parseInt(data.total_projects),
+      projectsInProgress: parseInt(data.total_projects) - parseInt(data.completed_projects),
       projectsCompleted: parseInt(data.completed_projects),
-      landProposedAcres: parseFloat(data.total_area_proposed || '0'),
-      landAcquiredAcres: parseFloat(data.total_area_acquired || '0'),
-      compensationPaidCr: parseFloat(data.total_compensation_paid || '0'),
+      landProposed: parseFloat(data.total_area_proposed || '0'),
+      landAcquired: parseFloat(data.total_area_acquired || '0'),
+      compensationPaid: parseFloat(data.total_compensation_paid || '0'),
     });
   } catch (error) {
     next(error);
@@ -40,9 +41,9 @@ export const getStatesList = async (req: Request, res: Response, next: NextFunct
     `);
 
     res.json(result.rows.map(row => ({
-      id: row.code,
-      name: row.name,
-      activeProjects: parseInt(row.active_projects),
+      stateId: row.code,
+      stateName: row.name,
+      projectCount: parseInt(row.active_projects),
     })));
   } catch (error) {
     next(error);
@@ -75,14 +76,14 @@ export const getStateMetrics = async (req: Request, res: Response, next: NextFun
     const completedProjects = parseInt(data.completed_projects);
 
     res.json({
-      stateId,
-      stateName,
-      totalProjects,
+      state: stateName,
+      stateCode: stateId,
+      projectCount: totalProjects,
       completedProjects,
-      projectsInProgress: totalProjects - completedProjects,
-      landProposedAcres: parseFloat(data.total_area_proposed || '0'),
-      landAcquiredAcres: parseFloat(data.total_area_acquired || '0'),
-      compensationPaidCr: parseFloat(data.total_compensation_paid || '0'),
+      activeProjects: totalProjects - completedProjects,
+      landProposed: parseFloat(data.total_area_proposed || '0'),
+      landAcquired: parseFloat(data.total_area_acquired || '0'),
+      compensationPaid: parseFloat(data.total_compensation_paid || '0'),
       highRiskProjects: Math.floor(Math.random() * (totalProjects / 10)), // Mocked high risk for now
     });
   } catch (error) {

@@ -6,11 +6,16 @@ import { ApiError } from "../utils/apiError";
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return next(new ApiError(401, "Unauthorized: No token provided"));
+    let token: string | undefined;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else if (req.query && typeof req.query.token === "string") {
+      token = req.query.token;
     }
 
-    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return next(new ApiError(401, "Unauthorized: No token provided"));
+    }
     const decoded = jwt.verify(token, env.JWT_SECRET) as {
       userId: string;
       email: string;

@@ -44,7 +44,8 @@ export interface WorkflowStageInstance {
   description: string;
   department: string;
   assignedRole: string;
-  assignedOfficer: GovernmentOfficer;
+  assignedOfficer?: GovernmentOfficer;
+  assignedOfficerId?: string;
   slaDays: number;
   isMandatory: boolean;
   requiredDocuments: string[];
@@ -55,7 +56,7 @@ export interface ProjectWorkflowInstance {
   projectId: string;
   templateId: string;
   templateName: string;
-  status: 'DRAFT' | 'ACTIVATED';
+  status: 'DRAFT' | 'ACTIVATED' | 'ACTIVE';
   activatedAt?: string;
   activatedBy?: string;
   stages: WorkflowStageInstance[];

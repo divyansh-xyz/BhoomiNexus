@@ -15,6 +15,9 @@ import bossRoutes from "./modules/boss/boss.route";
 import { templateRouter, projectWorkflowRouter } from "./modules/workflows/workflows.route";
 import tasksRoutes from "./modules/tasks/tasks.route";
 import documentsRoutes from "./modules/documents/documents.route";
+import grievanceRoutes from "./modules/grievances/grievances.route";
+import whatsappRoutes from "./modules/whatsapp/whatsapp.route";
+import notificationsRoutes from "./modules/notifications/notifications.route";
 
 import { authenticate } from "./middlewares/auth.middleware";
 import { authorize } from "./middlewares/rbac.middleware";
@@ -47,6 +50,9 @@ app.use("/api/v1/projects/:projectId/workflow", projectWorkflowRouter);
 app.use("/api/v1/tasks", tasksRoutes);
 app.post("/api/v1/projects/:projectId/workflow-stages/:stageId/resubmit", authenticate, authorize(["REQUESTING_AUTHORITY"]), resubmitStage);
 app.use("/api/v1/documents", documentsRoutes);
+app.use("/api/v1", grievanceRoutes);
+app.use("/api/v1/integrations/whatsapp", whatsappRoutes);
+app.use("/api/v1/notifications", notificationsRoutes);
 
 app.use((req, res, next) => {
   res.status(404).json({ success: false, error: { message: "Route not found" } });

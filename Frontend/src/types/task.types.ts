@@ -28,7 +28,7 @@ export interface WorkflowTask {
   startedAt?: string;
   completedAt?: string;
   rejectionReason?: string;
-  requiredDocuments: string[];
+  requiredDocuments: any[];
   evidenceDocuments?: string[];
   createdAt: string;
 }

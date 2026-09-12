@@ -5,7 +5,7 @@
  * ============================================================
  */
 
-import type { ProjectDocument } from './boss.types';
+
 
 export type InfrastructureType =
   | 'HIGHWAY_CORRIDOR'
@@ -31,7 +31,7 @@ export interface CreateProjectRequestDTO {
   description: string;
   estimatedBudgetCr: number;
   corridorCoordinates: [number, number][];
-  documents: Omit<ProjectDocument, 'id' | 'uploadedAt' | 'verified'>[];
+  documentIds?: string[];
 }
 
 export interface CorridorPreset {

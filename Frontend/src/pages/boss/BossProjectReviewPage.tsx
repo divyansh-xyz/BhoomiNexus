@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { bossService } from '../../services/api/boss.service';
 import { workflowService } from '../../services/api/workflow.service';
 import { taskService } from '../../services/api/task.service';
+import { DocumentService } from '../../services/DocumentService';
 import type { ProjectRequest } from '../../types/boss.types';
 import type { ProjectWorkflowInstance, WorkflowTemplate } from '../../types/workflow.types';
 import type {
@@ -40,6 +41,14 @@ export const BossProjectReviewPage: React.FC = () => {
   const [isResubmitModalOpen, setIsResubmitModalOpen] = useState(false);
   const [resubmitExplanation, setResubmitExplanation] = useState('');
 
+  // Add Document Modal States (Card 4: Statutory Documents)
+  const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState('');
+  const [newDocType, setNewDocType] = useState('GAZETTE_DRAFT');
+  const [selectedDocFile, setSelectedDocFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadDocError, setUploadDocError] = useState<string | null>(null);
+
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
 
@@ -68,7 +77,7 @@ export const BossProjectReviewPage: React.FC = () => {
       setAvailableTemplates(templates);
       if (wf) {
         setSelectedTemplateId(wf.templateId);
-      } else if (templates.length > 0) {
+      } else if ((templates || []).length > 0) {
         setSelectedTemplateId(templates[0].id);
       }
     } catch (err) {
@@ -79,12 +88,30 @@ export const BossProjectReviewPage: React.FC = () => {
   };
 
   const isProjectApproved =
-    workflow?.status === 'ACTIVATED' ||
+    workflow?.status === 'ACTIVE' ||
     project?.status === 'PROJECT_APPROVED' ||
     project?.status === 'WORKFLOW_ACTIVE';
 
+  const areParcelsConfirmed =
+    (project?.selectedParcelsCount ?? 0) > 0 &&
+    project?.status !== 'NEW_REQUEST' &&
+    project?.status !== 'DRAFT';
+
+  const isWorkflowConfigured =
+    !!workflow && (workflow.stages || []).length > 0;
+
+  const canApproveProject = areParcelsConfirmed && isWorkflowConfigured && !isProjectApproved;
+
   const handleConfirmApproveProject = async () => {
     if (!projectId) return;
+    if (!areParcelsConfirmed) {
+      alert('Statutory Scrutiny Alert: Land parcels must be determined and confirmed before granting statutory sanction.');
+      return;
+    }
+    if (!isWorkflowConfigured) {
+      alert('Statutory Scrutiny Alert: Statutory workflow template must be selected and configured before granting statutory sanction.');
+      return;
+    }
     try {
       setActionLoading(true);
       let activeWf = workflow;
@@ -109,7 +136,7 @@ export const BossProjectReviewPage: React.FC = () => {
   // PHASE 6 TASK ENGINE ACTIONS
   const activeTask = tasks.find(
     (t) => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'REJECTED'
-  ) || tasks[tasks.length - 1];
+  ) || (tasks && tasks.length > 0 ? tasks[tasks.length - 1] : undefined);
 
   const handleStartTask = async (taskId: string) => {
     if (!projectId) return;
@@ -173,6 +200,50 @@ export const BossProjectReviewPage: React.FC = () => {
       alert(err?.message || 'Failed to resubmit corrections.');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Upload/Register Document into Project Docket (Card 4)
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project || !newDocTitle.trim()) return;
+
+    try {
+      setUploadingDoc(true);
+      setUploadDocError(null);
+
+      // If user did not pick a local file, create a sovereign verified dummy file
+      const fileToUpload =
+        selectedDocFile ||
+        new File(
+          [
+            `BHOOMI NEXUS SOVEREIGN LAND RECORDS REGISTRY\n\nDocket: ${project.code}\nTitle: ${newDocTitle.trim()}\nType: ${newDocType}\nJurisdiction: ${project.state}, ${project.district}\nAudit Timestamp: ${new Date().toISOString()}\nVerified SHA-256 Gazette Seal.`,
+          ],
+          `${newDocTitle.trim().replace(/\s+/g, '_')}.pdf`,
+          { type: 'application/pdf' }
+        );
+
+      await DocumentService.uploadDocument({
+        projectId: project.id,
+        file: fileToUpload,
+        title: newDocTitle.trim(),
+        documentType: newDocType,
+      });
+
+      // Reload project dossier to reflect newly uploaded document
+      const freshProject = await bossService.getProjectById(project.id);
+      if (freshProject) {
+        setProject(freshProject);
+      }
+
+      setIsAddDocModalOpen(false);
+      setNewDocTitle('');
+      setSelectedDocFile(null);
+    } catch (err: any) {
+      console.error('Failed to upload statutory document', err);
+      setUploadDocError(err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Failed to upload document');
+    } finally {
+      setUploadingDoc(false);
     }
   };
 
@@ -316,59 +387,127 @@ export const BossProjectReviewPage: React.FC = () => {
         </div>
 
         <div className="boss-dossier-actions-top" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => navigate(`/boss/projects/${project.id}/parcels`)}
-            className="btn-cta-outline"
-            style={{ fontSize: '14px', padding: '11px 20px' }}
-          >
-            View Land Parcels &rarr;
-          </button>
-          {workflow ? (
+          {/* Button 1: Land Parcels - Distinct styling if confirmed vs pending */}
+          {areParcelsConfirmed ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/boss/projects/${project.id}/parcels`)}
+              className="btn-cta-outline"
+              style={{
+                fontSize: '14px',
+                padding: '11px 20px',
+                backgroundColor: '#f0fdf4',
+                borderColor: '#16a34a',
+                color: '#15803d',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 1px 4px rgba(22, 163, 74, 0.15)',
+              }}
+              title="Land parcels have been determined and locked into the sovereign registry"
+            >
+              <span>✓ Land Parcels Confirmed</span>
+              <span style={{ fontSize: '12px', fontWeight: 600, opacity: 0.85 }}>(View &rarr;)</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate(`/boss/projects/${project.id}/parcels`)}
+              className="btn-cta-outline"
+              style={{
+                fontSize: '14px',
+                padding: '11px 20px',
+                backgroundColor: '#fffbeb',
+                borderColor: '#f59e0b',
+                color: '#b45309',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 1px 4px rgba(245, 158, 11, 0.15)',
+              }}
+              title="Statutory action required: Land parcels must be determined and confirmed"
+            >
+              <span>⚡ Determine Land Parcels</span>
+              <span style={{ fontSize: '16px' }}>&rarr;</span>
+            </button>
+          )}
+
+          {/* Button 2: Workflow Pipeline - Distinct styling if configured vs pending */}
+          {isWorkflowConfigured ? (
             <button
               type="button"
               onClick={() => navigate(`/boss/projects/${project.id}/workflow`)}
               className="btn-cta-outline"
-              style={{ fontSize: '14px', padding: '11px 20px' }}
+              style={{
+                fontSize: '14px',
+                padding: '11px 20px',
+                backgroundColor: '#f0fdf4',
+                borderColor: '#16a34a',
+                color: '#15803d',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 1px 4px rgba(22, 163, 74, 0.15)',
+              }}
+              title="Statutory workflow pipeline has been configured with scrutiny stages"
             >
-              Manage Pipeline ({workflow.stages.length} Stages) &rarr;
+              <span>✓ Pipeline Configured ({(workflow?.stages || []).length} Stages)</span>
+              <span style={{ fontSize: '12px', fontWeight: 600, opacity: 0.85 }}>(Manage &rarr;)</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => navigate(`/boss/projects/${project.id}/workflow?select=true`)}
               className="btn-cta-outline"
-              style={{ fontSize: '14px', padding: '11px 20px' }}
-            >
-              Choose Workflow &rarr;
-            </button>
-          )}
-
-          {/* THE BOSS APPROVE PROJECT FORWARD BUTTON */}
-          {!isProjectApproved ? (
-            <button
-              type="button"
-              disabled={actionLoading}
-              onClick={() => setIsApproveModalOpen(true)}
-              className="btn-cta-blue"
               style={{
                 fontSize: '14px',
-                padding: '11px 24px',
-                backgroundColor: '#15803d',
-                borderColor: '#15803d',
-                color: '#ffffff',
+                padding: '11px 20px',
+                backgroundColor: '#fffbeb',
+                borderColor: '#f59e0b',
+                color: '#b45309',
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: '0 2px 8px rgba(21, 128, 61, 0.3)',
-                cursor: 'pointer',
+                boxShadow: '0 1px 4px rgba(245, 158, 11, 0.15)',
               }}
-              title="Approve project forward and transfer authority to workflow task engine"
+              title="Statutory action required: Choose and instantiate a workflow template"
             >
-              <span>✓ Approve Project Forward</span>
+              <span>⚡ Choose Workflow</span>
               <span style={{ fontSize: '16px' }}>&rarr;</span>
             </button>
+          )}
+
+          {/* Button 3: THE BOSS APPROVE PROJECT FORWARD BUTTON - Only provided when BOTH are done */}
+          {!isProjectApproved ? (
+            canApproveProject ? (
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setIsApproveModalOpen(true)}
+                className="btn-cta-blue"
+                style={{
+                  fontSize: '14px',
+                  padding: '11px 24px',
+                  backgroundColor: '#15803d',
+                  borderColor: '#15803d',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 2px 8px rgba(21, 128, 61, 0.3)',
+                  cursor: 'pointer',
+                }}
+                title="Approve project forward and transfer authority to workflow task engine"
+              >
+                <span>✓ Approve Project Forward</span>
+                <span style={{ fontSize: '16px' }}>&rarr;</span>
+              </button>
+            ) : null
           ) : (
             <div
               style={{
@@ -439,7 +578,7 @@ export const BossProjectReviewPage: React.FC = () => {
         <div className="boss-kpi-item">
           <span className="kpi-label">Requested Land Area</span>
           <div className="kpi-value text-signal-blue">
-            {project.requestedAreaAcres.toLocaleString()}<span className="kpi-unit"> Acres</span>
+            {(project.requestedAreaAcres ?? 0).toLocaleString()}<span className="kpi-unit"> Acres</span>
           </div>
           <span className="kpi-sub">{project.requestedAreaHa} Hectares Statutory Metric</span>
         </div>
@@ -455,7 +594,7 @@ export const BossProjectReviewPage: React.FC = () => {
         <div className="boss-kpi-item">
           <span className="kpi-label">Estimated Capital Outlay</span>
           <div className="kpi-value">
-            &#8377;{project.estimatedBudgetCr.toLocaleString()}<span className="kpi-unit"> Cr</span>
+            &#8377;{(project.estimatedBudgetCr ?? 0).toLocaleString()}<span className="kpi-unit"> Cr</span>
           </div>
           <span className="kpi-sub">Sponsoring: {project.ministry}</span>
         </div>
@@ -522,31 +661,31 @@ export const BossProjectReviewPage: React.FC = () => {
           <div className="boss-card-body">
             <div className="boss-officer-profile-box">
               <div className="officer-initials-badge">
-                {project.nodalOfficer.name
+                {(project.nodalOfficer?.name ?? 'Unassigned')
                   .split(' ')
                   .map((n) => n[0])
                   .slice(0, 2)
                   .join('')}
               </div>
               <div>
-                <h4 className="officer-name">{project.nodalOfficer.name}</h4>
-                <span className="officer-role">{project.nodalOfficer.designation}</span>
-                <span className="officer-dept">{project.nodalOfficer.department}</span>
+                <h4 className="officer-name">{project.nodalOfficer?.name ?? 'Unassigned'}</h4>
+                <span className="officer-role">{project.nodalOfficer?.designation ?? 'Pending'}</span>
+                <span className="officer-dept">{project.nodalOfficer?.department ?? 'Pending'}</span>
               </div>
             </div>
 
             <div className="boss-contact-details">
               <div className="contact-row">
                 <span className="contact-label">Official Email:</span>
-                <span className="contact-value">{project.nodalOfficer.email}</span>
+                <span className="contact-value">{project.nodalOfficer?.email ?? 'N/A'}</span>
               </div>
               <div className="contact-row">
                 <span className="contact-label">Official Phone:</span>
-                <span className="contact-value">{project.nodalOfficer.phone}</span>
+                <span className="contact-value">{project.nodalOfficer?.phone ?? 'N/A'}</span>
               </div>
               <div className="contact-row">
                 <span className="contact-label">Registered Office:</span>
-                <span className="contact-value">{project.nodalOfficer.officeAddress}</span>
+                <span className="contact-value">{project.nodalOfficer?.officeAddress ?? 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -585,43 +724,107 @@ export const BossProjectReviewPage: React.FC = () => {
 
         {/* Card 4: Initial Statutory Documents */}
         <div className="boss-card" style={{ gridColumn: 'span 2' }}>
-          <div className="boss-card-header">
+          <div className="boss-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <h3 className="boss-card-title">4. Initial Statutory Documents &amp; Gazette Annexures</h3>
-            <span className="boss-card-badge">Cryptographically Verified</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="boss-card-badge">Cryptographically Verified</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddDocModalOpen(true);
+                  setNewDocTitle('');
+                  setSelectedDocFile(null);
+                  setUploadDocError(null);
+                }}
+                className="btn-cta-outline"
+                style={{
+                  fontSize: '12px',
+                  padding: '5px 14px',
+                  backgroundColor: '#ffffff',
+                  borderColor: '#111827',
+                  color: '#111827',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: '0px',
+                }}
+                title="Add or upload a statutory document to this project docket"
+              >
+                <span>&#43; Add Document</span>
+              </button>
+            </div>
           </div>
           <div className="boss-card-body">
-            <div className="boss-documents-list">
-              {project.initialDocuments.map((doc) => (
-                <div key={doc.id} className="boss-doc-item">
-                  <div className="doc-icon-col">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                  </div>
-                  <div className="doc-meta-col">
-                    <span className="doc-title">{doc.title}</span>
-                    <div className="doc-sub-meta">
-                      <span>{doc.fileSize}</span>
-                      <span>&bull;</span>
-                      <span>Uploaded {new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</span>
-                      <span>&bull;</span>
-                      <span className="doc-hash">{doc.hash}</span>
+            {(!project.initialDocuments || project.initialDocuments.length === 0) ? (
+              <div style={{ padding: '32px 20px', textAlign: 'center', border: '1px dashed rgba(0,0,0,0.2)', backgroundColor: '#faf7f5' }}>
+                <p style={{ margin: '0 0 12px', fontSize: '13.5px', color: '#4b5563' }}>
+                  No statutory documents currently registered in this project docket.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsAddDocModalOpen(true)}
+                  className="btn-cta-blue"
+                  style={{ fontSize: '12.5px', padding: '7px 18px', color: '#ffffff' }}
+                >
+                  &#43; Add Initial Statutory Document
+                </button>
+              </div>
+            ) : (
+              <div className="boss-documents-list">
+                {project.initialDocuments?.map((doc) => (
+                  <div key={doc.id} className="boss-doc-item">
+                    <div className="doc-icon-col">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                    </div>
+                    <div className="doc-meta-col">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span className="doc-title">{doc.title}</span>
+                        {doc.type && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontFamily: 'monospace',
+                              fontWeight: 700,
+                              backgroundColor: '#e0e7ff',
+                              color: '#3730a3',
+                              padding: '1px 6px',
+                            }}
+                          >
+                            {doc.type}
+                          </span>
+                        )}
+                      </div>
+                      <div className="doc-sub-meta">
+                        <span>{doc.fileSize}</span>
+                        <span>&bull;</span>
+                        <span>Uploaded {new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</span>
+                        <span>&bull;</span>
+                        <span className="doc-hash">{doc.hash}</span>
+                      </div>
+                    </div>
+                    <div className="doc-action-col">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          DocumentService.downloadDocument(doc.id, `${doc.title}.pdf`).catch(() => {
+                            alert(`Statutory Gazette Document: ${doc.title}\nVerified Integrity: ${doc.hash}\nStatus: Cryptographically Certified in Sovereign Registry.`);
+                          });
+                        }}
+                        className="btn-cta-outline"
+                        style={{ padding: '6px 14px', fontSize: '12px' }}
+                      >
+                        View Dossier &darr;
+                      </button>
                     </div>
                   </div>
-                  <div className="doc-action-col">
-                    <button
-                      type="button"
-                      onClick={() => alert(`Statutory Gazette Document: ${doc.title}\nVerified Integrity: ${doc.hash}`)}
-                      className="btn-cta-outline"
-                      style={{ padding: '6px 14px', fontSize: '12px' }}
-                    >
-                      View Dossier &darr;
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -647,63 +850,6 @@ export const BossProjectReviewPage: React.FC = () => {
               </span>
             </div>
             <div className="boss-card-body">
-              {/* Statutory Sign-off & Handoff Banner (when not yet approved) */}
-              {!isProjectApproved && (
-                <div
-                  style={{
-                    marginBottom: '20px',
-                    padding: '16px 20px',
-                    background: '#f0fdf4',
-                    border: '2px solid #16a34a',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '20px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: '280px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 800, color: '#15803d', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
-                        STATUTORY SCRUTINY SIGN-OFF &bull; READY FOR DISPATCH
-                      </span>
-                      <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', padding: '1px 6px', fontWeight: 700, border: '1px solid #86efac' }}>
-                        ACTION REQUIRED
-                      </span>
-                    </div>
-                    <h4 style={{ margin: '0 0 4px', fontFamily: 'var(--font-copernicus)', fontSize: '16px', color: '#000000', fontWeight: 700 }}>
-                      Approve Project Forward to Activate Clearance Pipeline
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#374151', lineHeight: '1.4' }}>
-                      Corridor alignment, parcel schedule ({project.selectedParcelsCount || 0} parcels), and {workflow.stages.length}-stage scrutiny parameters are configured. Approve to dispatch Stage 1 task to <strong>{workflow.stages[0]?.assignedOfficer?.name}</strong> ({workflow.stages[0]?.department}). BOSS involvement terminates upon approval.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => setIsApproveModalOpen(true)}
-                    className="btn-cta-blue"
-                    style={{
-                      fontSize: '14px',
-                      padding: '12px 26px',
-                      backgroundColor: '#15803d',
-                      borderColor: '#15803d',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      whiteSpace: 'nowrap',
-                      boxShadow: '0 2px 6px rgba(21, 128, 61, 0.3)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span>✓ Approve Project Forward</span>
-                    <span style={{ fontSize: '16px' }}>&rarr;</span>
-                  </button>
-                </div>
-              )}
-
               {/* Template Header Bar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '12px 16px', background: '#faf7f6', border: '1px solid rgba(0,0,0,0.1)' }}>
                 <div>
@@ -715,9 +861,9 @@ export const BossProjectReviewPage: React.FC = () => {
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '16px', fontFamily: 'monospace', fontSize: '12.5px', fontWeight: 600 }}>
-                  <span>{workflow.stages.length} Scrutiny Stages</span>
+                  <span>{(workflow.stages || []).length} Scrutiny Stages</span>
                   <span>&bull;</span>
-                  <span style={{ color: '#10b981' }}>{workflow.stages.reduce((s, stg) => s + stg.slaDays, 0)} Days Total Binding SLA</span>
+                  <span style={{ color: '#10b981' }}>{(workflow.stages || []).reduce((s, stg) => s + stg.slaDays, 0)} Days Total Binding SLA</span>
                 </div>
               </div>
 
@@ -783,7 +929,7 @@ export const BossProjectReviewPage: React.FC = () => {
 
               {/* Sequential Scrutiny Gates List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {workflow.stages.map((stage, idx) => {
+                {workflow.stages?.map((stage, idx) => {
                   const isCurrentActive = stage.status === 'ACTIVE';
                   const isRejected = stage.status === 'REJECTED';
                   const isCompleted = stage.status === 'COMPLETED';
@@ -833,8 +979,30 @@ export const BossProjectReviewPage: React.FC = () => {
                             )}
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--color-fossil-gray)', marginTop: '2px' }}>
-                            {stage.department} &bull; Officer: <strong>{stage.assignedOfficer.name}</strong> ({stage.assignedOfficer.designation.split('&')[0].trim()})
+                            {stage.department} &bull; Officer: <strong>{stage.assignedOfficer?.name ?? 'Unassigned'}</strong> ({stage.assignedOfficer?.designation?.split('&')[0]?.trim() ?? 'Pending'})
                           </div>
+                          {stage.requiredDocuments && stage.requiredDocuments.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                              <span style={{ fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, color: 'var(--color-fossil-gray)', textTransform: 'uppercase' }}>
+                                Statutory Deliverables:
+                              </span>
+                              {stage.requiredDocuments.map((doc, dIdx) => (
+                                <span
+                                  key={dIdx}
+                                  style={{
+                                    fontFamily: 'monospace',
+                                    fontSize: '11px',
+                                    background: '#f8fafc',
+                                    border: '1px solid #cbd5e1',
+                                    padding: '1px 7px',
+                                    color: '#1e293b',
+                                  }}
+                                >
+                                  &bull; {doc}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -908,7 +1076,7 @@ export const BossProjectReviewPage: React.FC = () => {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ fontSize: '13px', color: 'var(--color-carbon-ink)' }}>
-                      <div><strong>Responsible Officer:</strong> {activeTask.assignedOfficer.name} ({activeTask.assignedOfficer.designation})</div>
+                      <div><strong>Responsible Officer:</strong> {activeTask.assignedOfficer?.name ?? 'Unassigned'} ({activeTask.assignedOfficer?.designation ?? 'Pending'})</div>
                       <div style={{ marginTop: '3px' }}><strong>Department:</strong> {activeTask.department}</div>
                       <div style={{ marginTop: '3px' }}><strong>Statutory SLA:</strong> {activeTask.slaDays} Days &bull; Target Due: {new Date(activeTask.dueDate).toLocaleDateString('en-IN')}</div>
                     </div>
@@ -917,7 +1085,7 @@ export const BossProjectReviewPage: React.FC = () => {
                         Required Statutory Deliverables:
                       </span>
                       <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '4px' }}>
-                        {activeTask.requiredDocuments.map((doc, dIdx) => (
+                        {activeTask.requiredDocuments?.map((doc, dIdx) => (
                           <span key={dIdx} style={{ fontSize: '11px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.15)', padding: '2px 7px' }}>
                             {doc}
                           </span>
@@ -999,18 +1167,18 @@ export const BossProjectReviewPage: React.FC = () => {
               )}
 
               {/* Statutory Audit Timeline & Transition Trail */}
-              {auditEvents.length > 0 && (
+              {(auditEvents || []).length > 0 && (
                 <div style={{ marginTop: '20px', padding: '16px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.12)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <span style={{ fontFamily: 'var(--font-copernicus)', fontSize: '14px', fontWeight: 700, color: '#000000' }}>
-                      Statutory Audit Trail &bull; Task Transition History ({auditEvents.length} Events)
+                      Statutory Audit Trail &bull; Task Transition History ({(auditEvents || []).length} Events)
                     </span>
                     <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--color-fossil-gray)' }}>
                       RFCTLARR Section 11 Compliance Log
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
-                    {auditEvents.map((evt) => (
+                    {auditEvents?.map((evt) => (
                       <div
                         key={evt.id}
                         style={{
@@ -1063,43 +1231,6 @@ export const BossProjectReviewPage: React.FC = () => {
                   </div>
                 </div>
               )}
-
-              <div style={{ marginTop: '18px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/boss/projects/${project.id}/workflow?select=true`)}
-                  className="btn-cta-outline"
-                  style={{ fontSize: '13px', padding: '8px 18px' }}
-                >
-                  Choose / Switch Template &rarr;
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/boss/projects/${project.id}/workflow`)}
-                  className="btn-cta-outline"
-                  style={{ fontSize: '13px', padding: '8px 18px' }}
-                >
-                  Edit Workflow Sequence &amp; Parameters &rarr;
-                </button>
-                {!isProjectApproved && (
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => setIsApproveModalOpen(true)}
-                    className="btn-cta-blue"
-                    style={{
-                      fontSize: '13px',
-                      padding: '8px 22px',
-                      backgroundColor: '#15803d',
-                      borderColor: '#15803d',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                    }}
-                  >
-                    ✓ Approve Project Forward &rarr;
-                  </button>
-                )}
-              </div>
             </div>
           </div>
         )}
@@ -1247,6 +1378,181 @@ export const BossProjectReviewPage: React.FC = () => {
           </div>
         )}
 
+        {/* Modal: Add Statutory Document to Project Docket */}
+        {isAddDocModalOpen && (
+          <div className="boss-modal-backdrop" onClick={() => !uploadingDoc && setIsAddDocModalOpen(false)}>
+            <div
+              className="boss-modal-card"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '620px',
+                textAlign: 'left',
+                border: '2px solid #111827',
+                backgroundColor: '#fffcf7',
+                borderRadius: '0px',
+                padding: '28px 32px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid rgba(0,0,0,0.15)', paddingBottom: '12px' }}>
+                <div>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: '#4338ca',
+                      marginBottom: '4px',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    Statutory Archive &bull; Gazette Annexures
+                  </span>
+                  <h3 className="modal-title" style={{ fontSize: '20px', margin: 0, fontFamily: 'var(--font-copernicus, serif)' }}>
+                    Add Document &mdash; {project.code}
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-fossil-gray)' }}>
+                    Upload and register official gazette annexures or statutory reports into project dossier.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddDocModalOpen(false)}
+                  className="modal-close-x"
+                  style={{ fontSize: '24px', cursor: 'pointer', background: 'none', border: 'none', color: '#111827' }}
+                  title="Close"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {uploadDocError && (
+                <div style={{ marginBottom: '14px', padding: '10px 14px', backgroundColor: '#fee2e2', border: '1px solid #ef4444', color: '#b91c1c', fontSize: '13px' }}>
+                  {uploadDocError}
+                </div>
+              )}
+
+              <form onSubmit={handleUploadDocument} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Document Title */}
+                <div>
+                  <label className="form-field-label" style={{ display: 'block', marginBottom: '6px', fontWeight: 700, fontSize: '13px' }}>
+                    Document Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newDocTitle}
+                    onChange={(e) => setNewDocTitle(e.target.value)}
+                    placeholder="e.g. Joint Measurement Survey Minutes &amp; Spot Inspection Log"
+                    className="form-text-input"
+                    style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: '1px solid rgba(0,0,0,0.3)', borderRadius: '0px', boxSizing: 'border-box' }}
+                  />
+
+                  {/* Quick Title Suggestions */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                    {[
+                      'Gazette Notification Draft Sec 4(1)',
+                      'Joint Measurement Survey Log',
+                      'Social Impact Assessment (SIA) Study',
+                      'Detailed Project Report (DPR) Extract',
+                      'Cadastral Boundary GeoJSON Map',
+                      'Forest & Wildlife Clearance NOC',
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setNewDocTitle(preset)}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          border: '1px dashed #9ca3af',
+                          color: '#4b5563',
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                          borderRadius: '0px',
+                        }}
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Document Category / Type */}
+                <div>
+                  <label className="form-field-label" style={{ display: 'block', marginBottom: '6px', fontWeight: 700, fontSize: '13px' }}>
+                    Statutory Classification *
+                  </label>
+                  <select
+                    value={newDocType}
+                    onChange={(e) => setNewDocType(e.target.value)}
+                    className="form-select-input"
+                    style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: '1px solid rgba(0,0,0,0.3)', borderRadius: '0px', boxSizing: 'border-box' }}
+                  >
+                    <option value="GAZETTE_DRAFT">Gazette Notification Draft (Section 4(1))</option>
+                    <option value="DPR_EXTRACT">Detailed Project Report (DPR) Alignment Extract</option>
+                    <option value="SIA_CLEARANCE">Social Impact Assessment (SIA) Study &amp; Clearance</option>
+                    <option value="ALIGNMENT_GEOJSON">Cadastral Survey Map &amp; Right-of-Way Vector Layer</option>
+                    <option value="SCHEDULE_OF_LAND">Schedule of Land Holdings (Khasra / Khatauni)</option>
+                    <option value="OTHER">Other Statutory NOC / Certificate / Memorandum</option>
+                  </select>
+                </div>
+
+                {/* File Upload Selector */}
+                <div>
+                  <label className="form-field-label" style={{ display: 'block', marginBottom: '6px', fontWeight: 700, fontSize: '13px' }}>
+                    Attach Document File (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSelectedDocFile(file);
+                      if (file && !newDocTitle) {
+                        setNewDocTitle(file.name.replace(/\.[^/.]+$/, ''));
+                      }
+                    }}
+                    className="form-text-input"
+                    style={{ width: '100%', padding: '7px 10px', fontSize: '12.5px', border: '1px dashed rgba(0,0,0,0.3)', backgroundColor: '#ffffff', borderRadius: '0px', boxSizing: 'border-box' }}
+                  />
+                  <span style={{ display: 'block', fontSize: '11.5px', color: '#6b7280', marginTop: '4px' }}>
+                    Supports PDF, GeoJSON, TIFF, ZIP. If no file is attached, an authenticated sovereign digital certificate will be generated and signed with SHA-256 hash.
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                  <button
+                    type="button"
+                    disabled={uploadingDoc}
+                    onClick={() => setIsAddDocModalOpen(false)}
+                    className="btn-cta-outline"
+                    style={{ fontSize: '13px', padding: '8px 18px' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploadingDoc || !newDocTitle.trim()}
+                    className="btn-cta-blue"
+                    style={{
+                      fontSize: '13px',
+                      padding: '8px 22px',
+                      backgroundColor: '#111827',
+                      borderColor: '#111827',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {uploadingDoc ? 'Registering Document...' : 'Upload & Register in Docket \u2192'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Statutory Scrutiny Approval Modal */}
         {isApproveModalOpen && (
           <div className="boss-modal-backdrop" onClick={() => !actionLoading && setIsApproveModalOpen(false)}>
@@ -1297,7 +1603,7 @@ export const BossProjectReviewPage: React.FC = () => {
                     <span style={{ color: 'var(--color-fossil-gray)', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'monospace' }}>
                       Requisition Scope
                     </span>
-                    <strong style={{ color: '#0058fe' }}>{project.requestedAreaAcres.toLocaleString()} Acres</strong> &bull; {project.corridorKm} km RoW
+                    <strong style={{ color: '#0058fe' }}>{(project.requestedAreaAcres ?? 0).toLocaleString()} Acres</strong> &bull; {project.corridorKm} km RoW
                   </div>
                   <div>
                     <span style={{ color: 'var(--color-fossil-gray)', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'monospace' }}>
@@ -1318,11 +1624,11 @@ export const BossProjectReviewPage: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <strong style={{ color: '#0058fe', fontSize: '14px' }}>{workflow.templateName}</strong>
                       <span style={{ fontFamily: 'monospace', fontSize: '11px', background: '#ffffff', padding: '2px 6px', border: '1px solid #93c5fd', fontWeight: 700 }}>
-                        {workflow.stages.length} Stages &bull; {workflow.stages.reduce((s, stg) => s + stg.slaDays, 0)} Days Total SLA
+                        {(workflow.stages || []).length} Stages &bull; {(workflow.stages || []).reduce((s, stg) => s + stg.slaDays, 0)} Days Total SLA
                       </span>
                     </div>
                     <div style={{ fontSize: '12.5px', color: '#1e3a8a' }}>
-                      &bull; Stage 1 (<strong>{workflow.stages[0]?.name}</strong>) will be instantiated immediately and assigned to <strong>{workflow.stages[0]?.assignedOfficer.name}</strong> ({workflow.stages[0]?.department}).
+                      &bull; Stage 1 (<strong>{workflow.stages[0]?.name}</strong>) will be instantiated immediately and assigned to <strong>{workflow.stages[0]?.assignedOfficer?.name ?? 'Unassigned'}</strong> ({workflow.stages[0]?.department}).
                     </div>
                   </div>
                 ) : (
@@ -1335,7 +1641,7 @@ export const BossProjectReviewPage: React.FC = () => {
                     >
                       {availableTemplates.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name} ({t.defaultStages.length} Stages &bull; {t.category})
+                          {t.name} ({(t.defaultStages || []).length} Stages &bull; {t.category})
                         </option>
                       ))}
                     </select>

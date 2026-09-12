@@ -289,6 +289,7 @@ CREATE TABLE IF NOT EXISTS documents (
   processing_status VARCHAR(50) DEFAULT 'PENDING',
   verification_status VARCHAR(50) DEFAULT 'UNVERIFIED',
   current_version INTEGER DEFAULT 1,
+  ai_parser_id VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -309,3 +310,11 @@ CREATE TABLE IF NOT EXISTS document_versions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_doc_versions_document ON document_versions(document_id);
+
+-- Fix missing UNIQUE constraint for seeding
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wf_templates_name_unique') THEN
+        ALTER TABLE workflow_templates ADD CONSTRAINT wf_templates_name_unique UNIQUE(name);
+    END IF;
+END $$;
