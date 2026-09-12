@@ -61,7 +61,6 @@ export const getProjects = async (req: Request, res: Response, next: NextFunctio
       params.push(status);
       query += ` AND p.status = $${params.length}`;
     }
-    }
 
     if (state) {
       params.push(state);
@@ -270,7 +269,6 @@ export const getProjectById = async (req: Request, res: Response, next: NextFunc
         metadata: row.metadata,
         timestamp: row.timestamp,
       })),
->>>>>>> 0e4f8fc59b92dba75a9a315e1caaa899adc1b514
     });
   } catch (error) {
     next(error);
