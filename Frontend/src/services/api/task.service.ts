@@ -32,7 +32,17 @@ export const taskService = {
       const res = await apiClient.get<any>('/tasks', { params });
       const data = unwrapData<WorkflowTask[]>(res);
       if (data && Array.isArray(data) && data.length > 0) {
-        return data;
+        // Isolate to the active demo project (Rithala or newly initiated project)
+        const activeProjId = localStorage.getItem('bhoomi_demo_active_project_id');
+        const activeTitle = localStorage.getItem('bhoomi_demo_active_project_title');
+        const filtered = data.filter((t: any) => {
+          if (activeProjId && (t.projectId === activeProjId || t.project_id === activeProjId)) return true;
+          if (activeTitle && t.projectTitle?.toLowerCase().includes(activeTitle.toLowerCase())) return true;
+          if (t.district === 'Rithala' || t.projectCode === 'PRJ-DL-7701' || t.projectTitle?.toLowerCase().includes('rithala')) return true;
+          return false;
+        });
+        if (filtered.length > 0) return filtered;
+        return filtered; // If none match, strictly keep isolated (empty or deterministic fallback)
       }
     } catch (e) {
       console.warn('[taskService] GET /api/v1/tasks pending backend:', e);
@@ -98,6 +108,8 @@ export const taskService = {
       }
       updateCachedTask(t);
       return {
+        success: true,
+        message: `Task ${taskId} affirmed and statutory clearance completed.`,
         task: t,
         completedStage: {
           id: t.stageId,
@@ -109,18 +121,6 @@ export const taskService = {
           status: 'COMPLETED',
           requiredDocuments: t.requiredDocuments.map((d) => d.name),
         },
-        isWorkflowCompleted: false,
-        auditEvent: {
-          id: `audit-${Date.now()}`,
-          projectId: t.projectId,
-          taskId: t.id,
-          stageOrder: t.stageOrder,
-          stageName: t.stageName,
-          eventType: 'TASK_ACCEPTED',
-          performedBy: t.assignedOfficer.name,
-          details: `Statutory clearance affirmed and task ${t.id} accepted under RFCTLARR 2013.`,
-          timestamp: new Date().toISOString(),
-        },
       };
     }
     throw new Error(`Task ${taskId} not found`);
@@ -128,30 +128,25 @@ export const taskService = {
 
   /**
    * Section 17.5: POST /api/v1/tasks/:taskId/reject
-   * Rejects task with mandatory reason, records rejection, notifies Requesting Authority
    */
-  async rejectTask(taskId: string, reason: string): Promise<TaskRejectResponse> {
-    if (!reason || !reason.trim()) {
-      throw new Error('Statutory rejection reason is required.');
-    }
+  async rejectTask(taskId: string, rejectionReason: string): Promise<TaskRejectResponse> {
     try {
-      const res = await apiClient.post<any>(`/tasks/${taskId}/reject`, {
-        reason: reason.trim(),
-      });
+      const res = await apiClient.post<any>(`/tasks/${taskId}/reject`, { rejectionReason });
       const data = unwrapData<TaskRejectResponse>(res);
-      if (data && (data.task || data.rejectedStage)) return data;
+      if (data && (data.task || data.remittedStage)) return data;
     } catch (e) {
       console.warn(`[taskService] POST /api/v1/tasks/${taskId}/reject fallback:`, e);
     }
     const t = getDeterministicTask(taskId);
     if (t) {
       t.status = 'REJECTED';
-      t.rejectionReason = reason.trim();
-      t.completedAt = new Date().toISOString();
+      t.rejectionReason = rejectionReason;
       updateCachedTask(t);
       return {
+        success: true,
+        message: `Task ${taskId} remitted with statutory objections.`,
         task: t,
-        rejectedStage: {
+        remittedStage: {
           id: t.stageId,
           name: t.stageName,
           order: t.stageOrder,
@@ -161,18 +156,6 @@ export const taskService = {
           status: 'REJECTED',
           requiredDocuments: t.requiredDocuments.map((d) => d.name),
         },
-        auditEvent: {
-          id: `audit-${Date.now()}`,
-          projectId: t.projectId,
-          taskId: t.id,
-          stageOrder: t.stageOrder,
-          stageName: t.stageName,
-          eventType: 'TASK_REJECTED',
-          performedBy: t.assignedOfficer.name,
-          details: `Stage rejected with defects: ${reason.trim()}`,
-          timestamp: new Date().toISOString(),
-          rejectionReason: reason.trim(),
-        },
       };
     }
     throw new Error(`Task ${taskId} not found`);
@@ -180,18 +163,16 @@ export const taskService = {
 
   /**
    * Section 17.6: POST /api/v1/tasks/:taskId/evidence
-   * Uploads and links ground evidence (inspection panchnama, photos, vector maps)
    */
   async uploadTaskEvidence(
     taskId: string,
     file: File,
-    evidenceType: TaskEvidenceItem['evidenceType'] = 'PANCHNAMA'
+    evidenceType: string
   ): Promise<TaskEvidenceItem> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('evidenceType', evidenceType);
-
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('evidenceType', evidenceType);
       const res = await apiClient.post<any>(`/tasks/${taskId}/evidence`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -208,8 +189,8 @@ export const taskService = {
       fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
       fileType: file.type || 'application/pdf',
       uploadedAt: new Date().toISOString(),
-      uploadedBy: 'Authenticated Officer',
-      evidenceType,
+      uploadedBy: 'Ananya Patel (Processing Officer)',
+      evidenceType: (evidenceType as any) || 'OTHER',
       url: URL.createObjectURL(file),
       hash: `sha256-${Math.random().toString(36).substring(2, 12)}`,
       verified: true,
@@ -225,7 +206,6 @@ export const taskService = {
 
   /**
    * Section 17.7: GET /api/v1/tasks/:taskId/evidence
-   * Returns evidence documents linked to authorized task
    */
   async getTaskEvidence(taskId: string): Promise<TaskEvidenceItem[]> {
     try {
@@ -243,7 +223,6 @@ export const taskService = {
 
   /**
    * Section 18.1: POST /api/v1/projects/:projectId/workflow-stages/:stageId/resubmit
-   * Requesting Authority corrects defects and resubmits
    */
   async resubmitStage(
     projectId: string,
@@ -261,7 +240,6 @@ export const taskService = {
       console.warn(`[taskService] resubmitStage fallback:`, e);
     }
 
-    // Deterministic fallback: reopen the corresponding task
     initCache();
     let matchedTask: WorkflowTask | undefined;
     Object.values(runtimeTasksCache || {}).forEach((task) => {
@@ -315,14 +293,14 @@ export const taskService = {
 
     return {
       projectId,
-      totalStages: 4,
-      completedStages: 1,
+      totalStages: 3,
+      completedStages: 0,
       currentStageIndex: 1,
-      currentStageName: 'Sub-Divisional Revenue Scrutiny (Cohort A)',
+      currentStageName: 'Acquisition Verification & Final Clearance',
       currentStageStatus: 'ACTIVE',
-      percentage: 25,
+      percentage: 33,
       currentOfficerName: 'Ananya Patel',
-      currentOfficerRole: 'Sub-Divisional Magistrate (Revenue)',
+      currentOfficerRole: 'Processing & Field Officer',
       status: 'ACTIVE',
     };
   },
@@ -344,82 +322,91 @@ export const taskService = {
 };
 
 // ────────────────────────────────────────────────────────────
-// Phase 11 Deterministic Tasks Setup
+// Demonstration Tasks Setup (Rithala Project Isolated)
 // ────────────────────────────────────────────────────────────
+
+function getActiveProjectInfo() {
+  return {
+    id: localStorage.getItem('bhoomi_demo_active_project_id') || '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    code: localStorage.getItem('bhoomi_demo_active_project_code') || 'PRJ-DL-7701',
+    title: localStorage.getItem('bhoomi_demo_active_project_title') || 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor',
+    district: localStorage.getItem('bhoomi_demo_active_district') || 'Rithala',
+    state: 'Delhi',
+  };
+}
 
 function initCache() {
   if (runtimeTasksCache) return;
 
+  const proj = getActiveProjectInfo();
+
   const taskA: WorkflowTask = {
-    id: 'TASK-ACQ-101-1-A',
-    projectId: 'proj-delhi-meerut-001',
-    projectCode: 'PRJ-RRTS-001',
-    projectTitle: 'Delhi-Meerut Regional Rapid Transit System (Phase 1)',
-    ministry: 'Ministry of Housing & Urban Affairs',
-    statutoryPurpose: 'Linear High-Speed Mass Rapid Transit Rail Infrastructure',
-    state: 'Uttar Pradesh',
-    district: 'Meerut',
-    stageId: 'node-acq-subdiv-a',
+    id: 'TASK-ACQ-RITHALA-001',
+    projectId: proj.id,
+    projectCode: proj.code,
+    projectTitle: proj.title,
+    ministry: 'Ministry of Housing and Urban Affairs',
+    statutoryPurpose: 'Mass Rapid Transit & Urban Infrastructure',
+    state: proj.state,
+    district: proj.district,
+    stageId: 'node-acq-1',
     stageOrder: 1,
-    stageName: 'Sub-Divisional Revenue Scrutiny (Cohort A)',
+    stageName: 'Acquisition Verification & Final Clearance',
     assignedOfficer: {
-      id: 'usr-sdm-01',
+      id: 'usr-officer-01',
       name: 'Ananya Patel',
-      designation: 'Sub-Divisional Magistrate (Revenue)',
+      designation: 'Processing & Field Officer',
       department: 'Revenue & Land Records Branch',
       role: 'PROCESSING_OFFICER',
-      district: 'Meerut',
-      state: 'Uttar Pradesh',
-      activeTasksCount: 2,
+      district: 'Rithala',
+      state: 'Delhi',
+      activeTasksCount: 1,
     },
     department: 'Revenue & Land Records Branch',
-    slaDays: 7,
-    dueDate: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+    slaDays: 21,
+    dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
     status: 'IN_PROGRESS',
-    startedAt: new Date(Date.now() - 86400000).toISOString(),
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    startedAt: new Date(Date.now() - 43200000).toISOString(),
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
     parcel: {
-      id: 'parcel-a-101',
-      ulpin: 'UP-MRT-2026-1011',
-      khasraNumber: '101/1',
-      village: 'Rampur Kalan',
-      areaAcres: 2.45,
-      tenureType: 'Private Agricultural Freehold',
+      id: 'parcel-demo-001',
+      ulpin: '07-104-5829-1021',
+      khasraNumber: '101/A',
+      village: 'Rithala Urban',
+      areaAcres: 3.45,
+      tenureType: 'Private Commercial Freehold',
       disputed: false,
     },
     relevantParcels: [
-      { id: 'parcel-a-101', surveyNumber: '101/1', village: 'Rampur Kalan', area: '2.45 Acres' },
+      { id: 'parcel-demo-001', surveyNumber: 'SV-101/A', village: 'Rithala Urban', area: '3.45 Acres' },
     ],
     workflowNode: {
-      id: 'node-acq-subdiv-a',
-      name: 'Sub-Divisional Revenue Scrutiny (Cohort A)',
-      type: 'SUB_DIVISION',
+      id: 'node-acq-1',
+      name: 'Acquisition Verification & Final Clearance',
+      type: 'STAGE',
       branchType: 'ACQUISITION',
       responsibility: 'REVENUE_BRANCH',
-      slaDays: 7,
+      slaDays: 21,
     },
     cohortContext: {
-      unitName: 'Meerut Sadar Sub-Division',
-      cohortBranch: 'Cohort A (North Section Corridor)',
-      siblingNodes: [
-        { id: 'node-acq-survey-b', name: 'Joint Cadastral Survey & Demarcation (Cohort B)', branch: 'ACQUISITION' },
-      ],
-      cohortParcelCount: 2,
+      unitName: 'Rithala Tehsil Sub-Division',
+      cohortBranch: 'Acquisition Final Stage',
+      cohortParcelCount: 4,
     },
     requiredDocuments: [
       { id: 'req-doc-1', name: 'Form 11 Statutory Valuation Schedule.pdf', type: 'Valuation Ledger', mandatory: true, status: 'UPLOADED' },
-      { id: 'req-doc-2', name: 'Section 20(E) Gazette Notification Extract.pdf', type: 'Gazette', mandatory: true, status: 'UPLOADED' },
+      { id: 'req-doc-2', name: 'Section 19 Final Acquisition Gazette Extract.pdf', type: 'Gazette', mandatory: true, status: 'MISSING' },
       { id: 'req-doc-3', name: 'Jamabandi / Record of Rights (Khatauni).pdf', type: 'Land Schedule', mandatory: true, status: 'VERIFIED' },
     ],
     evidence: [
       {
         id: 'ev-001',
-        taskId: 'TASK-ACQ-101-1-A',
+        taskId: 'TASK-ACQ-RITHALA-001',
         fileName: 'Field_Inspection_Panchnama_Signed.pdf',
         fileSize: '1.8 MB',
         fileType: 'application/pdf',
         uploadedAt: new Date(Date.now() - 43200000).toISOString(),
-        uploadedBy: 'Ananya Patel (SDM)',
+        uploadedBy: 'Ananya Patel (Field Officer)',
         evidenceType: 'PANCHNAMA',
         hash: 'sha256-e9a8f4c2810b42c1',
         verified: true,
@@ -463,180 +450,83 @@ function initCache() {
   };
 
   const taskB: WorkflowTask = {
-    id: 'TASK-ACQ-101-2-B',
-    projectId: 'proj-delhi-meerut-001',
-    projectCode: 'PRJ-RRTS-001',
-    projectTitle: 'Delhi-Meerut Regional Rapid Transit System (Phase 1)',
-    ministry: 'Ministry of Housing & Urban Affairs',
-    statutoryPurpose: 'Linear High-Speed Mass Rapid Transit Rail Infrastructure',
-    state: 'Uttar Pradesh',
-    district: 'Meerut',
-    stageId: 'node-acq-survey-b',
+    id: 'TASK-ACQ-RITHALA-002',
+    projectId: proj.id,
+    projectCode: proj.code,
+    projectTitle: proj.title,
+    ministry: 'Ministry of Housing and Urban Affairs',
+    statutoryPurpose: 'Mass Rapid Transit & Urban Infrastructure',
+    state: proj.state,
+    district: proj.district,
+    stageId: 'node-acq-1',
     stageOrder: 1,
-    stageName: 'Joint Cadastral Survey & Demarcation (Cohort B)',
+    stageName: 'Acquisition Verification & Final Clearance',
     assignedOfficer: {
-      id: 'usr-surv-02',
-      name: 'Rajesh Sharma',
-      designation: 'Chief Surveyor & Demarcation Officer',
-      department: 'Survey Settlement Office',
+      id: 'usr-officer-01',
+      name: 'Ananya Patel',
+      designation: 'Processing & Field Officer',
+      department: 'Revenue & Land Records Branch',
       role: 'PROCESSING_OFFICER',
-      district: 'Meerut',
-      state: 'Uttar Pradesh',
+      district: 'Rithala',
+      state: 'Delhi',
       activeTasksCount: 1,
     },
-    department: 'Survey Settlement Office',
-    slaDays: 10,
-    dueDate: new Date(Date.now() + 8 * 86400000).toISOString().split('T')[0],
+    department: 'Revenue & Land Records Branch',
+    slaDays: 21,
+    dueDate: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
     status: 'IN_PROGRESS',
-    startedAt: new Date(Date.now() - 43200000).toISOString(),
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    startedAt: new Date(Date.now() - 20000000).toISOString(),
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
     parcel: {
-      id: 'parcel-b-102',
-      ulpin: 'UP-MRT-2026-1012',
-      khasraNumber: '101/2',
-      village: 'Rampur Kalan',
-      areaAcres: 3.12,
-      tenureType: 'Private Agricultural Freehold',
+      id: 'parcel-demo-002',
+      ulpin: '07-104-5829-1022',
+      khasraNumber: '102/B',
+      village: 'Rithala Extension',
+      areaAcres: 1.80,
+      tenureType: 'Private Commercial Freehold',
       disputed: false,
     },
     relevantParcels: [
-      { id: 'parcel-b-102', surveyNumber: '101/2', village: 'Rampur Kalan', area: '3.12 Acres' },
+      { id: 'parcel-demo-002', surveyNumber: 'SV-102/B', village: 'Rithala Extension', area: '1.80 Acres' },
     ],
     workflowNode: {
-      id: 'node-acq-survey-b',
-      name: 'Joint Cadastral Survey & Demarcation (Cohort B)',
-      type: 'SUB_DIVISION',
+      id: 'node-acq-1',
+      name: 'Acquisition Verification & Final Clearance',
+      type: 'STAGE',
       branchType: 'ACQUISITION',
-      responsibility: 'SURVEY_OFFICE',
-      slaDays: 10,
+      responsibility: 'REVENUE_BRANCH',
+      slaDays: 21,
     },
     cohortContext: {
-      unitName: 'Meerut Sadar Sub-Division',
-      cohortBranch: 'Cohort B (Demarcation Unit)',
-      siblingNodes: [
-        { id: 'node-acq-subdiv-a', name: 'Sub-Divisional Revenue Scrutiny (Cohort A)', branch: 'ACQUISITION' },
-      ],
-      cohortParcelCount: 2,
+      unitName: 'Rithala Tehsil Sub-Division',
+      cohortBranch: 'Acquisition Final Stage',
+      cohortParcelCount: 4,
     },
     requiredDocuments: [
       { id: 'req-doc-4', name: 'Cadastral Vector Demarcation Map.pdf', type: 'Map', mandatory: true, status: 'UPLOADED' },
-      { id: 'req-doc-5', name: 'Joint Physical Measurement Verification Report.pdf', type: 'Inspection', mandatory: true, status: 'MISSING' },
+      { id: 'req-doc-5', name: 'Joint Physical Measurement Verification Report.pdf', type: 'Inspection', mandatory: true, status: 'UPLOADED' },
     ],
     evidence: [
       {
         id: 'ev-003',
-        taskId: 'TASK-ACQ-101-2-B',
+        taskId: 'TASK-ACQ-RITHALA-002',
         fileName: 'Field_Pillar_Coordinates_Vector.geojson',
         fileSize: '0.9 MB',
         fileType: 'application/geo+json',
         uploadedAt: new Date(Date.now() - 20000000).toISOString(),
-        uploadedBy: 'Rajesh Sharma (Surveyor)',
+        uploadedBy: 'Ananya Patel (Field Officer)',
         evidenceType: 'CADASTRAL_MAP',
         hash: 'sha256-9a2c88f110c7e5d2',
-        verified: false,
-      },
-    ],
-    ocrExtraction: {
-      status: 'PROCESSING',
-      confidenceScore: 0.82,
-      extractedFields: {
-        khasraNumber: { value: '101/2', confidence: 0.94 },
-        measuredCorridorWidth: { value: '68.5 meters', confidence: 0.78 },
-      },
-      discrepancies: [
-        'Noticeable discrepancy in northern boundary alignment offset by 1.5 meters against master Gazette coordinate buffer.',
-      ],
-    },
-    verification: {
-      status: 'UNVERIFIED',
-      affirmations: {
-        boundaryAffirmed: false,
-        khasraSurveyAffirmed: false,
-        ownershipLedgerAffirmed: true,
-        noEncumbranceAffirmed: true,
-      },
-    },
-  };
-
-  const taskC: WorkflowTask = {
-    id: 'TASK-ACQ-102-B-C',
-    projectId: 'proj-delhi-meerut-001',
-    projectCode: 'PRJ-RRTS-001',
-    projectTitle: 'Delhi-Meerut Regional Rapid Transit System (Phase 1)',
-    ministry: 'Ministry of Housing & Urban Affairs',
-    statutoryPurpose: 'Linear High-Speed Mass Rapid Transit Rail Infrastructure',
-    state: 'Uttar Pradesh',
-    district: 'Meerut',
-    stageId: 'node-acq-subdiv-a',
-    stageOrder: 1,
-    stageName: 'Sub-Divisional Revenue Scrutiny (Cohort C)',
-    assignedOfficer: {
-      id: 'usr-sdm-01',
-      name: 'Ananya Patel',
-      designation: 'Sub-Divisional Magistrate (Revenue)',
-      department: 'Revenue & Land Records Branch',
-      role: 'PROCESSING_OFFICER',
-      district: 'Meerut',
-      state: 'Uttar Pradesh',
-      activeTasksCount: 2,
-    },
-    department: 'Revenue & Land Records Branch',
-    slaDays: 7,
-    dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
-    status: 'IN_PROGRESS',
-    startedAt: new Date(Date.now() - 10000000).toISOString(),
-    createdAt: new Date(Date.now() - 250000000).toISOString(),
-    previousStageNotes: 'Resubmitted by Requesting Authority with corrected boundary schedule and updated Form 11 ledger.',
-    parcel: {
-      id: 'parcel-c-103',
-      ulpin: 'UP-MRT-2026-1020',
-      khasraNumber: '102/B',
-      village: 'Fatehpur Khurd',
-      areaAcres: 1.85,
-      tenureType: 'Private Agricultural Freehold',
-      disputed: false,
-    },
-    relevantParcels: [
-      { id: 'parcel-c-103', surveyNumber: '102/B', village: 'Fatehpur Khurd', area: '1.85 Acres' },
-    ],
-    workflowNode: {
-      id: 'node-acq-subdiv-a',
-      name: 'Sub-Divisional Revenue Scrutiny (Cohort C)',
-      type: 'SUB_DIVISION',
-      branchType: 'ACQUISITION',
-      responsibility: 'REVENUE_BRANCH',
-      slaDays: 7,
-    },
-    cohortContext: {
-      unitName: 'Meerut Sadar Sub-Division',
-      cohortBranch: 'Cohort C (Sadar Sector)',
-      cohortParcelCount: 1,
-    },
-    requiredDocuments: [
-      { id: 'req-doc-6', name: 'Form 11 Corrected Land Valuation Ledger.pdf', type: 'Valuation Ledger', mandatory: true, status: 'UPLOADED' },
-      { id: 'req-doc-7', name: 'NOC from State Forest Directorate.pdf', type: 'Forest Clearance', mandatory: true, status: 'UPLOADED' },
-    ],
-    evidence: [
-      {
-        id: 'ev-004',
-        taskId: 'TASK-ACQ-102-B-C',
-        fileName: 'Form_11_Corrected_Seal.pdf',
-        fileSize: '2.1 MB',
-        fileType: 'application/pdf',
-        uploadedAt: new Date(Date.now() - 8000000).toISOString(),
-        uploadedBy: 'Proponent Authority (NHAI/NCRTC)',
-        evidenceType: 'REVENUE_EXTRACT',
-        hash: 'sha256-4c7b899120af4e91',
         verified: true,
       },
     ],
     ocrExtraction: {
       status: 'COMPLETED',
-      confidenceScore: 0.99,
+      confidenceScore: 0.96,
       extractedFields: {
-        khasraNumber: { value: '102/B', confidence: 0.99 },
-        correctedArea: { value: '1.85 Acres', confidence: 0.99 },
-        discrepancyResolved: { value: 'True / All defects corrected', confidence: 0.98 },
+        khasraNumber: { value: '102/B', confidence: 0.98 },
+        measuredCorridorWidth: { value: '35 meters', confidence: 0.95 },
+        recordedOwner: { value: 'Shri Rajesh Kumar & Sons', confidence: 0.97 },
       },
     },
     verification: {
@@ -646,9 +536,9 @@ function initCache() {
         khasraSurveyAffirmed: true,
         ownershipLedgerAffirmed: true,
         noEncumbranceAffirmed: true,
-        officerRemarks: 'Defects raised in previous cycle resolved. Ready for final statutory acceptance.',
+        officerRemarks: 'Demarcation vector verified against satellite orthophoto. Clear title affirmed.',
         verifiedBy: 'Ananya Patel',
-        verifiedAt: new Date(Date.now() - 1000000).toISOString(),
+        verifiedAt: new Date(Date.now() - 2000000).toISOString(),
       },
     },
   };
@@ -656,7 +546,6 @@ function initCache() {
   runtimeTasksCache = {
     [taskA.id]: taskA,
     [taskB.id]: taskB,
-    [taskC.id]: taskC,
   };
 }
 

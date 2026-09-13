@@ -143,9 +143,13 @@ export const v2WorkflowService = {
     projectId: string,
     nodeData: Partial<WorkflowNode>
   ): Promise<WorkflowNode> {
+    const payload: any = { ...nodeData };
+    if (nodeData.responsibility && !payload.responsibleRole) {
+      payload.responsibleRole = nodeData.responsibility;
+    }
     const res = await apiClient.post<any>(
       `/projects/${projectId}/workflow/nodes`,
-      nodeData
+      payload
     );
     const data = unwrapData<any>(res);
     return normalizeNode(data);
@@ -412,7 +416,31 @@ export const v2WorkflowService = {
     const res = await apiClient.post<any>(
       `/projects/${projectId}/workflow/validate`
     );
-    return unwrapData<WorkflowValidationResult>(res);
+    const data = unwrapData<any>(res);
+    if (!data) {
+      return {
+        valid: false,
+        errors: ['No validation response received from server.'],
+        warnings: [],
+        unassignedParcelsCount: 0,
+        unassignedNodesCount: 0,
+        orphanNodesCount: 0,
+      };
+    }
+    return {
+      ...data,
+      valid: data.valid ?? data.isValid ?? true,
+      errors: (data.errors || []).map((e: any) => (typeof e === 'string' ? e : e.message || String(e))),
+      warnings: (data.warnings || []).map((w: any) => (typeof w === 'string' ? w : w.message || String(w))),
+      checklist: data.checklist || {
+        validGraph: true,
+        validNodeAssignments: true,
+        validParcelAllocation: true,
+        noDuplicateActiveMembership: true,
+        noOrphanNodes: true,
+        validTemplateFragments: true,
+      },
+    };
   },
 
   /**

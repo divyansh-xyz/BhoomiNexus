@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import L from 'leaflet';
 import { bossService } from '../../services/api/boss.service';
-import { CORRIDOR_PRESETS } from '../../data/mock-corridor-presets';
 import type { InfrastructureType } from '../../types/proponent.types';
 import './proponent-dashboard.css';
 
@@ -177,29 +176,6 @@ export const CreateProjectPage: React.FC = () => {
     });
   }, [coordinates, alignmentWidthMeters]);
 
-  // Load Preset Alignment
-  const handleLoadPreset = (preset: typeof CORRIDOR_PRESETS[0]) => {
-    setTitle(preset.name);
-    setProponentAuthority(preset.agency);
-    setProjectType(preset.type);
-    setState(preset.state);
-    setDistrict(preset.district);
-    setRfctlarrSection(preset.rfctlarrSection);
-    setStatutoryPurpose(preset.description);
-    if (preset.agency === 'NHAI') setMinistry('Ministry of Road Transport and Highways (MoRTH)');
-    else if (preset.agency === 'DFCCIL') setMinistry('Ministry of Railways');
-    else if (preset.agency === 'BMRCL') setMinistry('Ministry of Housing and Urban Affairs & Govt of Karnataka');
-    else setMinistry('Central Infrastructure Ministry');
-    setAlignmentWidthMeters(preset.suggestedWidthM);
-    setDescription(preset.description);
-    setCoordinates(preset.coordinates);
-
-    if (mapRef.current && preset.coordinates.length > 0) {
-      const bounds = L.latLngBounds(preset.coordinates);
-      mapRef.current.fitBounds(bounds.pad(0.3));
-    }
-  };
-
   // Clear Map
   const handleClearAlignment = () => {
     setCoordinates([]);
@@ -240,6 +216,12 @@ export const CreateProjectPage: React.FC = () => {
         documentIds: documents.map((doc: any) => doc.id).filter(Boolean),
       });
 
+      // Save active initiated demo project for downstream officer dashboards
+      localStorage.setItem('bhoomi_demo_active_project_id', newProject.id);
+      localStorage.setItem('bhoomi_demo_active_project_title', newProject.title);
+      localStorage.setItem('bhoomi_demo_active_project_code', newProject.code);
+      localStorage.setItem('bhoomi_demo_active_district', newProject.district || 'Rithala');
+
       // Navigate to project detail view
       navigate(`/projects/${newProject.id}`);
     } catch (err) {
@@ -277,28 +259,7 @@ export const CreateProjectPage: React.FC = () => {
           </p>
         </section>
 
-        {/* 3. Demo Alignment Presets (hidden when no presets configured) */}
-        {CORRIDOR_PRESETS.length > 0 && (
-          <section className="things-presets-bar">
-            <span className="things-presets-label">&#x26A1; Live Demo Corridor Presets:</span>
-            <div className="things-presets-chips">
-              {CORRIDOR_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleLoadPreset(p)}
-                  className="things-preset-btn"
-                >
-                  <span className="things-preset-agency">{p.agency}</span>
-                  <span className="things-preset-name">{p.name}</span>
-                  <span className="things-preset-meta">{p.suggestedAcres} Ac &bull; {p.suggestedWidthM}m</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 4. Two-Column Broadsheet Workbench */}
+        {/* 3. Two-Column Broadsheet Workbench */}
         <form onSubmit={handleSubmit} className="things-workbench-grid">
           {/* Left Column: Requisition Parameters */}
           <div className="things-form-column">

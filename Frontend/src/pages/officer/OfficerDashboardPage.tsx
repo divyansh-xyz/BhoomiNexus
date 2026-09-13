@@ -253,7 +253,7 @@ export const OfficerDashboardPage: React.FC = () => {
                               </span>
                               <span style={{ fontSize: '11px', color: 'var(--to-fog)' }}>•</span>
                               <span style={{ fontSize: '11.5px', color: 'var(--to-ash)', fontWeight: 500 }}>
-                                {task.district || 'Meerut'}, {task.state || 'Uttar Pradesh'}
+                                {task.district || 'Rithala'}, {task.state || 'Delhi'}
                               </span>
                             </div>
                           </div>

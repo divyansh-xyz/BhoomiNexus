@@ -46,6 +46,10 @@ export interface WorkflowNode {
   description?: string;
   nodeType: WorkflowNodeType;
   responsibility: WorkflowNodeResponsibility;
+  responsibleRole?: string;
+  responsibleUserId?: string;
+  responsibleUserName?: string;
+  responsibleUserDesignation?: string;
   assignedOfficerId?: string;
   assignedOfficer?: GovernmentOfficer;
   unitName?: string;

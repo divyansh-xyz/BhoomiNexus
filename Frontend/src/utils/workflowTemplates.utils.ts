@@ -266,15 +266,26 @@ export function buildFragmentGraph(
  * District ├── Acquisition ├── Compensation └── Possession
  */
 export function getNodeBranchType(node: WorkflowNode): 'DISTRICT' | 'ACQUISITION' | 'COMPENSATION' | 'POSSESSION' {
-  if (node.nodeType === 'DISTRICT_ACQUISITION' || node.branchKey === 'DISTRICT' || node.id === 'node-district-root') {
+  if (
+    (node.nodeType as string) === 'DISTRICT' ||
+    node.nodeType === 'DISTRICT_ACQUISITION' ||
+    node.branchKey === 'DISTRICT' ||
+    node.id === 'node-district-root' ||
+    (node as any).nodeKey === 'root' ||
+    (node as any).nodeKey === 'district_root'
+  ) {
     return 'DISTRICT';
   }
   if (
     node.branchKey === 'COMPENSATION' ||
     node.responsibility === 'COMPENSATION_BRANCH' ||
+    (node as any).responsibleRole === 'COMPENSATION_OFFICER' ||
+    (node as any).nodeKey?.startsWith('comp') ||
+    (node as any).nodeKey?.includes('_comp') ||
     node.name.toLowerCase().includes('compensat') ||
     node.name.toLowerCase().includes('solatium') ||
     node.name.toLowerCase().includes('dbt') ||
+    node.name.toLowerCase().includes('pfms') ||
     node.name.toLowerCase().includes('valuation')
   ) {
     return 'COMPENSATION';
@@ -282,6 +293,9 @@ export function getNodeBranchType(node: WorkflowNode): 'DISTRICT' | 'ACQUISITION
   if (
     node.branchKey === 'POSSESSION' ||
     node.responsibility === 'POSSESSION_BRANCH' ||
+    (node as any).responsibleRole === 'POSSESSION_OFFICER' ||
+    (node as any).nodeKey?.startsWith('poss') ||
+    (node as any).nodeKey?.includes('_poss') ||
     node.name.toLowerCase().includes('possess') ||
     node.name.toLowerCase().includes('vacate') ||
     node.name.toLowerCase().includes('panchnama') ||
@@ -306,184 +320,92 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
   const wfId = `wf-${projectId || 'default'}`;
   const now = new Date().toISOString();
 
+  // Root District Authority Node
   const rootNode: WorkflowNode = {
     id: 'node-district-root',
     workflowId: wfId,
-    name: 'District Land Acquisition & Management',
-    description: 'Statutory district administrative root coordinating acquisition, compensation, and possession branches.',
+    name: 'Rithala',
+    description: 'Competent statutory district authority jurisdiction coordinating acquisition, compensation, and possession branches.',
     nodeType: 'DISTRICT_ACQUISITION',
     responsibility: 'REVENUE_BRANCH',
-    unitName: 'District Collectorate / SLAO',
+    responsibleRole: 'DISTRICT_AUTHORITY',
+    responsibleUserName: 'Dr. Vikramaditya Sen',
+    responsibleUserDesignation: 'Competent Authority (District Magistrate)',
+    unitName: 'District Collectorate, Rithala',
     branchKey: 'DISTRICT',
     slaDays: 0,
-    requiredDocuments: ['Administrative Sanction Order', 'Project Boundary GeoJSON'],
+    requiredDocuments: ['Administrative Sanction Order', 'Project Alignment Cadastral Overlay'],
     positionX: 100,
-    positionY: 80,
-    parcelCount: 0,
+    positionY: 200,
+    parcelCount: 4,
     status: 'DRAFT',
     createdAt: now,
   };
 
-  // 1. Acquisition Branch
-  const acqNode1: WorkflowNode = {
+  // 1. Acquisition Branch (One node only: terminal/final node of the acquisition workflow)
+  const acqNode: WorkflowNode = {
     id: 'node-acq-1',
     workflowId: wfId,
-    name: 'Field Survey & Sec 11 Notification',
-    description: 'Ground cadastral boundary pegging and preliminary notification under Section 11 RFCTLARR.',
+    name: 'Acquisition Verification & Final Clearance',
+    description: 'Comprehensive field title verification, Section 11/19 scrutiny, ground affirmation, and final statutory acquisition clearance.',
     nodeType: 'STAGE',
-    responsibility: 'SURVEY_OFFICE',
-    unitName: 'Land Survey & Acquisition Wing',
+    responsibility: 'REVENUE_BRANCH',
+    responsibleRole: 'PROCESSING_OFFICER',
+    responsibleUserId: 'usr-officer-01',
+    responsibleUserName: 'Ananya Patel',
+    responsibleUserDesignation: 'Processing & Field Officer',
+    unitName: 'Revenue & Land Records Branch',
     branchKey: 'ACQUISITION',
     slaDays: 21,
-    requiredDocuments: ['Joint Measurement Survey (JMS)', 'Section 11 Gazette Publication'],
-    positionX: 420,
+    requiredDocuments: ['Joint Measurement Survey (JMS)', 'Section 11/19 Gazette Extract', 'Ground Panchnama & Field Sheets'],
+    positionX: 460,
     positionY: 80,
-    parcelCount: 0,
+    parcelCount: 4,
     status: 'DRAFT',
     createdAt: now,
   };
 
-  const acqNode2: WorkflowNode = {
-    id: 'node-acq-2',
-    workflowId: wfId,
-    name: 'Hearing of Objections (Sec 15)',
-    description: 'Adjudication of landowner objections and public claim hearings by Competent Authority.',
-    nodeType: 'STAGE',
-    responsibility: 'REVENUE_BRANCH',
-    unitName: 'Competent Authority Land Acquisition (CALA)',
-    branchKey: 'ACQUISITION',
-    slaDays: 30,
-    requiredDocuments: ['Public Hearing Minutes', 'Section 15 Claim Disposal Report'],
-    positionX: 740,
-    positionY: 80,
-    parcelCount: 0,
-    status: 'DRAFT',
-    createdAt: now,
-  };
-
-  const acqNode3: WorkflowNode = {
-    id: 'node-acq-3',
-    workflowId: wfId,
-    name: 'Section 19 Declaration of Acquisition',
-    description: 'Final declaration of land acquisition with published resettlement and rehabilitation scheme.',
-    nodeType: 'STAGE',
-    responsibility: 'REVENUE_BRANCH',
-    unitName: 'Special Land Acquisition Office',
-    branchKey: 'ACQUISITION',
-    slaDays: 14,
-    requiredDocuments: ['Sec 19 Final Gazette Declaration', 'R&R Summary Scheme'],
-    positionX: 1060,
-    positionY: 80,
-    parcelCount: 0,
-    status: 'DRAFT',
-    createdAt: now,
-  };
-
-  // 2. Compensation Branch (uses Standard Compensation Template)
-  const compNode1: WorkflowNode = {
+  // 2. Compensation Branch (Default branch: Section 26-30 Solatium & Disbursal)
+  const compNode: WorkflowNode = {
     id: 'node-comp-1',
     workflowId: wfId,
-    name: 'Valuation of Trees, Crops & Structures',
-    description: 'Cross-departmental assessment of immovable assets, standing crops, and tree capital values.',
+    name: 'Sec 26-30 Statutory Compensation Award & Disbursal',
+    description: 'Ready reckoner market valuation, 100% statutory solatium computation, and PFMS direct beneficiary escrow disbursal.',
     nodeType: 'STAGE',
     responsibility: 'COMPENSATION_BRANCH',
-    unitName: 'Valuation & Accounts Wing',
-    branchKey: 'COMPENSATION',
-    slaDays: 14,
-    requiredDocuments: ['Forest Dept Tree Valuation', 'PWD Structure Valuation', 'Horticulture Assessment'],
-    positionX: 420,
-    positionY: 260,
-    parcelCount: 0,
-    status: 'DRAFT',
-    createdAt: now,
-  };
-
-  const compNode2: WorkflowNode = {
-    id: 'node-comp-2',
-    workflowId: wfId,
-    name: 'Sec 26-30 Statutory Award Determination',
-    description: 'Market value computation, 100% statutory solatium, and 12% additional compensation calculation.',
-    nodeType: 'STAGE',
-    responsibility: 'COMPENSATION_BRANCH',
-    unitName: 'CALA Finance Wing',
+    responsibleRole: 'COMPENSATION_OFFICER',
+    responsibleUserId: 'usr-comp-01',
+    responsibleUserName: 'Mahesh Patil',
+    responsibleUserDesignation: 'Competent Authority for Land Acquisition (CALA)',
+    unitName: 'Special Land Acquisition Office (SLAO)',
     branchKey: 'COMPENSATION',
     slaDays: 21,
-    requiredDocuments: ['Circle Rate Computation Sheet', '100% Solatium Certificate', '12% Additional Market Value'],
-    positionX: 740,
-    positionY: 260,
+    requiredDocuments: ['Circle Rate Valuation Sheet', '100% Solatium Certificate', 'PFMS Beneficiary Disbursal Mandate'],
+    positionX: 460,
+    positionY: 220,
     parcelCount: 0,
     status: 'DRAFT',
     createdAt: now,
   };
 
-  const compNode3: WorkflowNode = {
-    id: 'node-comp-3',
-    workflowId: wfId,
-    name: 'Direct Benefit Transfer (DBT) Disbursal',
-    description: 'Direct compensation electronic fund disbursal into authenticated Aadhaar-linked beneficiary accounts.',
-    nodeType: 'STAGE',
-    responsibility: 'COMPENSATION_BRANCH',
-    unitName: 'PFMS Treasury Escrow',
-    branchKey: 'COMPENSATION',
-    slaDays: 7,
-    requiredDocuments: ['PFMS Mandate', 'Aadhaar-Linked Account Verification', 'Disbursal Receipts'],
-    positionX: 1060,
-    positionY: 260,
-    parcelCount: 0,
-    status: 'DRAFT',
-    createdAt: now,
-  };
-
-  // 3. Possession Branch (uses Standard Possession Template)
-  const possNode1: WorkflowNode = {
+  // 3. Possession Branch (Default branch: Section 38 Physical Panchnama & Handover)
+  const possNode: WorkflowNode = {
     id: 'node-poss-1',
     workflowId: wfId,
-    name: 'Statutory 60-Day Notice to Vacate',
-    description: 'Formal legal notice under Section 38 directing occupants to deliver peaceful possession.',
+    name: 'Physical Possession, Spot Panchnama & Handover',
+    description: 'Section 38 notice to vacate, on-site panchnama execution with geo-tagged video evidence, and unencumbered possession vesting.',
     nodeType: 'STAGE',
     responsibility: 'POSSESSION_BRANCH',
-    unitName: 'Field Enforcement Directorate',
+    responsibleRole: 'POSSESSION_OFFICER',
+    responsibleUserId: 'usr-poss-01',
+    responsibleUserName: 'Vinayak Kulkarni',
+    responsibleUserDesignation: 'Special Tehsildar (Possession & Encroachment)',
+    unitName: 'Revenue & Land Survey Branch',
     branchKey: 'POSSESSION',
-    slaDays: 60,
-    requiredDocuments: ['Sec 38 Notice to Landowners', 'Proof of Notice Service'],
-    positionX: 420,
-    positionY: 440,
-    parcelCount: 0,
-    status: 'DRAFT',
-    createdAt: now,
-  };
-
-  const possNode2: WorkflowNode = {
-    id: 'node-poss-2',
-    workflowId: wfId,
-    name: 'Spot Panchnama & Physical Possession',
-    description: 'On-site physical takeover witnessed by independent panchas with geo-tagged video evidence.',
-    nodeType: 'STAGE',
-    responsibility: 'POSSESSION_BRANCH',
-    unitName: 'Revenue & Police Liaison',
-    branchKey: 'POSSESSION',
-    slaDays: 10,
-    requiredDocuments: ['Spot Panchnama with 2 Witnesses', 'Geo-tagged Site Photographs', 'Police Bandobast Certificate'],
-    positionX: 740,
-    positionY: 440,
-    parcelCount: 0,
-    status: 'DRAFT',
-    createdAt: now,
-  };
-
-  const possNode3: WorkflowNode = {
-    id: 'node-poss-3',
-    workflowId: wfId,
-    name: 'RoR Sovereign Mutation & Handover',
-    description: 'Sovereign land record mutation vesting title with the State and final possession certificate.',
-    nodeType: 'STAGE',
-    responsibility: 'POSSESSION_BRANCH',
-    unitName: 'Land Records Registry',
-    branchKey: 'POSSESSION',
-    slaDays: 7,
-    requiredDocuments: ['Form 16 Certificate of Vesting', 'Tehsildar Mutation Order', 'Updated Record of Rights (RoR)'],
-    positionX: 1060,
-    positionY: 440,
+    slaDays: 14,
+    requiredDocuments: ['Section 38 Notice to Vacate', 'Spot Panchnama Signed by Witnesses', 'Form 16 Certificate of Vesting'],
+    positionX: 460,
+    positionY: 360,
     parcelCount: 0,
     status: 'DRAFT',
     createdAt: now,
@@ -491,19 +413,13 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
 
   const nodes: WorkflowNode[] = [
     rootNode,
-    acqNode1,
-    acqNode2,
-    acqNode3,
-    compNode1,
-    compNode2,
-    compNode3,
-    possNode1,
-    possNode2,
-    possNode3,
+    acqNode,
+    compNode,
+    possNode,
   ];
 
   const edges: WorkflowEdge[] = [
-    // Acquisition chain
+    // Rithala -> Acquisition terminal node
     {
       id: 'edge-dist-to-acq-1',
       workflowId: wfId,
@@ -512,22 +428,7 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
       edgeLabel: 'Acquisition',
       createdAt: now,
     },
-    {
-      id: 'edge-acq-1-to-2',
-      workflowId: wfId,
-      sourceNodeId: 'node-acq-1',
-      targetNodeId: 'node-acq-2',
-      createdAt: now,
-    },
-    {
-      id: 'edge-acq-2-to-3',
-      workflowId: wfId,
-      sourceNodeId: 'node-acq-2',
-      targetNodeId: 'node-acq-3',
-      createdAt: now,
-    },
-
-    // Compensation chain
+    // Rithala -> Compensation node
     {
       id: 'edge-dist-to-comp-1',
       workflowId: wfId,
@@ -536,22 +437,7 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
       edgeLabel: 'Compensation',
       createdAt: now,
     },
-    {
-      id: 'edge-comp-1-to-2',
-      workflowId: wfId,
-      sourceNodeId: 'node-comp-1',
-      targetNodeId: 'node-comp-2',
-      createdAt: now,
-    },
-    {
-      id: 'edge-comp-2-to-3',
-      workflowId: wfId,
-      sourceNodeId: 'node-comp-2',
-      targetNodeId: 'node-comp-3',
-      createdAt: now,
-    },
-
-    // Possession chain
+    // Rithala -> Possession node
     {
       id: 'edge-dist-to-poss-1',
       workflowId: wfId,
@@ -560,27 +446,13 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
       edgeLabel: 'Possession',
       createdAt: now,
     },
-    {
-      id: 'edge-poss-1-to-2',
-      workflowId: wfId,
-      sourceNodeId: 'node-poss-1',
-      targetNodeId: 'node-poss-2',
-      createdAt: now,
-    },
-    {
-      id: 'edge-poss-2-to-3',
-      workflowId: wfId,
-      sourceNodeId: 'node-poss-2',
-      targetNodeId: 'node-poss-3',
-      createdAt: now,
-    },
   ];
 
   return {
     projectId,
     workflowId: wfId,
-    templateId: 'tpl-district-standard',
-    templateName: 'Standard District Lifecycle (Acquisition, Compensation, Possession)',
+    templateId: 'tpl-district-rithala',
+    templateName: 'Rithala District Statutory Acquisition, Compensation & Possession Workflow',
     status: 'DRAFT',
     nodes,
     edges,

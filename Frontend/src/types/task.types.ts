@@ -174,14 +174,19 @@ export interface TaskAcceptResponse {
   completedStage: WorkflowStageInstance;
   nextStage?: WorkflowStageInstance;
   nextTask?: WorkflowTask;
-  isWorkflowCompleted: boolean;
-  auditEvent: TaskAuditEvent;
+  isWorkflowCompleted?: boolean;
+  auditEvent?: TaskAuditEvent;
+  success?: boolean;
+  message?: string;
 }
 
 export interface TaskRejectResponse {
   task: WorkflowTask;
-  rejectedStage: WorkflowStageInstance;
-  auditEvent: TaskAuditEvent;
+  rejectedStage?: WorkflowStageInstance;
+  remittedStage?: WorkflowStageInstance;
+  auditEvent?: TaskAuditEvent;
+  success?: boolean;
+  message?: string;
 }
 
 export interface StageResubmitPayload {

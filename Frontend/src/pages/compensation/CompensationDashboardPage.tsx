@@ -26,7 +26,7 @@ export const CompensationDashboardPage: React.FC = () => {
 
   // New Record Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newProjectId, setNewProjectId] = useState('p-nhai-ringroad-2026');
+  const [newProjectId, setNewProjectId] = useState(() => localStorage.getItem('bhoomi_demo_active_project_id') || '4ed46de6-586e-4459-b011-f090a1c3bafd');
   const [newParcelId, setNewParcelId] = useState('');
   const [newBeneficiary, setNewBeneficiary] = useState('');
   const [newAssessedAmount, setNewAssessedAmount] = useState<number>(0);
@@ -155,8 +155,8 @@ export const CompensationDashboardPage: React.FC = () => {
   });
 
   // Find Demo Parcel 1 and Demo Parcel 2 for live display
-  const demoRecord1 = records.find((r) => r.parcelId === 'MH-PUN-HAV-084/2A');
-  const demoRecord2 = records.find((r) => r.parcelId === 'MH-PUN-HAV-084/2B');
+  const demoRecord1 = records.find((r) => r.parcelId === '07-104-5829-1021' || r.parcelId === 'MH-PUN-HAV-084/2A') || records[0];
+  const demoRecord2 = records.find((r) => r.parcelId === '07-104-5829-1022' || r.parcelId === 'MH-PUN-HAV-084/2B') || records[1];
 
   return (
     <div className="comp-workspace">
@@ -225,7 +225,7 @@ export const CompensationDashboardPage: React.FC = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', color: '#334155' }}>
             <span>
-              <strong>Demo Parcel 1</strong> (<code>MH-PUN-HAV-084/2A</code>):{' '}
+              <strong>Demo Parcel 1</strong> (<code>{demoRecord1?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord1.parcelDetails.khasraNumber} • ${demoRecord1.parcelId}` : '07-104-5829-1021'}</code>):{' '}
               <span className={`comp-badge ${demoRecord1?.status === 'DISBURSED' ? 'comp-badge-paid' : demoRecord1?.status === 'APPROVED' ? 'comp-badge-approved' : 'comp-badge-assessed'}`}>
                 {demoRecord1?.status || 'ASSESSED'}
               </span>
@@ -233,7 +233,7 @@ export const CompensationDashboardPage: React.FC = () => {
             </span>
             <span style={{ color: '#cbd5e1' }}>|</span>
             <span>
-              <strong>Demo Parcel 2</strong> (<code>MH-PUN-HAV-084/2B</code>):{' '}
+              <strong>Demo Parcel 2</strong> (<code>{demoRecord2?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord2.parcelDetails.khasraNumber} • ${demoRecord2.parcelId}` : '07-104-5829-1022'}</code>):{' '}
               <span className="comp-badge comp-badge-pending">
                 {demoRecord2?.status || 'ASSESSED (PENDING)'}
               </span>

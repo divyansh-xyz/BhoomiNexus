@@ -55,6 +55,17 @@ export const OfficerTaskDetailPage: React.FC = () => {
   const [isUploadedImage, setIsUploadedImage] = useState(false);
   const [showOcrModal, setShowOcrModal] = useState(false);
 
+  // Phase 11: Add Statutory Document & Gemini OCR Upload Modal state
+  const [showUploadDocModal, setShowUploadDocModal] = useState(false);
+  const [uploadModalTab, setUploadModalTab] = useState<'EXISTING' | 'NEW'>('EXISTING');
+  const [selectedExistingDocId, setSelectedExistingDocId] = useState<string>('');
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocType, setNewDocType] = useState('Valuation Ledger');
+  const [newDocMandatory, setNewDocMandatory] = useState(true);
+  const [modalFile, setModalFile] = useState<File | null>(null);
+  const [modalIsDragging, setModalIsDragging] = useState(false);
+  const modalFileInputRef = useRef<HTMLInputElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const evidenceFileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<number | null>(null);
@@ -296,6 +307,45 @@ export const OfficerTaskDetailPage: React.FC = () => {
     }
   };
 
+  const STATUTORY_DOC_PRESETS = [
+    { name: 'Form 19 Joint Demarcation Notice.pdf', type: 'Panchnama' },
+    { name: 'DGPS Boundary Survey Coordinates Schedule.pdf', type: 'Map' },
+    { name: 'Section 11 Preliminary Notification Gazette.pdf', type: 'Gazette' },
+    { name: 'Field Inspection Panchnama & Spot Memo.pdf', type: 'Panchnama' },
+    { name: 'Aks-Shajra / Khasra Cadastral Map Extract.pdf', type: 'Map' },
+    { name: 'Jamabandi RoR & Ownership Ledger Extract.pdf', type: 'Land Schedule' },
+    { name: 'Award Formulation & Compensation Ledger.pdf', type: 'Valuation Ledger' },
+  ];
+
+  const STATUTORY_DOC_TYPES = [
+    'Valuation Ledger',
+    'Gazette',
+    'Land Schedule',
+    'Map',
+    'Panchnama',
+    'Inspection',
+    'Statutory Record',
+  ];
+
+  const handleOpenUploadModal = (defaultDocId?: string, defaultTab: 'EXISTING' | 'NEW' = 'EXISTING') => {
+    const docs = task?.requiredDocuments || [];
+    if (defaultDocId) {
+      setSelectedExistingDocId(defaultDocId);
+      setUploadModalTab('EXISTING');
+    } else if (defaultTab === 'NEW' || docs.length === 0) {
+      setUploadModalTab('NEW');
+    } else {
+      const firstMissing = docs.find(d => d.status === 'MISSING');
+      setSelectedExistingDocId(firstMissing ? firstMissing.id : docs[0]?.id || '');
+      setUploadModalTab('EXISTING');
+    }
+    setModalFile(null);
+    setNewDocName('');
+    setNewDocType('Valuation Ledger');
+    setNewDocMandatory(true);
+    setShowUploadDocModal(true);
+  };
+
   const handleUploadClick = (docId: string) => {
     setActiveUploadDocId(docId);
     if (fileInputRef.current) {
@@ -303,33 +353,55 @@ export const OfficerTaskDetailPage: React.FC = () => {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !activeUploadDocId || !task) return;
+  const processDocumentUpload = async (
+    file: File,
+    targetDocId: string,
+    customDocMeta?: { name: string; type: string; mandatory?: boolean }
+  ) => {
+    if (!task) return;
+    setUploadingDocId(targetDocId);
 
-    const file = e.target.files[0];
-    setUploadingDocId(activeUploadDocId);
-    const targetDocId = activeUploadDocId;
-
-    if (uploadedFileUrl) {
+    if (uploadedFileUrl && uploadedFileUrl.startsWith('blob:')) {
       URL.revokeObjectURL(uploadedFileUrl);
     }
     setUploadedFileUrl(URL.createObjectURL(file));
     setIsUploadedImage(file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|tiff?)$/i.test(file.name));
 
     try {
-      const targetReqDoc = task.requiredDocuments?.find(d => d.id === targetDocId);
+      let docName = file.name;
+      let docType = 'Statutory Record';
+
+      let updatedDocs = [...(task.requiredDocuments || [])];
+      const existingDocIndex = updatedDocs.findIndex(d => d.id === targetDocId);
+
+      if (existingDocIndex >= 0) {
+        docName = updatedDocs[existingDocIndex].name;
+        docType = updatedDocs[existingDocIndex].type;
+        updatedDocs[existingDocIndex] = {
+          ...updatedDocs[existingDocIndex],
+          status: 'UPLOADED',
+        };
+      } else if (customDocMeta) {
+        docName = customDocMeta.name;
+        docType = customDocMeta.type;
+        updatedDocs.push({
+          id: targetDocId,
+          name: customDocMeta.name,
+          type: customDocMeta.type,
+          mandatory: customDocMeta.mandatory ?? true,
+          status: 'UPLOADED',
+        });
+      }
+
+      setTask({ ...task, requiredDocuments: updatedDocs });
+      setCorrectedFields({});
+
       const uploadResult = await OfficerService.uploadEvidence(task.id, file, {
         stageId: task.stageId,
         projectId: task.projectId,
-        documentType: targetReqDoc?.type || 'STATUTORY_RECORD',
-        title: targetReqDoc?.name || file.name,
+        documentType: docType,
+        title: docName,
       });
-
-      const updatedDocs = (task.requiredDocuments || []).map(doc =>
-        doc.id === targetDocId ? { ...doc, status: 'UPLOADED' as const } : doc
-      );
-      setTask({ ...task, requiredDocuments: updatedDocs });
-      setCorrectedFields({});
 
       const realDocId = uploadResult.documentId || `DOC-${Date.now()}`;
       setOcrStatus({ docId: targetDocId, backendDocId: realDocId, status: 'OCR_PROCESSING' });
@@ -374,6 +446,49 @@ export const OfficerTaskDetailPage: React.FC = () => {
       setActiveUploadDocId(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !activeUploadDocId || !task) return;
+    const file = e.target.files[0];
+    await processDocumentUpload(file, activeUploadDocId);
+  };
+
+  const handleModalSubmitUpload = async () => {
+    if (!modalFile || !task) return;
+    if (uploadModalTab === 'EXISTING') {
+      if (!selectedExistingDocId) return;
+      setShowUploadDocModal(false);
+      await processDocumentUpload(modalFile, selectedExistingDocId);
+    } else {
+      if (!newDocName.trim()) return;
+      const newDocId = `req-doc-${Date.now()}`;
+      setShowUploadDocModal(false);
+      await processDocumentUpload(modalFile, newDocId, {
+        name: newDocName.trim(),
+        type: newDocType,
+        mandatory: newDocMandatory,
+      });
+    }
+  };
+
+  const handleModalAddDocOnly = () => {
+    if (!task || !newDocName.trim()) return;
+    const newDocId = `req-doc-${Date.now()}`;
+    const newDoc = {
+      id: newDocId,
+      name: newDocName.trim(),
+      type: newDocType || 'Statutory Record',
+      mandatory: newDocMandatory,
+      status: 'MISSING' as const,
+    };
+    setTask({
+      ...task,
+      requiredDocuments: [...(task.requiredDocuments || []), newDoc],
+    });
+    setShowUploadDocModal(false);
+    setModalFile(null);
+    setNewDocName('');
   };
 
   const loadDocumentPreview = async (doc: any) => {
@@ -960,7 +1075,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
             {/* Dimension 7: Required Statutory Documents */}
             <div className="things-task-card">
-              <div className="things-task-card-header">
+              <div className="things-task-card-header" style={{ alignItems: 'flex-start', gap: '12px' }}>
                 <div>
                   <h4 className="things-task-card-title">
                     <span>📁</span> Required Statutory Documents
@@ -970,115 +1085,196 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleDownloadFullDossier}
-                  disabled={downloadingDoc === 'DOSSIER'}
-                  className="things-btn-outline"
-                  title="Download all submitted requisition documents and schedules for this project"
-                >
-                  <span>⬇️</span> {downloadingDoc === 'DOSSIER' ? 'Downloading...' : 'Download Full Requisition Dossier'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUploadModal(undefined, 'NEW')}
+                    className="things-btn-outline"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    title="Add a new statutory document requirement or record"
+                  >
+                    <span style={{ fontSize: '14px', fontWeight: 700 }}>+</span> Add Statutory Document
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUploadModal(undefined, 'EXISTING')}
+                    className="things-btn-primary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
+                      borderColor: '#1d4ed8',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                    }}
+                    title="Upload hard-copy scans to run Gemini AI OCR extraction, boundary checks, and soft copy form auto-filling"
+                  >
+                    <span style={{ color: '#fde047' }}>⚡</span> Upload Document for Gemini OCR
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadFullDossier}
+                    disabled={downloadingDoc === 'DOSSIER'}
+                    className="things-btn-outline"
+                    title="Download all submitted requisition documents and schedules for this project"
+                  >
+                    <span>⬇️</span> {downloadingDoc === 'DOSSIER' ? 'Downloading...' : 'Download Full Requisition Dossier'}
+                  </button>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {task.requiredDocuments?.map(doc => {
-                  const isTaskClosed = task.status === 'ACCEPTED' || task.status === 'REJECTED';
-                  const isMissing = !isTaskClosed && doc.status === 'MISSING';
-                  const isUploaded = !isTaskClosed && doc.status === 'UPLOADED';
-                  const isVerified = doc.status === 'VERIFIED';
-                  const isUploading = uploadingDocId === doc.id;
-                  const isDownloading = downloadingDoc === doc.name;
-                  const isCurrentlyProcessingOcr = ocrStatus?.docId === doc.id;
-                  const matchedProjectDoc = findMatchingProjectDoc(doc.name);
-
-                  return (
-                    <div
-                      key={doc.id}
-                      className={`things-task-doc-row ${isVerified ? 'is-verified' : ''}`}
+              {(!task.requiredDocuments || task.requiredDocuments.length === 0) ? (
+                <div style={{ padding: '32px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px dashed var(--to-hairline)' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📑</div>
+                  <div style={{ fontWeight: 600, color: 'var(--to-ink)', marginBottom: '4px' }}>No Statutory Documents Attached Yet</div>
+                  <p style={{ fontSize: '13px', color: 'var(--to-fog)', maxWidth: '420px', margin: '0 auto 16px', lineHeight: 1.5 }}>
+                    Upload hard-copy physical records or declare statutory document requirements to run automated Gemini AI OCR extraction.
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenUploadModal(undefined, 'NEW')}
+                      className="things-btn-outline"
                     >
-                      <div className="things-task-doc-info">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span className="things-task-doc-name">
-                            {doc.name}
-                          </span>
-                          {doc.mandatory && (
-                            <span style={{ fontSize: '10.5px', color: 'var(--to-rose)', fontWeight: 700 }}>
-                              *MANDATORY
+                      <span>+</span> Add Statutory Document
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenUploadModal(undefined, 'NEW')}
+                      className="things-btn-primary"
+                    >
+                      <span>⚡</span> Upload Document for Gemini OCR
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {task.requiredDocuments.map(doc => {
+                    const isTaskClosed = task.status === 'ACCEPTED' || task.status === 'REJECTED';
+                    const isMissing = !isTaskClosed && doc.status === 'MISSING';
+                    const isUploaded = !isTaskClosed && doc.status === 'UPLOADED';
+                    const isVerified = doc.status === 'VERIFIED';
+                    const isUploading = uploadingDocId === doc.id;
+                    const isDownloading = downloadingDoc === doc.name;
+                    const isCurrentlyProcessingOcr = ocrStatus?.docId === doc.id;
+                    const matchedProjectDoc = findMatchingProjectDoc(doc.name);
+
+                    return (
+                      <div
+                        key={doc.id}
+                        className={`things-task-doc-row ${isVerified ? 'is-verified' : ''}`}
+                      >
+                        <div className="things-task-doc-info">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="things-task-doc-name">
+                              {doc.name}
                             </span>
-                          )}
+                            {doc.mandatory && (
+                              <span style={{ fontSize: '10.5px', color: 'var(--to-rose)', fontWeight: 700 }}>
+                                *MANDATORY
+                              </span>
+                            )}
+                          </div>
+                          <span className={`things-task-doc-sub ${isVerified ? 'verified' : isUploaded ? 'uploaded' : ''}`}>
+                            {isVerified
+                              ? '✓ Certified Soft Copy Digitized & Verified in Registry'
+                              : isUploaded
+                              ? '📷 Hard Copy Attached • AI Soft Copy Form Suggestions Ready'
+                              : `${doc.type} • ${matchedProjectDoc ? 'Submitted Soft Copy Available' : 'Statutory Form Template Ready'}`}
+                          </span>
                         </div>
-                        <span className={`things-task-doc-sub ${isVerified ? 'verified' : isUploaded ? 'uploaded' : ''}`}>
-                          {isVerified
-                            ? '✓ Certified Soft Copy Digitized & Verified in Registry'
-                            : isUploaded
-                            ? '📷 Hard Copy Attached • AI Soft Copy Form Suggestions Ready'
-                            : `${doc.type} • ${matchedProjectDoc ? 'Submitted Soft Copy Available' : 'Statutory Form Template Ready'}`}
-                        </span>
-                      </div>
 
-                      <div className="things-task-doc-actions">
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadSoftCopy(doc.name)}
-                          disabled={isDownloading}
-                          className="things-btn-outline"
-                          title="Download official soft copy or template to inspect or print physical record"
-                        >
-                          <span>⬇️</span> {isDownloading ? 'Downloading...' : 'Download Soft Copy'}
-                        </button>
-
-                        {isMissing && (
+                        <div className="things-task-doc-actions">
                           <button
                             type="button"
-                            onClick={() => handleUploadClick(doc.id)}
-                            disabled={isUploading || task.status === 'REJECTED'}
-                            className="things-btn-primary"
-                            title="Upload scanned image or photo of physical stamped hard copy"
+                            onClick={() => handleDownloadSoftCopy(doc.name)}
+                            disabled={isDownloading}
+                            className="things-btn-outline"
+                            title="Download official soft copy or template to inspect or print physical record"
                           >
-                            <span>📷</span> {isUploading ? 'Uploading...' : 'Upload Hard Copy'}
+                            <span>⬇️</span> {isDownloading ? 'Downloading...' : 'Download Soft Copy'}
                           </button>
-                        )}
 
-                        {isCurrentlyProcessingOcr && !isOcrVerified && (
-                          <span className="things-ocr-running-badge">
-                            ⚡ AI OCR RUNNING...
-                          </span>
-                        )}
-
-                        {isUploaded && !isCurrentlyProcessingOcr && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {isMissing && (
                             <button
                               type="button"
-                              onClick={() => handleOpenOcrForm(doc)}
+                              onClick={() => handleOpenUploadModal(doc.id, 'EXISTING')}
+                              disabled={isUploading || task.status === 'REJECTED'}
                               className="things-btn-primary"
-                              title="Click to open side-by-side viewer with AI OCR soft copy form filling suggestions"
+                              style={{
+                                background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+                                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                              }}
+                              title="Upload scanned image or photo of physical stamped hard copy for Gemini AI OCR"
                             >
-                              <span>⚡</span> Review Soft Copy Form
+                              <span style={{ color: '#fde047' }}>⚡</span>
+                              {isUploading ? 'Uploading...' : 'Upload Hard Copy (Gemini OCR)'}
                             </button>
-                          </div>
-                        )}
+                          )}
 
-                        {isVerified && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span className="things-officer-pill status-completed">
-                              ✓ VERIFIED
+                          {isCurrentlyProcessingOcr && !isOcrVerified && (
+                            <span className="things-ocr-running-badge">
+                              ⚡ AI OCR RUNNING...
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleInspectVerifiedDoc(doc)}
-                              className="things-btn-outline"
-                              title="Inspect verified soft copy form values and physical scan side-by-side"
-                            >
-                              👁️ Inspect
-                            </button>
-                          </div>
-                        )}
+                          )}
+
+                          {isUploaded && !isCurrentlyProcessingOcr && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenOcrForm(doc)}
+                                className="things-btn-primary"
+                                title="Click to open side-by-side viewer with AI OCR soft copy form filling suggestions"
+                              >
+                                <span>⚡</span> Review Soft Copy Form
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenUploadModal(doc.id, 'EXISTING')}
+                                disabled={isUploading || task.status === 'REJECTED'}
+                                className="things-btn-outline"
+                                title="Re-upload hard copy scan and rerun Gemini AI OCR"
+                              >
+                                <span>📷</span> Re-upload Scan
+                              </button>
+                            </div>
+                          )}
+
+                          {isVerified && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="things-officer-pill status-completed">
+                                ✓ VERIFIED
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleInspectVerifiedDoc(doc)}
+                                className="things-btn-outline"
+                                title="Inspect verified soft copy form values and physical scan side-by-side"
+                              >
+                                👁️ Inspect
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenUploadModal(doc.id, 'EXISTING')}
+                                disabled={isUploading || task.status === 'REJECTED'}
+                                className="things-btn-outline"
+                                title="Re-upload physical scan and rerun Gemini OCR extraction"
+                              >
+                                <span>📷</span> Re-upload
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Dimension 9: OCR Intelligence Card */}
@@ -1092,11 +1288,22 @@ export const OfficerTaskDetailPage: React.FC = () => {
                     Automated entity extraction and spatial boundary alignment verification
                   </p>
                 </div>
-                {task.ocrExtraction && (
-                  <span className="things-ocr-confidence-badge">
-                    {Math.round((task.ocrExtraction.confidenceScore || 0.95) * 100)}% Confidence
-                  </span>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {task.ocrExtraction && (
+                    <span className="things-ocr-confidence-badge">
+                      {Math.round((task.ocrExtraction.confidenceScore || 0.95) * 100)}% Confidence
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUploadModal(undefined, 'EXISTING')}
+                    className="things-btn-outline"
+                    style={{ fontSize: '12px', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                    title="Upload scan to trigger Gemini AI OCR"
+                  >
+                    <span>⚡</span> Upload Document for OCR
+                  </button>
+                </div>
               </div>
 
               {task.ocrExtraction?.extractedFields ? (
@@ -1109,8 +1316,38 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div style={{ padding: '14px', backgroundColor: '#f8fafc', borderRadius: '8px', fontSize: '13px', color: 'var(--to-fog)' }}>
-                  Upload hard-copy scans in the documents section above to trigger Gemini AI extraction.
+                <div style={{
+                  padding: '20px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '8px',
+                  border: '1px solid var(--to-hairline)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '16px'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--to-ink)', fontSize: '14px' }}>
+                      Gemini OCR Extraction Ready
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: 'var(--to-fog)', marginTop: '2px' }}>
+                      Upload hard-copy scans in the documents section above or click the button to trigger automated multimodal extraction and entity normalization.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUploadModal(undefined, 'EXISTING')}
+                    className="things-btn-primary"
+                    style={{
+                      whiteSpace: 'nowrap',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
+                    }}
+                  >
+                    <span>⚡</span> Upload Scan for Gemini OCR
+                  </button>
                 </div>
               )}
 
@@ -1368,6 +1605,287 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
           </div>
         </div>
+
+        {/* Modal: Add / Upload Statutory Document for Gemini AI OCR */}
+        {showUploadDocModal && (
+          <div className="things-modal-overlay" onClick={() => setShowUploadDocModal(false)}>
+            <div
+              className="things-doc-upload-modal"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="things-doc-upload-header">
+                <div>
+                  <h3 className="things-doc-upload-title">
+                    <span style={{ color: 'var(--to-signal-blue)' }}>⚡</span>
+                    Add / Upload Statutory Document &bull; Gemini OCR
+                  </h3>
+                  <p className="things-doc-upload-sub">
+                    Upload physical stamped scans (PDF, JPG, PNG) to initiate automated multimodal Gemini extraction, entity schema normalization, and certified soft copy form filling.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowUploadDocModal(false)}
+                  className="things-ocr-close-btn"
+                  title="Close modal"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Tab Switcher */}
+              <div className="things-doc-upload-tabs">
+                <button
+                  type="button"
+                  className={`things-doc-upload-tab ${uploadModalTab === 'EXISTING' ? 'active' : ''}`}
+                  onClick={() => setUploadModalTab('EXISTING')}
+                >
+                  <span>📁</span> Upload Scan for Existing Requirement
+                </button>
+                <button
+                  type="button"
+                  className={`things-doc-upload-tab ${uploadModalTab === 'NEW' ? 'active' : ''}`}
+                  onClick={() => setUploadModalTab('NEW')}
+                >
+                  <span>+</span> Add New Statutory Document &amp; Upload
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="things-doc-upload-body">
+                {uploadModalTab === 'EXISTING' ? (
+                  <div className="things-doc-form-group">
+                    <label className="things-doc-label">
+                      <span>Select Target Statutory Requirement</span>
+                      <span style={{ fontSize: '11px', color: 'var(--to-fog)', fontWeight: 400 }}>
+                        {task.requiredDocuments?.length || 0} document(s) configured
+                      </span>
+                    </label>
+                    {(!task.requiredDocuments || task.requiredDocuments.length === 0) ? (
+                      <div style={{ padding: '12px', background: '#fef2f2', borderRadius: '6px', fontSize: '13px', color: '#991b1b' }}>
+                        No statutory requirements exist yet. Switch to "Add New Statutory Document &amp; Upload" to create one.
+                      </div>
+                    ) : (
+                      <select
+                        className="things-doc-select"
+                        value={selectedExistingDocId}
+                        onChange={e => setSelectedExistingDocId(e.target.value)}
+                      >
+                        {task.requiredDocuments.map(doc => (
+                          <option key={doc.id} value={doc.id}>
+                            {doc.name} [{doc.type}] — Status: {doc.status} {doc.mandatory ? '(*MANDATORY)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="things-doc-form-group">
+                      <label className="things-doc-label">
+                        <span>Statutory Document Title</span>
+                        <span style={{ fontSize: '11px', color: 'var(--to-rose)', fontWeight: 600 }}>*Required</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="things-doc-input"
+                        placeholder="e.g., Form 19 Joint Demarcation Notice.pdf"
+                        value={newDocName}
+                        onChange={e => setNewDocName(e.target.value)}
+                      />
+                      {/* Presets */}
+                      <div style={{ marginTop: '4px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--to-fog)', display: 'block', marginBottom: '4px' }}>
+                          Quick Official Presets:
+                        </span>
+                        <div className="things-doc-presets">
+                          {STATUTORY_DOC_PRESETS.map(p => (
+                            <button
+                              key={p.name}
+                              type="button"
+                              className="things-doc-preset-chip"
+                              onClick={() => {
+                                setNewDocName(p.name);
+                                setNewDocType(p.type);
+                              }}
+                            >
+                              + {p.name.replace('.pdf', '')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                      <div className="things-doc-form-group">
+                        <label className="things-doc-label">Statutory Document Type</label>
+                        <select
+                          className="things-doc-select"
+                          value={newDocType}
+                          onChange={e => setNewDocType(e.target.value)}
+                        >
+                          {STATUTORY_DOC_TYPES.map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="things-doc-form-group" style={{ justifyContent: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '22px' }}>
+                          <input
+                            type="checkbox"
+                            checked={newDocMandatory}
+                            onChange={e => setNewDocMandatory(e.target.checked)}
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--to-signal-blue)' }}
+                          />
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--to-ink)' }}>
+                            Mandatory Statutory Record
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Upload Dropzone */}
+                <div className="things-doc-form-group">
+                  <label className="things-doc-label">
+                    <span>Physical Scan / Stamped Document Evidence</span>
+                    <span style={{ fontSize: '11px', color: 'var(--to-fog)', fontWeight: 400 }}>
+                      PDF, JPG, PNG, WEBP (Max 25MB)
+                    </span>
+                  </label>
+
+                  <input
+                    type="file"
+                    ref={modalFileInputRef}
+                    accept="application/pdf,image/*"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        const f = e.target.files[0];
+                        setModalFile(f);
+                        if (!newDocName) {
+                          setNewDocName(f.name);
+                        }
+                      }
+                    }}
+                  />
+
+                  {!modalFile ? (
+                    <div
+                      className={`things-doc-dropzone ${modalIsDragging ? 'is-dragover' : ''}`}
+                      onDragOver={e => {
+                        e.preventDefault();
+                        setModalIsDragging(true);
+                      }}
+                      onDragLeave={() => setModalIsDragging(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setModalIsDragging(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                          const f = e.dataTransfer.files[0];
+                          setModalFile(f);
+                          if (!newDocName) {
+                            setNewDocName(f.name);
+                          }
+                        }
+                      }}
+                      onClick={() => {
+                        if (modalFileInputRef.current) {
+                          modalFileInputRef.current.click();
+                        }
+                      }}
+                    >
+                      <div style={{ fontSize: '28px' }}>📤</div>
+                      <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--to-ink)' }}>
+                        Click to browse or drag &amp; drop physical scan
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--to-fog)' }}>
+                        Official gazettes, Form 11 valuation records, panchnama sheets, or Jamabandi copies
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="things-doc-file-card">
+                      <div className="things-doc-file-info">
+                        <span style={{ fontSize: '22px' }}>
+                          {modalFile.type.startsWith('image/') ? '🖼️' : '📄'}
+                        </span>
+                        <div>
+                          <div className="things-doc-file-name">{modalFile.name}</div>
+                          <div className="things-doc-file-meta">
+                            {(modalFile.size / (1024 * 1024)).toFixed(2)} MB &bull; {modalFile.type || 'Document'}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setModalFile(null)}
+                        className="things-btn-outline"
+                        style={{ fontSize: '11.5px', padding: '4px 8px', color: '#ef4444', borderColor: '#fca5a5' }}
+                        title="Remove file"
+                      >
+                        ✕ Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Gemini OCR Callout */}
+                <div className="things-doc-ai-banner">
+                  <span style={{ fontSize: '18px' }}>⚡</span>
+                  <div>
+                    <strong>Automated Gemini OCR &bull; Soft Copy Form Filling:</strong>
+                    <div style={{ marginTop: '2px' }}>
+                      Once uploaded, BhoomiNexus initiates parallel OCR processing and Gemini multimodal analysis to extract statutory parameters (ULPIN, Khasra, Owner, Demarcated Area, Valuation), matching them directly against spatial cadastres.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="things-doc-modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadDocModal(false)}
+                  className="things-btn-outline"
+                >
+                  Cancel
+                </button>
+
+                {uploadModalTab === 'NEW' && !modalFile && (
+                  <button
+                    type="button"
+                    onClick={handleModalAddDocOnly}
+                    disabled={!newDocName.trim()}
+                    className="things-btn-outline"
+                    title="Add document requirement to list without uploading scan immediately"
+                  >
+                    <span>+</span> Add Requirement (Upload Scan Later)
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleModalSubmitUpload}
+                  disabled={!modalFile || (uploadModalTab === 'EXISTING' && !selectedExistingDocId) || (uploadModalTab === 'NEW' && !newDocName.trim())}
+                  className="things-btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
+                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <span style={{ color: '#fde047' }}>⚡</span>
+                  Upload &amp; Start Gemini AI OCR
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Phase 9, 11 & 12: AI Intelligence Fullscreen Modal */}
         {showOcrModal && ocrStatus && (() => {

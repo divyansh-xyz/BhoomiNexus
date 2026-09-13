@@ -31,27 +31,27 @@ export interface CompensationDashboardData {
   disputedCount: number;
 }
 
-const STORAGE_KEY_RECORDS = 'bhoomi_comp_v2_records';
-const STORAGE_KEY_TASKS = 'bhoomi_comp_v2_tasks';
+const STORAGE_KEY_RECORDS = 'bhoomi_comp_v2_records_rithala';
+const STORAGE_KEY_TASKS = 'bhoomi_comp_v2_tasks_rithala';
 
-// Default deterministic seeds for Phase 13 Acceptance Criteria
+// Default deterministic seeds for Phase 13 Acceptance Criteria - Rithala District Corridor
 const DEFAULT_RECORDS: CompensationRecord[] = [
   {
     id: 'comp-rec-001',
     taskId: 'TASK-COMP-101-1',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-084/2A',
-    beneficiaryName: 'Ramesh Balasaheb Shinde',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1021',
+    beneficiaryName: 'Smt. Lakshmi Devi',
     assessedAmount: 3850000,
     approvedAmount: 0,
     paidAmount: 0,
     pendingAmount: 3850000,
     status: 'ASSESSED',
-    remarks: 'Joint measurement valuation completed with 100% Solatium calculation under Sec 30. Ready for Collector sanction.',
+    remarks: 'Joint measurement valuation completed with 100% Solatium calculation under Sec 30. Ready for Competent Authority sanction.',
     beneficiaryDetails: {
-      khatedarName: 'Ramesh Balasaheb Shinde',
+      khatedarName: 'Smt. Lakshmi Devi',
       bankName: 'State Bank of India',
-      bankBranch: 'Haveli Tehsil Branch, Pune',
+      bankBranch: 'Rohini Sector 5 Branch, North West Delhi',
       accountNumber: '30492817492',
       ifsc: 'SBIN0001428',
       aadhaarMasked: 'XXXX-XXXX-8421',
@@ -60,16 +60,16 @@ const DEFAULT_RECORDS: CompensationRecord[] = [
       kycStatus: 'VERIFIED',
     },
     parcelDetails: {
-      khasraNumber: '084/2A',
-      ulpin: 'MH2708402A190084',
-      surveyNumber: '84/2A',
-      village: 'Haveli',
-      taluka: 'Haveli',
-      district: 'Pune',
-      state: 'Maharashtra',
-      areaAcres: 2.45,
+      khasraNumber: '101/A',
+      ulpin: '07-104-5829-1021',
+      surveyNumber: 'SV-101/A',
+      village: 'Rithala Village',
+      taluka: 'Rohini Tehsil',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 0.85,
       tenureType: 'Occupant Class I (Bhumiswami)',
-      landClassification: 'Perennially Irrigated (Jirayat Class A)',
+      landClassification: 'Urban Commercial/Residential Fringe',
       boundaryAffirmed: true,
     },
     solatiumDetails: {
@@ -107,37 +107,37 @@ const DEFAULT_RECORDS: CompensationRecord[] = [
   {
     id: 'comp-rec-002',
     taskId: 'TASK-COMP-101-2',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-084/2B',
-    beneficiaryName: 'Sunita Dnyaneshwar Patil',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1022',
+    beneficiaryName: 'Shri Rajesh Kumar',
     assessedAmount: 4200000,
     approvedAmount: 0,
     paidAmount: 0,
     pendingAmount: 4200000,
     status: 'ASSESSED',
-    remarks: 'Awaiting completion of joint inquiry on standing horticulture trees before Collector sanction.',
+    remarks: 'Awaiting completion of joint inquiry on standing structures before Competent Authority sanction.',
     beneficiaryDetails: {
-      khatedarName: 'Sunita Dnyaneshwar Patil',
-      bankName: 'Bank of Maharashtra',
-      bankBranch: 'Loni Kalbhor Branch',
+      khatedarName: 'Shri Rajesh Kumar',
+      bankName: 'Punjab National Bank',
+      bankBranch: 'Rithala Metro Station Branch',
       accountNumber: '60182749102',
-      ifsc: 'MAHB0000219',
+      ifsc: 'PUNB0000219',
       aadhaarMasked: 'XXXX-XXXX-9132',
       panMasked: 'BOPPP9132M',
       sharePercentage: 100,
       kycStatus: 'VERIFIED',
     },
     parcelDetails: {
-      khasraNumber: '084/2B',
-      ulpin: 'MH2708402B190085',
-      surveyNumber: '84/2B',
-      village: 'Haveli',
-      taluka: 'Haveli',
-      district: 'Pune',
-      state: 'Maharashtra',
-      areaAcres: 2.70,
+      khasraNumber: '102/B',
+      ulpin: '07-104-5829-1022',
+      surveyNumber: 'SV-102/B',
+      village: 'Rithala Village',
+      taluka: 'Rohini Tehsil',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 1.15,
       tenureType: 'Occupant Class I (Bhumiswami)',
-      landClassification: 'Seasonally Irrigated Agricultural',
+      landClassification: 'Mixed Commercial',
       boundaryAffirmed: true,
     },
     solatiumDetails: {
@@ -160,9 +160,9 @@ const DEFAULT_RECORDS: CompensationRecord[] = [
   },
   {
     id: 'comp-rec-003',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-085/1',
-    beneficiaryName: 'Vitthal Tukaram Gaikwad',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1023',
+    beneficiaryName: 'Mohd. Irfan Ansari',
     assessedAmount: 2900000,
     approvedAmount: 2900000,
     paidAmount: 2900000,
@@ -172,32 +172,32 @@ const DEFAULT_RECORDS: CompensationRecord[] = [
     referenceNo: 'PFMS-DBT-2026-78419',
     remarks: 'Disbursal executed through PFMS DBT; beneficiary acknowledgement confirmed.',
     beneficiaryDetails: {
-      khatedarName: 'Vitthal Tukaram Gaikwad',
-      bankName: 'Union Bank of India',
-      bankBranch: 'Hadapsar Branch',
+      khatedarName: 'Mohd. Irfan Ansari',
+      bankName: 'Canara Bank',
+      bankBranch: 'Rohini Sector 7 Branch',
       accountNumber: '520101294821',
-      ifsc: 'UBIN0552011',
+      ifsc: 'CNRB0002011',
       aadhaarMasked: 'XXXX-XXXX-4190',
       panMasked: 'AGTPG4190R',
       sharePercentage: 100,
       kycStatus: 'VERIFIED',
     },
     parcelDetails: {
-      khasraNumber: '085/1',
-      ulpin: 'MH2708501A190090',
-      village: 'Haveli',
-      district: 'Pune',
-      state: 'Maharashtra',
-      areaAcres: 1.85,
+      khasraNumber: '103/C',
+      ulpin: '07-104-5829-1023',
+      village: 'Rithala Village',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 0.65,
     },
     createdAt: '2026-08-10T10:00:00Z',
     updatedAt: '2026-08-20T16:00:00Z',
   },
   {
     id: 'comp-rec-004',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-089/3',
-    beneficiaryName: 'Anand Mohanrao Deshmukh',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1024',
+    beneficiaryName: 'Shri Surinder Singh',
     assessedAmount: 5100000,
     approvedAmount: 0,
     paidAmount: 0,
@@ -212,45 +212,45 @@ const DEFAULT_RECORDS: CompensationRecord[] = [
 const DEFAULT_TASKS: WorkflowTask[] = [
   {
     id: 'TASK-COMP-101-1',
-    projectId: 'p-nhai-ringroad-2026',
-    projectCode: 'NHAI-EXP-2026-04',
-    projectTitle: 'Pune Outer Ring Road - Section IV (Haveli Sector)',
-    ministry: 'Ministry of Road Transport and Highways',
-    statutoryPurpose: 'National Highway Corridor under RFCTLARR Act 2013',
-    state: 'Maharashtra',
-    district: 'Pune',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    projectCode: 'PRJ-DL-7701',
+    projectTitle: 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor',
+    ministry: 'Ministry of Housing and Urban Affairs',
+    statutoryPurpose: 'Mass Rapid Transit System under Metro Railways Act / RFCTLARR 2013',
+    state: 'Delhi',
+    district: 'Rithala',
     parcel: {
-      id: 'MH-PUN-HAV-084/2A',
-      ulpin: 'MH2708402A190084',
-      khasraNumber: '084/2A',
-      village: 'Haveli',
-      areaAcres: 2.45,
+      id: '07-104-5829-1021',
+      ulpin: '07-104-5829-1021',
+      khasraNumber: '101/A',
+      village: 'Rithala Village',
+      areaAcres: 0.85,
       tenureType: 'Occupant Class I (Bhumiswami)',
       disputed: false,
     },
     stageId: 'stage-comp-disbursal',
-    stageOrder: 4,
-    stageName: 'Statutory Compensation Award & Disbursal',
+    stageOrder: 2,
+    stageName: 'Sec 26-30 Statutory Compensation Award & Disbursal',
     workflowNode: {
-      id: 'node-comp-01',
-      name: 'Compensation Award & Disbursal (Sec 26-30)',
+      id: 'node-comp-1',
+      name: 'Sec 26-30 Statutory Compensation Award & Disbursal',
       type: 'COMPENSATION_STAGE',
       branchType: 'COMPENSATION',
-      responsibility: 'Special Land Acquisition Officer (SLAO)',
+      responsibility: 'Competent Authority / SLAO (Compensation Officer)',
       slaDays: 14,
     },
     assignedOfficer: {
-      id: 'off-comp-01',
-      name: 'Shri A. K. Deshmukh',
-      designation: 'Competent Authority & Deputy Collector',
+      id: 'comp.officer@bhoomi.gov.in',
+      name: 'Mahesh Patil',
+      designation: 'Statutory Compensation Officer & SLAO',
       role: 'COMPENSATION_OFFICER',
-      department: 'Special Land Acquisition Office (SLAO - Pune)',
-      authority: 'Competent Authority & Deputy Collector',
-      jurisdiction: 'Pune District, Maharashtra',
-      district: 'Pune',
-      state: 'Maharashtra',
+      department: 'Special Land Acquisition Office (SLAO - Compensation Branch)',
+      authority: 'Competent Authority & SLAO',
+      jurisdiction: 'Rithala, Delhi',
+      district: 'Rithala',
+      state: 'Delhi',
     },
-    department: 'Revenue & Forest Department, Maharashtra',
+    department: 'Land & Building Department, Delhi',
     slaDays: 14,
     dueDate: '2026-09-20',
     status: 'IN_PROGRESS',
@@ -263,45 +263,45 @@ const DEFAULT_TASKS: WorkflowTask[] = [
   },
   {
     id: 'TASK-COMP-101-2',
-    projectId: 'p-nhai-ringroad-2026',
-    projectCode: 'NHAI-EXP-2026-04',
-    projectTitle: 'Pune Outer Ring Road - Section IV (Haveli Sector)',
-    ministry: 'Ministry of Road Transport and Highways',
-    statutoryPurpose: 'National Highway Corridor under RFCTLARR Act 2013',
-    state: 'Maharashtra',
-    district: 'Pune',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    projectCode: 'PRJ-DL-7701',
+    projectTitle: 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor',
+    ministry: 'Ministry of Housing and Urban Affairs',
+    statutoryPurpose: 'Mass Rapid Transit System under Metro Railways Act / RFCTLARR 2013',
+    state: 'Delhi',
+    district: 'Rithala',
     parcel: {
-      id: 'MH-PUN-HAV-084/2B',
-      ulpin: 'MH2708402B190085',
-      khasraNumber: '084/2B',
-      village: 'Haveli',
-      areaAcres: 2.70,
+      id: '07-104-5829-1022',
+      ulpin: '07-104-5829-1022',
+      khasraNumber: '102/B',
+      village: 'Rithala Village',
+      areaAcres: 1.15,
       tenureType: 'Occupant Class I (Bhumiswami)',
       disputed: false,
     },
     stageId: 'stage-comp-disbursal',
-    stageOrder: 4,
-    stageName: 'Statutory Compensation Award & Disbursal',
+    stageOrder: 2,
+    stageName: 'Sec 26-30 Statutory Compensation Award & Disbursal',
     workflowNode: {
-      id: 'node-comp-01',
-      name: 'Compensation Award & Disbursal (Sec 26-30)',
+      id: 'node-comp-1',
+      name: 'Sec 26-30 Statutory Compensation Award & Disbursal',
       type: 'COMPENSATION_STAGE',
       branchType: 'COMPENSATION',
-      responsibility: 'Special Land Acquisition Officer (SLAO)',
+      responsibility: 'Competent Authority / SLAO (Compensation Officer)',
       slaDays: 14,
     },
     assignedOfficer: {
-      id: 'off-comp-01',
-      name: 'Shri A. K. Deshmukh',
-      designation: 'Competent Authority & Deputy Collector',
+      id: 'comp.officer@bhoomi.gov.in',
+      name: 'Mahesh Patil',
+      designation: 'Statutory Compensation Officer & SLAO',
       role: 'COMPENSATION_OFFICER',
-      department: 'Special Land Acquisition Office (SLAO - Pune)',
-      authority: 'Competent Authority & Deputy Collector',
-      jurisdiction: 'Pune District, Maharashtra',
-      district: 'Pune',
-      state: 'Maharashtra',
+      department: 'Special Land Acquisition Office (SLAO - Compensation Branch)',
+      authority: 'Competent Authority & SLAO',
+      jurisdiction: 'Rithala, Delhi',
+      district: 'Rithala',
+      state: 'Delhi',
     },
-    department: 'Revenue & Forest Department, Maharashtra',
+    department: 'Land & Building Department, Delhi',
     slaDays: 14,
     dueDate: '2026-09-22',
     status: 'ASSIGNED',
@@ -413,18 +413,61 @@ export const compensationV2Service = {
    * Spec Line 271: Returns compensation tasks assigned to the authenticated Compensation Officer.
    */
   async getMyTasks(): Promise<WorkflowTask[]> {
+    const demoProjectId = localStorage.getItem('bhoomi_demo_active_project_id') || '4ed46de6-586e-4459-b011-f090a1c3bafd';
+    const demoProjectTitle = localStorage.getItem('bhoomi_demo_active_project_title') || 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor';
+    const demoProjectCode = localStorage.getItem('bhoomi_demo_active_project_code') || 'PRJ-DL-7701';
+
+    let list: WorkflowTask[] = [];
     try {
       const res = await apiClient.get<any>('/compensation/tasks', {
         params: { assignedTo: 'me' },
       });
       const data = res.data?.data || res.data;
       if (data && Array.isArray(data) && data.length > 0) {
-        return data;
+        list = data;
       }
     } catch (err) {
       console.warn('[compensationV2Service] GET /api/v1/compensation/tasks using local state:', err);
     }
-    return getLocalTasks();
+
+    if (list.length === 0) {
+      list = getLocalTasks();
+    }
+
+    // Isolate tasks strictly to the active Rithala/demo project so only this project is visible
+    const filtered = list.filter((t) => {
+      const pId = t.projectId || '';
+      const pCode = t.projectCode || '';
+      const dist = (t.district || (t.parcel as any)?.district || '').toLowerCase();
+      return (
+        pId === demoProjectId ||
+        pCode === demoProjectCode ||
+        dist === 'rithala' ||
+        pCode.includes('7701') ||
+        pId === '4ed46de6-586e-4459-b011-f090a1c3bafd'
+      );
+    });
+
+    const targetList = filtered.length > 0 ? filtered : getLocalTasks();
+    return targetList.map((t) => ({
+      ...t,
+      projectId: demoProjectId,
+      projectTitle: demoProjectTitle,
+      projectCode: demoProjectCode,
+      district: 'Rithala',
+      state: 'Delhi',
+      assignedOfficer: {
+        id: 'comp.officer@bhoomi.gov.in',
+        name: 'Mahesh Patil',
+        designation: 'Statutory Compensation Officer & SLAO',
+        role: 'COMPENSATION_OFFICER',
+        authority: 'Competent Authority & SLAO',
+        department: 'Special Land Acquisition Office (SLAO - Compensation Branch)',
+        jurisdiction: 'Rithala, Delhi',
+        district: 'Rithala',
+        state: 'Delhi',
+      },
+    }));
   },
 
   /**

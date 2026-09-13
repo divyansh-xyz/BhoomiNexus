@@ -85,44 +85,54 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
     await client.query("DELETE FROM workflow_nodes WHERE workflow_instance_id = $1", [instance.id]);
     await client.query("DELETE FROM workflow_edges WHERE workflow_instance_id = $1", [instance.id]);
 
-    // 4. Create standard District Root node
+    // 4. Fetch demo officers for statutory assignment
+    const officerUsersRes = await client.query(
+      `SELECT id, email FROM users WHERE email IN ('officer@bhoomi.gov.in', 'comp.officer@bhoomi.gov.in', 'possession.officer@bhoomi.gov.in', 'boss@bhoomi.gov.in')`
+    );
+    const officerMap = new Map(officerUsersRes.rows.map((u: any) => [u.email, u.id]));
+
+    // 5. Create standard District Root node (Rithala)
+    const districtDistrictName = project.district && project.district.trim() ? project.district : 'Rithala';
     const districtNodeRes = await client.query(
       `INSERT INTO workflow_nodes
-       (workflow_instance_id, node_key, name, node_type, responsible_role, x_position, y_position)
-       VALUES ($1, 'district_root', $2, 'DISTRICT', 'DISTRICT_AUTHORITY', 100, 200)
+       (workflow_instance_id, node_key, name, node_type, responsible_role, responsible_user_id, x_position, y_position)
+       VALUES ($1, 'district_root', $2, 'DISTRICT', 'DISTRICT_AUTHORITY', $3, 100, 200)
        RETURNING *`,
-      [instance.id, `${project.district || 'District'} Authority`]
+      [instance.id, districtDistrictName, officerMap.get('boss@bhoomi.gov.in') || userId]
     );
     const districtNode = districtNodeRes.rows[0];
 
-    // 5. Create the 3 Standard Branches: Acquisition, Compensation, Possession
+    // 6. Create the 3 Standard Branches: Acquisition (Terminal Endpoint), Compensation, Possession
     const branches = [
       {
         key: "branch_acquisition",
-        name: "Acquisition Verification",
+        name: "Acquisition Verification & Final Clearance",
         role: "PROCESSING_OFFICER",
+        userId: officerMap.get('officer@bhoomi.gov.in'),
         type: "STAGE",
-        x: 350,
+        x: 450,
         y: 100,
-        desc: "Cadastral parcel title verification and field validation",
+        desc: "Final acquisition verification, statutory scrutiny, and clearance endpoint",
       },
       {
         key: "branch_compensation",
-        name: "Compensation Determination",
+        name: "Sec 26-30 Statutory Compensation Award & Disbursal",
         role: "COMPENSATION_OFFICER",
+        userId: officerMap.get('comp.officer@bhoomi.gov.in'),
         type: "STAGE",
-        x: 350,
+        x: 450,
         y: 200,
-        desc: "Statutory compensation assessment, award declaration, and disbursement",
+        desc: "Statutory compensation assessment, 100% solatium calculation, and PFMS DBT award disbursal",
       },
       {
         key: "branch_possession",
-        name: "Physical Possession",
+        name: "Physical Possession, Spot Panchnama & Handover",
         role: "POSSESSION_OFFICER",
+        userId: officerMap.get('possession.officer@bhoomi.gov.in'),
         type: "STAGE",
-        x: 350,
+        x: 450,
         y: 300,
-        desc: "Physical inspection, boundary demarcation, and eviction/possession clearance",
+        desc: "Physical site takeover, spot panchnama with geotagged evidence, and Section 38 unencumbered handover",
       },
     ];
 
@@ -130,10 +140,10 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
     for (const b of branches) {
       const bRes = await client.query(
         `INSERT INTO workflow_nodes
-         (workflow_instance_id, node_key, name, node_type, responsible_role, x_position, y_position, configuration)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (workflow_instance_id, node_key, name, node_type, responsible_role, responsible_user_id, x_position, y_position, configuration)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [instance.id, b.key, b.name, b.type, b.role, b.x, b.y, JSON.stringify({ description: b.desc })]
+        [instance.id, b.key, b.name, b.type, b.role, b.userId, b.x, b.y, JSON.stringify({ description: b.desc })]
       );
       const bNode = bRes.rows[0];
       createdBranchNodes.push(bNode);
@@ -207,7 +217,7 @@ function calculateHierarchicalParcelCounts(nodes: any[], edges: any[]): Map<stri
       if (children && children.length > 0) {
         const sum = children.reduce((acc, cid) => acc + (countMap.get(cid) || 0), 0);
         const current = countMap.get(n.id) || 0;
-        if (current !== sum) {
+        if (sum > 0 && current !== sum) {
           countMap.set(n.id, sum);
           changed = true;
         }
@@ -270,6 +280,8 @@ export const getWorkflowGraph = async (projectId: string) => {
       templateSource: n.template_source,
       xPosition: n.x_position,
       yPosition: n.y_position,
+      positionX: n.x_position,
+      positionY: n.y_position,
       parcelCount: hierarchicalCounts.get(n.id) ?? n.parcel_count ?? 0,
       createdAt: n.created_at,
       updatedAt: n.updated_at,
@@ -317,7 +329,7 @@ export const createNode = async (projectId: string, payload: any, userId: string
     nodeKey: payload.nodeKey || `node_${Date.now()}`,
     name: payload.name,
     nodeType: payload.nodeType || "STAGE",
-    responsibleRole: payload.responsibleRole,
+    responsibleRole: payload.responsibleRole || payload.responsibility || (payload.nodeType === "DISTRICT" || payload.nodeType === "DISTRICT_ACQUISITION" ? "DISTRICT_AUTHORITY" : "PROCESSING_OFFICER"),
     responsibleUnitId: payload.responsibleUnitId,
     responsibleUserId: payload.responsibleUserId,
     configuration: payload.configuration,
@@ -325,6 +337,43 @@ export const createNode = async (projectId: string, payload: any, userId: string
     xPosition: payload.xPosition ?? 100,
     yPosition: payload.yPosition ?? 100,
   });
+
+  // Golden Rule: Every district node should have a parallel possession and compensation node attached to it by default
+  if (node.node_type === "DISTRICT" || node.node_type === "DISTRICT_ACQUISITION") {
+    const compNode = await graphRepo.createWorkflowNode({
+      workflowInstanceId: instance.id,
+      nodeKey: `comp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: `${node.name} — Compensation Determination`,
+      nodeType: "STAGE",
+      responsibleRole: "COMPENSATION_OFFICER",
+      xPosition: (payload.xPosition ?? 100) + 300,
+      yPosition: (payload.yPosition ?? 100) + 140,
+      configuration: { description: "Statutory compensation assessment, award declaration, and disbursement" },
+    });
+    await graphRepo.createWorkflowEdge({
+      workflowInstanceId: instance.id,
+      sourceNodeId: node.id,
+      targetNodeId: compNode.id,
+      edgeType: "STANDARD",
+    });
+
+    const possNode = await graphRepo.createWorkflowNode({
+      workflowInstanceId: instance.id,
+      nodeKey: `poss_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: `${node.name} — Physical Possession & Handover`,
+      nodeType: "STAGE",
+      responsibleRole: "POSSESSION_OFFICER",
+      xPosition: (payload.xPosition ?? 100) + 300,
+      yPosition: (payload.yPosition ?? 100) + 280,
+      configuration: { description: "Physical inspection, boundary demarcation, and eviction/possession clearance" },
+    });
+    await graphRepo.createWorkflowEdge({
+      workflowInstanceId: instance.id,
+      sourceNodeId: node.id,
+      targetNodeId: possNode.id,
+      edgeType: "STANDARD",
+    });
+  }
 
   await createAuditEvent({
     userId,

@@ -114,8 +114,8 @@ export const PossessionDashboardPage: React.FC = () => {
   });
 
   // Find Demo Parcel 1 and Demo Parcel 2 for live display
-  const demoRecord1 = records.find((r) => r.parcelId === 'MH-PUN-HAV-084/2A');
-  const demoRecord2 = records.find((r) => r.parcelId === 'MH-PUN-HAV-084/2B');
+  const demoRecord1 = records.find((r) => r.parcelId === '07-104-5829-1021' || r.parcelId === 'MH-PUN-HAV-084/2A') || records[0];
+  const demoRecord2 = records.find((r) => r.parcelId === '07-104-5829-1022' || r.parcelId === 'MH-PUN-HAV-084/2B') || records[1];
   const isParcel1Completed = demoRecord1?.status === 'POSSESSION_TAKEN' || demoRecord1?.status === 'COMPLETED';
 
   return (
@@ -178,15 +178,15 @@ export const PossessionDashboardPage: React.FC = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', color: '#134e4a' }}>
             <span>
-              <strong>Demo Parcel 1</strong> (<code>MH-PUN-HAV-084/2A</code>):{' '}
+              <strong>Demo Parcel 1</strong> (<code>{demoRecord1?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord1.parcelDetails.khasraNumber} • ${demoRecord1.parcelId}` : '07-104-5829-1021'}</code>):{' '}
               <span className={`poss-badge ${isParcel1Completed ? 'poss-badge-completed' : 'poss-badge-scheduled'}`}>
-                {isParcel1Completed ? 'POSSESSION COMPLETED' : demoRecord1?.status.replace('_', ' ') || 'SCHEDULED'}
+                {isParcel1Completed ? 'POSSESSION COMPLETED' : demoRecord1?.status?.replace('_', ' ') || 'SCHEDULED'}
               </span>
               {isParcel1Completed && ' (Vested under Sec 38)'}
             </span>
             <span style={{ color: '#99f6e4' }}>|</span>
             <span>
-              <strong>Demo Parcel 2</strong> (<code>MH-PUN-HAV-084/2B</code>):{' '}
+              <strong>Demo Parcel 2</strong> (<code>{demoRecord2?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord2.parcelDetails.khasraNumber} • ${demoRecord2.parcelId}` : '07-104-5829-1022'}</code>):{' '}
               <span className="poss-badge poss-badge-pending">
                 {demoRecord2?.status || 'PENDING'}
               </span>

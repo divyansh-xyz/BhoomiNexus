@@ -71,5 +71,38 @@ describe('Phases 4, 5, 6, 7 — Workflow Graph & Template Services', () => {
         expect(parcel.intersectPercent).toBeGreaterThanOrEqual(50);
       }
     });
+
+    it('verifies getNodeParcels and validateWorkflowGraph handle parcelId mapping and ancestor exclusivity', async () => {
+      const { getNodeParcels } = await import('../workflowGraph.service');
+      const { validateWorkflowGraph } = await import('../workflowValidation.service');
+      const { pool } = await import('../../../config/db');
+
+      const prjRes = await pool.query('SELECT id FROM projects WHERE status != $1 ORDER BY created_at DESC LIMIT 1', ['ARCHIVED']);
+      if (prjRes.rows.length > 0) {
+        const projectId = prjRes.rows[0].id;
+        const validation = await validateWorkflowGraph(projectId);
+        expect(validation).toBeDefined();
+        expect(validation.checklist).toBeDefined();
+        // Item 4 (Single Active Cohort Exclusivity) must not fail with false positive
+        expect(validation.checklist?.noDuplicateActiveMembership).toBe(true);
+
+        const nodeRes = await pool.query(`
+          SELECT wn.id 
+          FROM workflow_nodes wn 
+          JOIN workflow_instances wi ON wn.workflow_instance_id = wi.id 
+          WHERE wi.project_id = $1 
+          LIMIT 1
+        `, [projectId]);
+        if (nodeRes.rows.length > 0) {
+          const nodeId = nodeRes.rows[0].id;
+          const parcels = await getNodeParcels(projectId, nodeId);
+          if (parcels.length > 0) {
+            expect(parcels[0].parcelId).toBeDefined();
+            expect(parcels[0].nodeId).toBeDefined();
+          }
+        }
+      }
+    });
   });
 });
+

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import './boss-dashboard.css';
 import { bossService } from '../../services/api/boss.service';
 import { useWorkflowGraph } from '../../hooks/useWorkflowGraph';
 import type { ProjectRequest } from '../../types/boss.types';
-import type { WorkflowNodeType, WorkflowNodeResponsibility } from '../../types/workflowV2.types';
+import type { WorkflowNode, WorkflowNodeType, WorkflowNodeResponsibility } from '../../types/workflowV2.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
 import {
   computeDAGLayout,
@@ -17,10 +17,8 @@ import { WorkflowParcelPanel } from '../../components/workflow/WorkflowParcelPan
 import { ParcelPassportModal } from '../../components/workflow/ParcelPassportModal';
 import { WorkflowTemplateModal } from '../../components/workflow/WorkflowTemplateModal';
 import { WorkflowValidationModal } from '../../components/workflow/WorkflowValidationModal';
-import { WorkflowExecutionPanel } from '../../components/workflow/WorkflowExecutionPanel';
 import { getNodeBranchType } from '../../utils/workflowTemplates.utils';
-import type { WorkflowNodeParcel, ProjectExecutionResponse } from '../../types/workflowV2.types';
-import { v2WorkflowService } from '../../services/api/v2Workflow.service';
+import type { WorkflowNodeParcel } from '../../types/workflowV2.types';
 import { DemoLoading, DemoUnsavedChangesModal } from '../../components/common/DemoPolishStates';
 
 // ────────────────────────────────────────────────────
@@ -63,6 +61,44 @@ function formatResponsibility(resp: string): string {
     LEGAL_CELL: 'Legal',
   };
   return map[resp] || resp;
+}
+
+/** Returns assigned demo officer details for statutory workflow nodes */
+function getNodeOfficerInfo(node?: WorkflowNode | null): { name: string; designation: string; email: string; role: string } {
+  if (!node) {
+    return { name: 'Ananya Patel', designation: 'Processing & Field Officer', email: 'officer@bhoomi.gov.in', role: 'Processing Officer' };
+  }
+  const branch = getNodeBranchType(node);
+  if (branch === 'COMPENSATION' || node.responsibility === 'COMPENSATION_BRANCH' || (node as any).responsibleRole === 'COMPENSATION_OFFICER') {
+    return {
+      name: node.responsibleUserName || 'Mahesh Patil',
+      designation: node.responsibleUserDesignation || 'Competent Authority for Land Acquisition (CALA)',
+      email: 'comp.officer@bhoomi.gov.in',
+      role: 'Compensation Officer',
+    };
+  }
+  if (branch === 'POSSESSION' || node.responsibility === 'POSSESSION_BRANCH' || (node as any).responsibleRole === 'POSSESSION_OFFICER') {
+    return {
+      name: node.responsibleUserName || 'Vinayak Kulkarni',
+      designation: node.responsibleUserDesignation || 'Special Tehsildar (Possession & Encroachment)',
+      email: 'possession.officer@bhoomi.gov.in',
+      role: 'Possession Officer',
+    };
+  }
+  if (branch === 'DISTRICT' || (node.nodeType as string) === 'DISTRICT' || node.nodeType === 'DISTRICT_ACQUISITION') {
+    return {
+      name: node.responsibleUserName || 'Dr. Vikramaditya Sen',
+      designation: node.responsibleUserDesignation || 'Competent Authority (District Magistrate)',
+      email: 'boss@bhoomi.gov.in',
+      role: 'District Authority',
+    };
+  }
+  return {
+    name: node.responsibleUserName || 'Ananya Patel',
+    designation: node.responsibleUserDesignation || 'Processing & Field Officer',
+    email: 'officer@bhoomi.gov.in',
+    role: 'Processing Officer',
+  };
 }
 
 // ────────────────────────────────────────────────────
@@ -156,11 +192,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
   const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
   const [validationModalMode, setValidationModalMode] = useState<'validate' | 'activate'>('validate');
   const [showUnsavedModal, setShowUnsavedModal] = useState<boolean>(false);
-
-  // ── Phase 10 Runtime Execution Engine ──
-  const [showExecutionPanel, setShowExecutionPanel] = useState<boolean>(false);
-  const [executionData, setExecutionData] = useState<ProjectExecutionResponse | null>(null);
-  const [loadingExecution, setLoadingExecution] = useState<boolean>(false);
 
   // ────────────────────────────────────────────────────
   // Effects
@@ -465,83 +496,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
 
   const isWorkflowActive = graph?.status === 'ACTIVE' || project?.status === 'WORKFLOW_ACTIVE' || isLocked;
 
-  // ── Phase 10: Runtime Execution Handlers ──
-  const handleOpenExecution = useCallback(async () => {
-    if (!projectId) return;
-    try {
-      setLoadingExecution(true);
-      const data = await v2WorkflowService.getWorkflowExecution(projectId, graph);
-      setExecutionData(data);
-      setShowExecutionPanel(true);
-    } catch (err) {
-      console.error('Failed to load runtime execution', err);
-    } finally {
-      setLoadingExecution(false);
-    }
-  }, [projectId, graph]);
 
-  // Automatically fetch execution data when workflow becomes active
-  useEffect(() => {
-    if (isWorkflowActive && projectId && !executionData) {
-      v2WorkflowService.getWorkflowExecution(projectId, graph).then((data) => {
-        if (data) setExecutionData(data);
-      });
-    }
-  }, [isWorkflowActive, projectId, graph, executionData]);
-
-  const getNodeExecutionStats = (nodeId: string) => {
-    if (!executionData) return null;
-    const nodeExecs = executionData.executions.filter((e) => e.nodeId === nodeId);
-    if (nodeExecs.length === 0) return null;
-
-    const actionable = nodeExecs.filter((e) => e.status === 'ACTIONABLE').length;
-    const inProgress = nodeExecs.filter((e) => e.status === 'IN_PROGRESS').length;
-    const completed = nodeExecs.filter((e) => e.status === 'COMPLETED').length;
-
-    if (actionable > 0) {
-      return (
-        <span
-          className="wf-node-exec-badge wf-node-exec-badge--actionable"
-          title={`${actionable} Actionable Parcel Tasks Dispatched`}
-          onClick={(e) => {
-            e.stopPropagation();
-            selectNode(nodeId);
-            handleOpenExecution();
-          }}
-        >
-          <span className="wf-exec-mini-pulse" />
-          ⚡ {actionable} Actionable
-        </span>
-      );
-    }
-    if (inProgress > 0) {
-      return (
-        <span
-          className="wf-node-exec-badge wf-node-exec-badge--progress"
-          title={`${inProgress} Parcel Tasks In Progress`}
-          onClick={(e) => {
-            e.stopPropagation();
-            selectNode(nodeId);
-            handleOpenExecution();
-          }}
-        >
-          ⏳ {inProgress} Active
-        </span>
-      );
-    }
-    if (completed > 0 && completed === nodeExecs.length) {
-      return (
-        <span className="wf-node-exec-badge wf-node-exec-badge--completed" title="All Parcel Tasks Completed">
-          ✓ Completed
-        </span>
-      );
-    }
-    return (
-      <span className="wf-node-exec-badge wf-node-exec-badge--pending" title="Awaiting Predecessor Stage Completion">
-        ⚪ Pending
-      </span>
-    );
-  };
 
   // ────────────────────────────────────────────────────
   // Loading state
@@ -611,18 +566,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
             <span className={`wf-status-badge ${isWorkflowActive ? 'wf-status-badge--active' : 'wf-status-badge--draft'}`}>
               {isWorkflowActive ? 'ACTIVE · FROZEN' : 'DESIGN · DRAFT'}
             </span>
-            <button
-              type="button"
-              className="wf-btn wf-btn--execution"
-              onClick={handleOpenExecution}
-              disabled={loadingExecution}
-              title="Inspect Phase 10 Runtime Execution Engine & Parcel-to-Task Lineage"
-            >
-              {loadingExecution ? 'Loading Runtime…' : '⚡ Runtime Execution Engine'}
-            </button>
-            <Link to={`/boss/projects/${projectId}/workflow`} className="wf-btn">
-              Linear View
-            </Link>
           </div>
         </header>
 
@@ -633,13 +576,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
             <div style={{ flex: 1 }}>
               <strong>Workflow Activated & Topology Frozen:</strong> Operational execution has started and tasks are dispatched to field officers. All mutation requests are restricted by statutory compliance (<code>WORKFLOW_ALREADY_ACTIVATED</code>).
             </div>
-            <button
-              type="button"
-              className="wf-btn wf-btn--execution-sm"
-              onClick={handleOpenExecution}
-            >
-              ⚡ Inspect Execution Matrix
-            </button>
           </div>
         )}
         {cycleError && (
@@ -649,7 +585,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
         )}
         {error && (
           <div className="wf-alert wf-alert--warning">
-            <strong>⚠️ Notice:</strong> {error}
+            <strong>⚠️ Notice:</strong> {typeof error === 'string' ? error : (error as any)?.message || JSON.stringify(error)}
           </div>
         )}
         {validationResult && (
@@ -1018,8 +954,36 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Phase 10: Live Node Execution Badge */}
-                            {getNodeExecutionStats(node.id)}
+                            {/* Officer Assignment Row */}
+                            {(() => {
+                              const off = getNodeOfficerInfo(node);
+                              return (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    marginTop: 4,
+                                    fontSize: '11px',
+                                    color: '#1e293b',
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                  }}
+                                  title={`Assigned Officer: ${off.name} (${off.email})`}
+                                >
+                                  <span style={{ fontSize: '11px' }}>👤</span>
+                                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {off.name}
+                                  </span>
+                                  <span style={{ fontSize: '9.5px', color: '#64748b', marginLeft: 'auto', flexShrink: 0 }}>
+                                    {off.role}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
 
                             {/* Drop overlay badge when dragging parcels over this node */}
                             {isDropTarget && (
@@ -1287,6 +1251,56 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                         <option value="POSSESSION_BRANCH">Possession Branch (Tehsil)</option>
                         <option value="LEGAL_CELL">Legal Cell</option>
                       </select>
+                    </div>
+
+                    <div className="wf-field">
+                      <label className="wf-field-label">Assigned Statutory Officer</label>
+                      {(() => {
+                        const off = getNodeOfficerInfo(selectedNode);
+                        return (
+                          <div
+                            className="wf-field-readonly"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              background: '#f8fafc',
+                              padding: '8px 10px',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: '50%',
+                                background: '#e0e7ff',
+                                color: '#3730a3',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 700,
+                                fontSize: 13,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {off.name.charAt(0)}
+                            </div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ fontWeight: 700, fontSize: '12.5px', color: '#0f172a' }}>
+                                {off.name}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#475569' }}>
+                                {off.designation}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: '#2563eb', fontWeight: 600 }}>
+                                ✉ {off.email}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="wf-field">
@@ -1705,18 +1719,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
         onRunValidation={validateGraph}
         onConfirmActivate={activateGraph}
         isWorkflowActive={isWorkflowActive}
-        onOpenExecution={handleOpenExecution}
       />
-
-      {/* ── Phase 10 Runtime Execution Engine Panel ── */}
-      {showExecutionPanel && executionData && (
-        <WorkflowExecutionPanel
-          execution={executionData}
-          onClose={() => setShowExecutionPanel(false)}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={(nodeId) => selectNode(nodeId)}
-        />
-      )}
 
       {/* ── Phase 23 Unsaved Changes Modal ── */}
       <DemoUnsavedChangesModal

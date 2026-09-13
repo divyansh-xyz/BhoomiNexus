@@ -22,7 +22,11 @@ export const getProjects = async (req: Request, res: Response, next: NextFunctio
       LEFT JOIN project_geometry pg ON pg.project_id = p.id
       LEFT JOIN LATERAL (
         SELECT
-          COUNT(wis.id)::int AS total_stages,
+          COALESCE(
+            NULLIF(COUNT(wis.id)::int, 0),
+            (SELECT COUNT(*)::int FROM workflow_nodes wn WHERE wn.workflow_instance_id = wi.id),
+            0
+          ) AS total_stages,
           COUNT(CASE WHEN wis.status = 'COMPLETED' THEN 1 END)::int AS completed_stages,
           (
             SELECT wis2.name FROM workflow_instance_stages wis2

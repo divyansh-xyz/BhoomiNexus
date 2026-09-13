@@ -28,45 +28,45 @@ export interface PossessionDashboardData {
   disputedParcels: number;
 }
 
-const STORAGE_KEY_POSS_RECORDS = 'bhoomi_poss_v2_records';
-const STORAGE_KEY_POSS_TASKS = 'bhoomi_poss_v2_tasks';
+const STORAGE_KEY_POSS_RECORDS = 'bhoomi_poss_v2_records_rithala';
+const STORAGE_KEY_POSS_TASKS = 'bhoomi_poss_v2_tasks_rithala';
 
-// Default deterministic seeds for Phase 14 Direct Execution
+// Default deterministic seeds for Phase 14 Direct Execution - Rithala District Corridor
 const DEFAULT_POSS_RECORDS: PossessionRecord[] = [
   {
     id: 'poss-rec-101',
     taskId: 'TASK-POSS-101-1',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-084/2A',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1021',
     status: 'INSPECTION_SCHEDULED',
     possessionDate: '2026-09-18',
-    remarks: 'Joint field demarcation scheduled with NHAI Site Engineer and Circle Inspector; compensation fully cleared under Sec 30.',
+    remarks: 'Joint field demarcation scheduled with DMRC Site Engineer and Revenue Field Tehsildar; compensation award cleared under Sec 30.',
     parcelDetails: {
-      khasraNumber: '084/2A',
-      ulpin: 'MH2708402A190084',
-      surveyNumber: '84/2A',
-      village: 'Haveli',
-      taluka: 'Haveli',
-      district: 'Pune',
-      state: 'Maharashtra',
-      areaAcres: 2.45,
+      khasraNumber: '101/A',
+      ulpin: '07-104-5829-1021',
+      surveyNumber: 'SV-101/A',
+      village: 'Rithala Village',
+      taluka: 'Rohini Tehsil',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 0.85,
       tenureType: 'Occupant Class I (Bhumiswami)',
-      boundaryCoordinates: '18.5204° N, 73.8567° E to 18.5218° N, 73.8582° E',
+      boundaryCoordinates: '28.7208° N, 77.1071° E to 28.7225° N, 77.1085° E',
       boundaryPegsCount: 6,
     },
     demarcationDetails: {
       boundaryStonesPegged: true,
       encroachmentCleared: true,
       revenueWitnesses: [
-        'Shri S. V. Kulkarni (Village Talathi)',
-        'Shri P. M. Jadhav (Circle Inspector)',
-        'Er. Rahul S. Mehta (NHAI Site Engineer)',
-        'Ramesh Balasaheb Shinde (Primary Khatedar)',
+        'Shri Vinayak Kulkarni (Statutory Possession Officer)',
+        'Shri O. P. Sharma (Kanungo / Rohini Tehsil)',
+        'Er. Ankit Verma (DMRC Site Engineer)',
+        'Smt. Lakshmi Devi (Primary Khatedar)',
       ],
-      siteEngineerName: 'Er. Rahul S. Mehta (NHAI PIU Pune)',
-      talathiName: 'Shri S. V. Kulkarni (Haveli Saza)',
-      circleInspectorName: 'Shri P. M. Jadhav (Uruli Circle)',
-      panchnamaSummary: 'Physical perimeter verified against Cadastral Sheet No. 84. No standing structures or unauthorized crops found.',
+      siteEngineerName: 'Er. Ankit Verma (DMRC Phase-IV PIU)',
+      talathiName: 'Shri O. P. Sharma (Kanungo)',
+      circleInspectorName: 'Shri Vinayak Kulkarni (Executive Tehsildar)',
+      panchnamaSummary: 'Physical perimeter verified against Cadastral Sheet No. 101. No unauthorized structures or standing crops found.',
     },
     evidenceItems: [
       {
@@ -83,31 +83,31 @@ const DEFAULT_POSS_RECORDS: PossessionRecord[] = [
   {
     id: 'poss-rec-102',
     taskId: 'TASK-POSS-101-2',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-084/2B',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1022',
     status: 'PENDING',
     remarks: 'Compensation assessment active; pending field demarcation scheduling under Section 38.',
     parcelDetails: {
-      khasraNumber: '084/2B',
-      ulpin: 'MH2708402B190085',
-      surveyNumber: '84/2B',
-      village: 'Haveli',
-      taluka: 'Haveli',
-      district: 'Pune',
-      state: 'Maharashtra',
-      areaAcres: 2.70,
+      khasraNumber: '102/B',
+      ulpin: '07-104-5829-1022',
+      surveyNumber: 'SV-102/B',
+      village: 'Rithala Village',
+      taluka: 'Rohini Tehsil',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 1.15,
       tenureType: 'Occupant Class I (Bhumiswami)',
-      boundaryCoordinates: '18.5220° N, 73.8585° E to 18.5235° N, 73.8601° E',
+      boundaryCoordinates: '28.7230° N, 77.1090° E to 28.7245° N, 77.1105° E',
       boundaryPegsCount: 8,
     },
     demarcationDetails: {
       boundaryStonesPegged: false,
       encroachmentCleared: true,
       revenueWitnesses: [
-        'Shri S. V. Kulkarni (Village Talathi)',
-        'Sunita Dnyaneshwar Patil (Khatedar)',
+        'Shri Vinayak Kulkarni (Tehsildar)',
+        'Shri Rajesh Kumar (Khatedar)',
       ],
-      talathiName: 'Shri S. V. Kulkarni (Haveli Saza)',
+      talathiName: 'Shri O. P. Sharma (Kanungo)',
     },
     evidenceItems: [],
     createdAt: '2026-09-08T09:30:00Z',
@@ -115,23 +115,23 @@ const DEFAULT_POSS_RECORDS: PossessionRecord[] = [
   },
   {
     id: 'poss-rec-103',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-085/1',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1023',
     status: 'POSSESSION_TAKEN',
     possessionDate: '2026-08-28',
-    remarks: 'Physical possession vested unconditionally in Government under Sec 38; handed over to NHAI for civil earthworks.',
+    remarks: 'Physical possession vested unconditionally in Government under Sec 38; handed over to DMRC for civil works.',
     parcelDetails: {
-      khasraNumber: '085/1',
-      ulpin: 'MH2708501A190090',
-      village: 'Haveli',
-      district: 'Pune',
-      state: 'Maharashtra',
-      areaAcres: 1.85,
+      khasraNumber: '103/C',
+      ulpin: '07-104-5829-1023',
+      village: 'Rithala Village',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 0.65,
     },
     demarcationDetails: {
       boundaryStonesPegged: true,
       encroachmentCleared: true,
-      revenueWitnesses: ['Shri S. V. Kulkarni', 'Vitthal Tukaram Gaikwad'],
+      revenueWitnesses: ['Shri Vinayak Kulkarni', 'Mohd. Irfan Ansari'],
       panchnamaSignedAt: '2026-08-28T14:30:00Z',
     },
     evidenceItems: [
@@ -141,11 +141,11 @@ const DEFAULT_POSS_RECORDS: PossessionRecord[] = [
         type: 'GEOTAGGED_PHOTO',
         uploadedAt: '2026-08-28T14:40:00Z',
         size: '3.2 MB',
-        coordinates: { lat: 18.5245, lng: 73.8612 },
+        coordinates: { lat: 28.7250, lng: 77.1110 },
       },
       {
         id: 'ev-poss-103-2',
-        title: 'Joint Panchnama Document (Signed by Talathi & CI)',
+        title: 'Joint Panchnama Document (Signed by Tehsildar & DMRC)',
         type: 'PANCHNAMA',
         uploadedAt: '2026-08-28T15:00:00Z',
         size: '2.8 MB',
@@ -156,16 +156,16 @@ const DEFAULT_POSS_RECORDS: PossessionRecord[] = [
   },
   {
     id: 'poss-rec-104',
-    projectId: 'p-nhai-ringroad-2026',
-    parcelId: 'MH-PUN-HAV-089/3',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    parcelId: '07-104-5829-1024',
     status: 'DISPUTED',
     remarks: 'Encroachment resistance on northern boundary; revenue police protection requisitioned under Sec 38(2).',
     parcelDetails: {
-      khasraNumber: '089/3',
-      village: 'Haveli',
-      district: 'Pune',
-      state: 'Maharashtra',
-      areaAcres: 3.10,
+      khasraNumber: '104/D',
+      village: 'Rithala Village',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 0.90,
     },
     createdAt: '2026-08-22T11:00:00Z',
     updatedAt: '2026-08-22T11:00:00Z',
@@ -175,45 +175,45 @@ const DEFAULT_POSS_RECORDS: PossessionRecord[] = [
 const DEFAULT_POSS_TASKS: WorkflowTask[] = [
   {
     id: 'TASK-POSS-101-1',
-    projectId: 'p-nhai-ringroad-2026',
-    projectCode: 'NHAI-EXP-2026-04',
-    projectTitle: 'Pune Outer Ring Road - Section IV (Haveli Sector)',
-    ministry: 'Ministry of Road Transport and Highways',
-    statutoryPurpose: 'National Highway Corridor under RFCTLARR Act 2013',
-    state: 'Maharashtra',
-    district: 'Pune',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    projectCode: 'PRJ-DL-7701',
+    projectTitle: 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor',
+    ministry: 'Ministry of Housing and Urban Affairs',
+    statutoryPurpose: 'Mass Rapid Transit System under Metro Railways Act / RFCTLARR 2013',
+    state: 'Delhi',
+    district: 'Rithala',
     parcel: {
-      id: 'MH-PUN-HAV-084/2A',
-      ulpin: 'MH2708402A190084',
-      khasraNumber: '084/2A',
-      village: 'Haveli',
-      areaAcres: 2.45,
+      id: '07-104-5829-1021',
+      ulpin: '07-104-5829-1021',
+      khasraNumber: '101/A',
+      village: 'Rithala Village',
+      areaAcres: 0.85,
       tenureType: 'Occupant Class I (Bhumiswami)',
       disputed: false,
     },
     stageId: 'stage-possession-vesting',
-    stageOrder: 5,
-    stageName: 'Physical Demarcation & Possession Vesting',
+    stageOrder: 3,
+    stageName: 'Physical Possession, Spot Panchnama & Handover',
     workflowNode: {
-      id: 'node-poss-01',
-      name: 'Physical Demarcation & Possession Vesting (Sec 38)',
+      id: 'node-poss-1',
+      name: 'Physical Possession, Spot Panchnama & Handover',
       type: 'POSSESSION_STAGE',
       branchType: 'POSSESSION',
-      responsibility: 'Possession Officer (Tehsildar / Land Officer)',
+      responsibility: 'Competent Tehsildar / Executive Magistrate (Possession Officer)',
       slaDays: 7,
     },
     assignedOfficer: {
-      id: 'off-poss-01',
-      name: 'Shri V. R. Kadam',
-      designation: 'Tehsildar & Competent Land Officer',
+      id: 'possession.officer@bhoomi.gov.in',
+      name: 'Vinayak Kulkarni',
+      designation: 'Tehsildar & Statutory Possession Officer',
       role: 'POSSESSION_OFFICER',
-      department: 'Revenue & Land Records Office (Haveli Tehsil)',
+      department: 'Revenue & Land Records Office (Rohini / Rithala Zone)',
       authority: 'Tehsildar & Competent Land Officer',
-      jurisdiction: 'Haveli Taluka, Pune District',
-      district: 'Pune',
-      state: 'Maharashtra',
+      jurisdiction: 'Rithala, Delhi',
+      district: 'Rithala',
+      state: 'Delhi',
     },
-    department: 'Revenue & Forest Department, Maharashtra',
+    department: 'Land & Building Department, Delhi',
     slaDays: 7,
     dueDate: '2026-09-22',
     status: 'IN_PROGRESS',
@@ -226,50 +226,51 @@ const DEFAULT_POSS_TASKS: WorkflowTask[] = [
   },
   {
     id: 'TASK-POSS-101-2',
-    projectId: 'p-nhai-ringroad-2026',
-    projectCode: 'NHAI-EXP-2026-04',
-    projectTitle: 'Pune Outer Ring Road - Section IV (Haveli Sector)',
-    ministry: 'Ministry of Road Transport and Highways',
-    statutoryPurpose: 'National Highway Corridor under RFCTLARR Act 2013',
-    state: 'Maharashtra',
-    district: 'Pune',
+    projectId: '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    projectCode: 'PRJ-DL-7701',
+    projectTitle: 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor',
+    ministry: 'Ministry of Housing and Urban Affairs',
+    statutoryPurpose: 'Mass Rapid Transit System under Metro Railways Act / RFCTLARR 2013',
+    state: 'Delhi',
+    district: 'Rithala',
     parcel: {
-      id: 'MH-PUN-HAV-084/2B',
-      ulpin: 'MH2708402B190085',
-      khasraNumber: '084/2B',
-      village: 'Haveli',
-      areaAcres: 2.70,
+      id: '07-104-5829-1022',
+      ulpin: '07-104-5829-1022',
+      khasraNumber: '102/B',
+      village: 'Rithala Village',
+      areaAcres: 1.15,
       tenureType: 'Occupant Class I (Bhumiswami)',
       disputed: false,
     },
     stageId: 'stage-possession-vesting',
-    stageOrder: 5,
-    stageName: 'Physical Demarcation & Possession Vesting',
+    stageOrder: 3,
+    stageName: 'Physical Possession, Spot Panchnama & Handover',
     workflowNode: {
-      id: 'node-poss-01',
-      name: 'Physical Demarcation & Possession Vesting (Sec 38)',
+      id: 'node-poss-1',
+      name: 'Physical Possession, Spot Panchnama & Handover',
       type: 'POSSESSION_STAGE',
       branchType: 'POSSESSION',
-      responsibility: 'Possession Officer (Tehsildar / Land Officer)',
+      responsibility: 'Competent Tehsildar / Executive Magistrate (Possession Officer)',
       slaDays: 7,
     },
     assignedOfficer: {
-      id: 'off-poss-01',
-      name: 'Shri V. R. Kadam',
-      designation: 'Tehsildar & Competent Land Officer',
+      id: 'possession.officer@bhoomi.gov.in',
+      name: 'Vinayak Kulkarni',
+      designation: 'Tehsildar & Statutory Possession Officer',
       role: 'POSSESSION_OFFICER',
-      department: 'Revenue & Land Records Office (Haveli Tehsil)',
+      department: 'Revenue & Land Records Office (Rohini / Rithala Zone)',
       authority: 'Tehsildar & Competent Land Officer',
-      jurisdiction: 'Haveli Taluka, Pune District',
-      district: 'Pune',
-      state: 'Maharashtra',
+      jurisdiction: 'Rithala, Delhi',
+      district: 'Rithala',
+      state: 'Delhi',
     },
-    department: 'Revenue & Forest Department, Maharashtra',
+    department: 'Land & Building Department, Delhi',
     slaDays: 7,
-    dueDate: '2026-09-25',
+    dueDate: '2026-09-24',
     status: 'ASSIGNED',
     requiredDocuments: [
-      { id: 'doc-poss-04', name: 'Joint Panchnama Document', type: 'PANCHNAMA', mandatory: true, status: 'MISSING' },
+      { id: 'doc-poss-04', name: 'Form 11 Compensation Clearance', type: 'VESTING_CERTIFICATE', mandatory: true, status: 'VERIFIED' },
+      { id: 'doc-poss-05', name: 'Joint Panchnama with Revenue Witnesses', type: 'PANCHNAMA', mandatory: true, status: 'MISSING' },
     ],
     createdAt: '2026-09-08T09:30:00Z',
   },
@@ -371,18 +372,61 @@ export const possessionV2Service = {
    * Spec Line 294: Returns possession tasks assigned to the authenticated Possession Officer.
    */
   async getMyTasks(): Promise<WorkflowTask[]> {
+    const demoProjectId = localStorage.getItem('bhoomi_demo_active_project_id') || '4ed46de6-586e-4459-b011-f090a1c3bafd';
+    const demoProjectTitle = localStorage.getItem('bhoomi_demo_active_project_title') || 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor';
+    const demoProjectCode = localStorage.getItem('bhoomi_demo_active_project_code') || 'PRJ-DL-7701';
+
+    let list: WorkflowTask[] = [];
     try {
       const res = await apiClient.get<any>('/possession/tasks', {
         params: { assignedTo: 'me' },
       });
       const data = res.data?.data || res.data;
       if (data && Array.isArray(data) && data.length > 0) {
-        return data;
+        list = data;
       }
     } catch (err) {
       console.warn('[possessionV2Service] GET /api/v1/possession/tasks using local state:', err);
     }
-    return getLocalTasks();
+
+    if (list.length === 0) {
+      list = getLocalTasks();
+    }
+
+    // Isolate tasks strictly to the active Rithala/demo project so only this project is visible
+    const filtered = list.filter((t) => {
+      const pId = t.projectId || '';
+      const pCode = t.projectCode || '';
+      const dist = (t.district || (t.parcel as any)?.district || '').toLowerCase();
+      return (
+        pId === demoProjectId ||
+        pCode === demoProjectCode ||
+        dist === 'rithala' ||
+        pCode.includes('7701') ||
+        pId === '4ed46de6-586e-4459-b011-f090a1c3bafd'
+      );
+    });
+
+    const targetList = filtered.length > 0 ? filtered : getLocalTasks();
+    return targetList.map((t) => ({
+      ...t,
+      projectId: demoProjectId,
+      projectTitle: demoProjectTitle,
+      projectCode: demoProjectCode,
+      district: 'Rithala',
+      state: 'Delhi',
+      assignedOfficer: {
+        id: 'possession.officer@bhoomi.gov.in',
+        name: 'Vinayak Kulkarni',
+        designation: 'Tehsildar & Statutory Possession Officer',
+        role: 'POSSESSION_OFFICER',
+        department: 'Revenue & Land Records Office (Rohini / Rithala Zone)',
+        authority: 'Tehsildar & Competent Land Officer',
+        jurisdiction: 'Rithala, Delhi',
+        district: 'Rithala',
+        state: 'Delhi',
+      },
+    }));
   },
 
   /**

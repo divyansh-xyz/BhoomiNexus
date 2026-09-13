@@ -10,16 +10,34 @@ export interface ValidationIssue {
   edgeId?: string;
 }
 
+export interface WorkflowValidationChecklist {
+  validGraph: boolean;
+  validNodeAssignments: boolean;
+  validParcelAllocation: boolean;
+  noDuplicateActiveMembership: boolean;
+  noOrphanNodes: boolean;
+  validTemplateFragments: boolean;
+}
+
 export interface WorkflowValidationResult {
   isValid: boolean;
+  valid?: boolean;
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
+  checklist?: WorkflowValidationChecklist;
   summary: {
     nodeCount: number;
     edgeCount: number;
     totalParcels: number;
     assignedParcels: number;
     unassignedParcels: number;
+  };
+  telemetry?: {
+    totalNodes: number;
+    totalEdges: number;
+    totalSlaDays: number;
+    allocatedParcelsCount: number;
+    estimatedInitialTasks: number;
   };
 }
 
@@ -31,6 +49,15 @@ export const validateWorkflowGraph = async (projectId: string): Promise<Workflow
 
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
+
+  const checklist: WorkflowValidationChecklist = {
+    validGraph: true,
+    validNodeAssignments: true,
+    validParcelAllocation: true,
+    noDuplicateActiveMembership: true,
+    noOrphanNodes: true,
+    validTemplateFragments: true,
+  };
 
   // 1. Fetch nodes and edges
   const nodesRes = await pool.query(
@@ -51,10 +78,13 @@ export const validateWorkflowGraph = async (projectId: string): Promise<Workflow
       code: "EMPTY_WORKFLOW",
       message: "Workflow has no nodes. Please initialize standard branches or add nodes.",
     });
+    checklist.validGraph = false;
     return {
       isValid: false,
+      valid: false,
       errors,
       warnings,
+      checklist,
       summary: {
         nodeCount: 0,
         edgeCount: 0,
@@ -65,9 +95,75 @@ export const validateWorkflowGraph = async (projectId: string): Promise<Workflow
     };
   }
 
+  // 1b. Graph Cycle & Root Validation
+  const nodeMap = new Map<string, any>();
+  for (const n of nodes) {
+    nodeMap.set(n.id, n);
+  }
+
+  const adjList = new Map<string, string[]>();
+  for (const n of nodes) {
+    adjList.set(n.id, []);
+  }
+  for (const e of edges) {
+    if (adjList.has(e.source_node_id)) {
+      adjList.get(e.source_node_id)!.push(e.target_node_id);
+    }
+  }
+
+  // Simple cycle detection via DFS
+  const visited = new Map<string, number>(); // 0: unvisited, 1: visiting, 2: visited
+  let hasCycle = false;
+
+  const dfs = (currId: string): boolean => {
+    visited.set(currId, 1);
+    const neighbors = adjList.get(currId) || [];
+    for (const nId of neighbors) {
+      if (visited.get(nId) === 1) return true;
+      if (!visited.get(nId) && dfs(nId)) return true;
+    }
+    visited.set(currId, 2);
+    return false;
+  };
+
+  for (const n of nodes) {
+    if (!visited.get(n.id)) {
+      if (dfs(n.id)) {
+        hasCycle = true;
+        break;
+      }
+    }
+  }
+
+  if (hasCycle) {
+    checklist.validGraph = false;
+    errors.push({
+      severity: "ERROR",
+      code: "TOPOLOGY_CYCLE",
+      message: "Directed cycle detected in DAG workflow topology.",
+    });
+  }
+
+  // Descendants helper for reachability checks
+  const getDescendants = (startId: string): Set<string> => {
+    const desc = new Set<string>();
+    const queue = [startId];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      for (const childId of (adjList.get(curr) || [])) {
+        if (!desc.has(childId)) {
+          desc.add(childId);
+          queue.push(childId);
+        }
+      }
+    }
+    return desc;
+  };
+
   // 2. Check Node Role Assignments
   for (const node of nodes) {
     if (!node.responsible_role && !node.responsible_user_id) {
+      checklist.validNodeAssignments = false;
       errors.push({
         severity: "ERROR",
         code: "UNASSIGNED_ROLE",
@@ -95,6 +191,7 @@ export const validateWorkflowGraph = async (projectId: string): Promise<Workflow
     const inc = incomingCount.get(n.id) || 0;
     const out = outgoingCount.get(n.id) || 0;
     if (inc === 0 && out === 0 && nodes.length > 1) {
+      checklist.noOrphanNodes = false;
       warnings.push({
         severity: "WARNING",
         code: "ORPHAN_NODE",
@@ -112,24 +209,26 @@ export const validateWorkflowGraph = async (projectId: string): Promise<Workflow
   const totalProjectParcels = projectParcelsRes.rows.map(r => r.parcel_id);
 
   const assignedParcelsRes = await pool.query(
-    `SELECT wnp.parcel_id, wnp.workflow_node_id, wn.node_key
+    `SELECT wnp.parcel_id, wnp.workflow_node_id, wn.node_key, wn.node_type
      FROM workflow_node_parcels wnp
      JOIN workflow_nodes wn ON wn.id = wnp.workflow_node_id
      WHERE wn.workflow_instance_id = $1`,
     [instance.id]
   );
 
-  const assignedParcelsMap = new Map<string, string[]>();
+  const assignedParcelsMap = new Map<string, Set<string>>();
   for (const row of assignedParcelsRes.rows) {
-    const list = assignedParcelsMap.get(row.parcel_id) || [];
-    list.push(row.workflow_node_id);
-    assignedParcelsMap.set(row.parcel_id, list);
+    if (!assignedParcelsMap.has(row.parcel_id)) {
+      assignedParcelsMap.set(row.parcel_id, new Set<string>());
+    }
+    assignedParcelsMap.get(row.parcel_id)!.add(row.workflow_node_id);
   }
 
   const assignedCount = assignedParcelsMap.size;
   const unassignedCount = totalProjectParcels.filter(pId => !assignedParcelsMap.has(pId)).length;
 
   if (totalProjectParcels.length > 0 && assignedCount === 0) {
+    checklist.validParcelAllocation = false;
     errors.push({
       severity: "ERROR",
       code: "NO_PARCELS_ALLOCATED",
@@ -143,16 +242,73 @@ export const validateWorkflowGraph = async (projectId: string): Promise<Workflow
     });
   }
 
+  // 5. Check Duplicate Active Cohort Membership across mutually exclusive sibling branches
+  const isBranchParallel = (n: any): boolean => {
+    if (!n) return false;
+    const key = (n.node_key || "").toLowerCase();
+    const name = (n.name || "").toLowerCase();
+    const type = (n.node_type || "").toUpperCase();
+    if (type === "DISTRICT" || type === "DISTRICT_ACQUISITION" || key === "root" || key === "district_root") return true;
+    if (key.startsWith("comp") || key.includes("_comp") || name.includes("compensat") || name.includes("solatium") || name.includes("valuation")) return true;
+    if (key.startsWith("poss") || key.includes("_poss") || name.includes("possess") || name.includes("vesting")) return true;
+    return false;
+  };
+
+  const areMutuallyExclusive = (id1: string, id2: string): boolean => {
+    if (id1 === id2) return false;
+    const n1 = nodeMap.get(id1);
+    const n2 = nodeMap.get(id2);
+    if (!n1 || !n2) return false;
+    if (isBranchParallel(n1) || isBranchParallel(n2)) return false;
+    // If one is ancestor of another along same branch, they are not mutually exclusive
+    if (getDescendants(id1).has(id2) || getDescendants(id2).has(id1)) return false;
+    return true;
+  };
+
+  for (const [pId, nSet] of assignedParcelsMap.entries()) {
+    const nArr = Array.from(nSet);
+    if (nArr.length > 1) {
+      const conflicting = new Set<string>();
+      for (let i = 0; i < nArr.length; i++) {
+        for (let j = i + 1; j < nArr.length; j++) {
+          if (areMutuallyExclusive(nArr[i], nArr[j])) {
+            conflicting.add(nArr[i]);
+            conflicting.add(nArr[j]);
+          }
+        }
+      }
+      if (conflicting.size > 0) {
+        checklist.noDuplicateActiveMembership = false;
+        errors.push({
+          severity: "ERROR",
+          code: "DUPLICATE_ACTIVE_COHORT",
+          message: `Parcel '${pId}' is assigned simultaneously to multiple mutually exclusive active branches`,
+        });
+      }
+    }
+  }
+
+  const totalSlaDays = nodes.reduce((acc, n) => acc + (n.sla_days || 0), 0);
+
   return {
     isValid: errors.length === 0,
+    valid: errors.length === 0,
     errors,
     warnings,
+    checklist,
     summary: {
       nodeCount: nodes.length,
       edgeCount: edges.length,
       totalParcels: totalProjectParcels.length,
       assignedParcels: assignedCount,
       unassignedParcels: unassignedCount,
+    },
+    telemetry: {
+      totalNodes: nodes.length,
+      totalEdges: edges.length,
+      totalSlaDays,
+      allocatedParcelsCount: assignedCount,
+      estimatedInitialTasks: nodes.filter((n: any) => n.node_type !== "DISTRICT").length,
     },
   };
 };

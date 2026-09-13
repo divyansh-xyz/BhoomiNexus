@@ -12,7 +12,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "tsx src/database/migrate.ts",
-    "seed": "tsx src/database/seed.ts"
+    "seed": "tsx src/database/seed.ts",
+    "seed:demo": "tsx src/database/seed_demo_projects.ts"
   },
   "dependencies": {
     "@types/multer": "^2.2.0",

@@ -76,6 +76,8 @@ export const getTasks = async (req: Request, res: Response, next: NextFunction) 
               surveyNumber: vt.survey_number,
               ulpin: vt.ulpin,
               village: vt.village,
+              district: vt.parcel_district || 'Rithala',
+              state: vt.parcel_state || 'Delhi',
               area: `${vt.area_acres} Acres`,
             }],
           });
@@ -133,6 +135,8 @@ export const getTaskById = async (req: Request, res: Response, next: NextFunctio
             surveyNumber: v2Task.survey_number,
             ulpin: v2Task.ulpin,
             village: v2Task.village,
+            district: v2Task.parcel_district || 'Rithala',
+            state: v2Task.parcel_state || 'Delhi',
             area: `${v2Task.area_acres} Acres`,
           }],
           evidence: v2Task.evidence || [],

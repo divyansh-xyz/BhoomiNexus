@@ -8,6 +8,7 @@
  */
 
 import type { WorkflowNode, WorkflowEdge, WorkflowNodeParcel } from '../types/workflowV2.types';
+import { getNodeBranchType } from './workflowTemplates.utils';
 
 export interface CycleCheckResult {
   hasCycle: boolean;
@@ -264,8 +265,10 @@ export function validateCohortParcels(
     if (nodeId1 === nodeId2) return false;
     const n1 = nodeMap.get(nodeId1);
     const n2 = nodeMap.get(nodeId2);
-    // Root container nodes are not mutually exclusive with child operational branches
-    if (n1?.nodeType === 'DISTRICT_ACQUISITION' || n2?.nodeType === 'DISTRICT_ACQUISITION') {
+    const b1 = n1 ? getNodeBranchType(n1) : 'ACQUISITION';
+    const b2 = n2 ? getNodeBranchType(n2) : 'ACQUISITION';
+    // Parallel lifecycle branches (District, Compensation, Possession) are NOT mutually exclusive with each other or acquisition
+    if (b1 !== 'ACQUISITION' || b2 !== 'ACQUISITION') {
       return false;
     }
     if (edges && edges.length > 0) {

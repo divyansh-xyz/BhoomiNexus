@@ -83,6 +83,7 @@ export const AppRoutes: React.FC = () => {
             <Route path="/boss/projects/:projectId/workflow" element={<BossWorkflowConfigPage />} />
             <Route path="/boss/projects/:projectId/workflow/templates" element={<BossWorkflowConfigPage initialSelectTemplate={true} />} />
             <Route path="/boss/projects/:projectId/workflow-builder" element={<BossWorkflowBuilderPage />} />
+            <Route path="/boss/projects/:projectId/builder" element={<BossWorkflowBuilderPage />} />
           </Route>
 
           {/* Officer Dashboard & Tasks */}

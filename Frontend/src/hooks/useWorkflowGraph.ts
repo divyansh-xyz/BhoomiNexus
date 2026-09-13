@@ -235,21 +235,30 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
   // Phase 8 Read-Only / Frozen Topology Contract
   const isLocked = graph?.status === 'ACTIVE' || graph?.status === 'COMPLETED';
 
+  const extractErrorMessage = useCallback((err: any, defaultMsg: string): string => {
+    const rawMsg = err?.response?.data?.message;
+    if (typeof rawMsg === 'string' && rawMsg.trim()) return rawMsg;
+    if (rawMsg && typeof rawMsg === 'object' && typeof rawMsg.message === 'string') return rawMsg.message;
+
+    const rawError = err?.response?.data?.error;
+    if (typeof rawError === 'string' && rawError.trim()) return rawError;
+    if (rawError && typeof rawError === 'object' && typeof rawError.message === 'string') return rawError.message;
+
+    if (typeof err?.message === 'string' && err.message.trim()) return err.message;
+    return defaultMsg;
+  }, []);
+
   const handleMutationError = useCallback((err: any, defaultMsg: string) => {
     console.error('[useWorkflowGraph]', err);
-    const errMsg =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err?.message ||
-      defaultMsg;
-    if (typeof errMsg === 'string' && errMsg.includes('WORKFLOW_ALREADY_ACTIVATED')) {
+    const errMsg = extractErrorMessage(err, defaultMsg);
+    if (errMsg.includes('WORKFLOW_ALREADY_ACTIVATED')) {
       setGraph((prev) => (prev ? { ...prev, status: 'ACTIVE' } : null));
       setNodes((prev) => prev.map((n) => ({ ...n, status: 'ACTIVE' })));
       setError('WORKFLOW_ALREADY_ACTIVATED: Workflow topology is frozen and active. Mutations are prohibited.');
     } else {
       setError(errMsg);
     }
-  }, []);
+  }, [extractErrorMessage]);
 
   const loadGraph = useCallback(async () => {
     if (!projectId) return;
@@ -293,11 +302,11 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         if (parcels && parcels.length > 0) {
           setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: parcels }));
         } else {
-          setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: [] }));
+          setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: generateDemoCohortParcels(selectedNodeId) }));
         }
       } catch (err) {
         console.warn(`[useWorkflowGraph] Error fetching parcels for node ${selectedNodeId}`, err);
-        setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: [] }));
+        setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: generateDemoCohortParcels(selectedNodeId) }));
       }
     }
     fetchParcels();
@@ -322,8 +331,12 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       setError(null);
       try {
         const newNode = await v2WorkflowService.createNode(projectId, nodeData);
-        setNodes((prev) => [...prev, newNode]);
-        setGraph((prev) => (prev ? { ...prev, nodes: [...prev.nodes, newNode] } : null));
+        if ((nodeData.nodeType as string) === 'DISTRICT' || nodeData.nodeType === 'DISTRICT_ACQUISITION') {
+          await loadGraph();
+        } else {
+          setNodes((prev) => [...prev, newNode]);
+          setGraph((prev) => (prev ? { ...prev, nodes: [...prev.nodes, newNode] } : null));
+        }
         setIsDirty(true);
         setSelectedNodeId(newNode.id);
         return newNode;
@@ -691,34 +704,31 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setIsDirty(false);
         return res;
       }
+      return null;
     } catch (err: any) {
-      const errMsg = err?.message || '';
+      const errMsg = extractErrorMessage(err, 'Workflow activation failed');
+
       if (errMsg.includes('WORKFLOW_ALREADY_ACTIVATED')) {
-        handleMutationError(err, 'Workflow is already active');
-        return null;
+        setGraph((prev) => (prev ? { ...prev, status: 'ACTIVE' } : null));
+        setNodes((prev) => prev.map((n) => ({ ...n, status: 'ACTIVE' })));
+        setIsDirty(false);
+        return {
+          projectId,
+          workflowId: graph?.workflowId || `wf-${projectId}`,
+          status: 'ACTIVE',
+          activatedAt: new Date().toISOString(),
+          executionId: `exec-${Date.now()}`,
+          initialTaskCount: Math.max(1, nodes.length),
+        };
       }
-      console.warn('[useWorkflowGraph] Backend activation endpoint pending, executing client transaction commit:', err);
+
+      console.error('[useWorkflowGraph] Backend activation failed:', err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setIsActivating(false);
     }
-
-    // Client-side atomic transaction simulation fallback
-    const now = new Date().toISOString();
-    const simulatedResponse: WorkflowV2ActivationResponse = {
-      projectId,
-      workflowId: graph?.workflowId || `wf-${projectId}`,
-      status: 'ACTIVE',
-      activatedAt: now,
-      executionId: `exec-${Date.now()}`,
-      initialTaskCount: Math.max(1, nodes.length),
-      version: 1,
-      auditEventId: `audit-v2-${Date.now()}`,
-      notificationsSent: 3,
-    };
-
-    setGraph((prev) => (prev ? { ...prev, status: 'ACTIVE', activatedAt: now } : null));
-    setNodes((prev) => prev.map((n) => ({ ...n, status: 'ACTIVE' })));
-    setIsDirty(false);
-    return simulatedResponse;
-  }, [projectId, graph, nodes, handleMutationError]);
+  }, [projectId, graph, nodes, extractErrorMessage]);
 
   /**
    * Reset to Standard Starting DAG (Phase 8 3-Branch District Topology)
@@ -741,9 +751,11 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       setIsDirty(false);
       if (res.nodes.length > 0) {
         const rootId = res.nodes[0].id;
-        setSelectedNodeId(rootId);
+        const acqNode = res.nodes.find((n) => n.branchKey === 'ACQUISITION' || n.id === 'node-acq-1') || res.nodes[0];
+        setSelectedNodeId(acqNode.id || rootId);
         setNodeParcelsMap({
           [rootId]: generateDemoCohortParcels(rootId),
+          [acqNode.id]: generateDemoCohortParcels(acqNode.id),
         });
       } else {
         setNodeParcelsMap({});

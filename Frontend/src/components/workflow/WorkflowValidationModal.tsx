@@ -29,7 +29,6 @@ interface WorkflowValidationModalProps {
   onRunValidation: () => Promise<WorkflowValidationResult>;
   onConfirmActivate: () => Promise<WorkflowV2ActivationResponse | null>;
   isWorkflowActive: boolean;
-  onOpenExecution?: () => void;
 }
 
 const TRANSACTION_STEPS = [
@@ -52,7 +51,6 @@ export const WorkflowValidationModal: React.FC<WorkflowValidationModalProps> = (
   onRunValidation,
   onConfirmActivate,
   isWorkflowActive,
-  onOpenExecution,
 }) => {
   const [modalMode, setModalMode] = useState<'validate' | 'activate'>(initialMode);
   const [activeTxStep, setActiveTxStep] = useState<number>(0);
@@ -69,7 +67,7 @@ export const WorkflowValidationModal: React.FC<WorkflowValidationModalProps> = (
   }, [propValidationResult]);
 
   useEffect(() => {
-    if (isOpen && !localValidation) {
+    if (isOpen) {
       handleRunValidate();
     }
   }, [isOpen]);
@@ -211,21 +209,9 @@ export const WorkflowValidationModal: React.FC<WorkflowValidationModalProps> = (
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 16 }}>
-                <button type="button" className="wf-btn" onClick={onClose}>
+                <button type="button" className="wf-btn wf-btn--primary" onClick={onClose}>
                   Return to Frozen Canvas
                 </button>
-                {onOpenExecution && (
-                  <button
-                    type="button"
-                    className="wf-btn wf-btn--execution"
-                    onClick={() => {
-                      onClose();
-                      onOpenExecution();
-                    }}
-                  >
-                    ⚡ View Runtime Execution Engine (Phase 10) &rarr;
-                  </button>
-                )}
               </div>
             </div>
           ) : activeTxStep > 0 ? (
