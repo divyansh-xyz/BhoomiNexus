@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { possessionV2Service } from '../../services/api/possessionV2.service';
 import type { PossessionDashboardData } from '../../services/api/possessionV2.service';
@@ -10,7 +10,6 @@ import './possession.css';
 
 export const PossessionDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [stats, setStats] = useState<PossessionDashboardData | null>(null);
   const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [records, setRecords] = useState<PossessionRecord[]>([]);

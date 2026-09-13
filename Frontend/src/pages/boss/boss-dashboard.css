@@ -2392,27 +2392,33 @@
   color: var(--tb-fog);
 }
 
-/* --- Node connection handles --- */
+/* --- Node connection handles (ports) --- */
 .wf-node-handle {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background-color: var(--tb-hairline);
-  border: 2px solid var(--tb-paper);
+  background-color: #ffffff;
+  border: 2.5px solid var(--tb-signal-blue, #2576eb);
   position: absolute;
-  cursor: crosshair;
-  transition: all 0.15s ease;
-  z-index: 2;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 10;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .wf-node-handle:hover,
 .wf-node-handle--active {
-  background-color: var(--tb-signal-blue);
-  transform: scale(1.4);
+  background-color: var(--tb-signal-blue, #2576eb);
+  border-color: #ffffff;
+  transform: translateX(-50%) scale(1.4);
+  box-shadow: 0 0 10px rgba(37, 118, 235, 0.6);
 }
 
 .wf-node-handle--source {
-  bottom: -5px;
+  bottom: -7px;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -2422,13 +2428,62 @@
 }
 
 .wf-node-handle--target {
-  top: -5px;
+  top: -7px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .wf-node-handle--target:hover {
   transform: translateX(-50%) scale(1.4);
+}
+
+/* Connecting mode styling for canvas nodes */
+.wf-node--connect-source {
+  outline: 3px solid #2576eb !important;
+  box-shadow: 0 0 16px rgba(37, 118, 235, 0.35) !important;
+  animation: wf-pulse-blue 1.8s infinite;
+}
+
+.wf-node--connect-candidate {
+  outline: 2px dashed #059669 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease;
+}
+
+.wf-node--connect-candidate:hover {
+  outline: 3px solid #059669 !important;
+  background-color: #f0fdf4 !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.4) !important;
+  transform: translateY(-2px);
+}
+
+.wf-node-connect-badge {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #059669;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 12;
+  animation: wf-bounce 1s infinite alternate;
+}
+
+@keyframes wf-bounce {
+  from { transform: translateX(-50%) translateY(0); }
+  to { transform: translateX(-50%) translateY(-3px); }
+}
+
+@keyframes wf-pulse-blue {
+  0% { box-shadow: 0 0 0 0 rgba(37, 118, 235, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(37, 118, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 118, 235, 0); }
 }
 
 /* --- Node action buttons (shown on hover/select) --- */

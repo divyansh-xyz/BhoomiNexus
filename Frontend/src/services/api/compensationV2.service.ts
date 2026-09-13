@@ -242,6 +242,7 @@ const DEFAULT_TASKS: WorkflowTask[] = [
     assignedOfficer: {
       id: 'off-comp-01',
       name: 'Shri A. K. Deshmukh',
+      designation: 'Competent Authority & Deputy Collector',
       role: 'COMPENSATION_OFFICER',
       department: 'Special Land Acquisition Office (SLAO - Pune)',
       authority: 'Competent Authority & Deputy Collector',
@@ -292,6 +293,7 @@ const DEFAULT_TASKS: WorkflowTask[] = [
     assignedOfficer: {
       id: 'off-comp-01',
       name: 'Shri A. K. Deshmukh',
+      designation: 'Competent Authority & Deputy Collector',
       role: 'COMPENSATION_OFFICER',
       department: 'Special Land Acquisition Office (SLAO - Pune)',
       authority: 'Competent Authority & Deputy Collector',
@@ -386,8 +388,19 @@ export const compensationV2Service = {
    */
   async getDashboard(): Promise<CompensationDashboardData> {
     try {
-      const res = await apiClient.get<CompensationDashboardData>('/compensation/dashboard');
-      if (res.data) return res.data;
+      const res = await apiClient.get<any>('/compensation/dashboard');
+      const data = res.data?.data || res.data;
+      if (data) {
+        const metrics = data.metrics || data;
+        return {
+          totalAssessed: Number(metrics.totalAssessed || 0),
+          totalApproved: Number(metrics.totalApproved || 0),
+          totalDisbursed: Number(metrics.totalDisbursed || metrics.totalPaid || 0),
+          pendingDisbursement: Number(metrics.pendingDisbursement || 0),
+          recordsCount: Number(metrics.recordsCount || metrics.totalRecords || (data.records ? data.records.length : 0)),
+          disputedCount: Number(metrics.disputedCount || 0),
+        };
+      }
     } catch (err) {
       console.warn('[compensationV2Service] GET /api/v1/compensation/dashboard using computed state:', err);
     }
@@ -401,11 +414,12 @@ export const compensationV2Service = {
    */
   async getMyTasks(): Promise<WorkflowTask[]> {
     try {
-      const res = await apiClient.get<WorkflowTask[]>('/compensation/tasks', {
+      const res = await apiClient.get<any>('/compensation/tasks', {
         params: { assignedTo: 'me' },
       });
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data;
+      const data = res.data?.data || res.data;
+      if (data && Array.isArray(data) && data.length > 0) {
+        return data;
       }
     } catch (err) {
       console.warn('[compensationV2Service] GET /api/v1/compensation/tasks using local state:', err);
@@ -419,8 +433,9 @@ export const compensationV2Service = {
    */
   async getRecord(recordId: string): Promise<CompensationRecord | null> {
     try {
-      const res = await apiClient.get<CompensationRecord>(`/compensation/records/${recordId}`);
-      if (res.data) return res.data;
+      const res = await apiClient.get<any>(`/compensation/records/${recordId}`);
+      const data = res.data?.data || res.data;
+      if (data && data.id) return data;
     } catch (err) {
       console.warn(`[compensationV2Service] GET /api/v1/compensation/records/${recordId} using local state:`, err);
     }
@@ -441,11 +456,12 @@ export const compensationV2Service = {
     remarks?: string;
   }): Promise<CompensationRecord> {
     try {
-      const res = await apiClient.post<CompensationRecord>('/compensation/records', payload);
-      if (res.data) {
+      const res = await apiClient.post<any>('/compensation/records', payload);
+      const data = res.data?.data || res.data;
+      if (data && data.id) {
         const records = getLocalRecords();
-        saveLocalRecords([res.data, ...records]);
-        return res.data;
+        saveLocalRecords([data, ...records]);
+        return data;
       }
     } catch (err) {
       console.warn('[compensationV2Service] POST /api/v1/compensation/records using local state:', err);
@@ -498,14 +514,15 @@ export const compensationV2Service = {
     updates: Partial<CompensationRecord>
   ): Promise<CompensationRecord> {
     try {
-      const res = await apiClient.patch<CompensationRecord>(
+      const res = await apiClient.patch<any>(
         `/compensation/records/${recordId}`,
         updates
       );
-      if (res.data) {
-        const records = getLocalRecords().map((r) => (r.id === recordId ? res.data : r));
+      const data = res.data?.data || res.data;
+      if (data && data.id) {
+        const records = getLocalRecords().map((r) => (r.id === recordId ? data : r));
         saveLocalRecords(records);
-        return res.data;
+        return data;
       }
     } catch (err) {
       console.warn(`[compensationV2Service] PATCH /api/v1/compensation/records/${recordId} using local state:`, err);
@@ -555,14 +572,15 @@ export const compensationV2Service = {
     }
   ): Promise<CompensationRecord> {
     try {
-      const res = await apiClient.post<CompensationRecord>(
+      const res = await apiClient.post<any>(
         `/compensation/records/${recordId}/mark-paid`,
         paymentDetails
       );
-      if (res.data) {
-        const records = getLocalRecords().map((r) => (r.id === recordId ? res.data : r));
+      const data = res.data?.data || res.data;
+      if (data && data.id) {
+        const records = getLocalRecords().map((r) => (r.id === recordId ? data : r));
         saveLocalRecords(records);
-        return res.data;
+        return data;
       }
     } catch (err) {
       console.warn(`[compensationV2Service] POST /api/v1/compensation/records/${recordId}/mark-paid using local state:`, err);

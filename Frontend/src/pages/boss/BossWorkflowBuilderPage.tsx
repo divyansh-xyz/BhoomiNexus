@@ -21,16 +21,18 @@ import { WorkflowExecutionPanel } from '../../components/workflow/WorkflowExecut
 import { getNodeBranchType } from '../../utils/workflowTemplates.utils';
 import type { WorkflowNodeParcel, ProjectExecutionResponse } from '../../types/workflowV2.types';
 import { v2WorkflowService } from '../../services/api/v2Workflow.service';
+import { DemoLoading, DemoUnsavedChangesModal } from '../../components/common/DemoPolishStates';
 
 // ────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────
 
 /** Map node type to CSS badge modifier */
-function getNodeTypeBadgeClass(nodeType: string): string {
-  switch (nodeType) {
-    case 'DISTRICT_ACQUISITION':
-      return 'wf-node-type-badge--district';
+function getNodeTypeBadgeClass(type?: WorkflowNodeType | string): string {
+  const normType = String(type || 'STAGE').toUpperCase();
+  switch (normType) {
+    case 'STAGE':
+      return 'wf-node-type-badge--stage';
     case 'SUB_DIVISION':
       return 'wf-node-type-badge--subdivision';
     case 'APPROVAL_GATE':
@@ -41,6 +43,12 @@ function getNodeTypeBadgeClass(nodeType: string): string {
     default:
       return 'wf-node-type-badge--stage';
   }
+}
+
+/** Human-readable label for node types with safe fallback */
+function getNodeTypeLabel(type?: WorkflowNodeType | string): string {
+  if (!type) return 'Stage';
+  return String(type).replace(/_/g, ' ');
 }
 
 /** Readable label for responsibility code */
@@ -72,7 +80,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
     selectedNode,
     selectedNodeId,
     selectedNodeParcels,
-    nodeParcelsMap,
     getNodeParcelsList,
     validationResult,
     cycleError,
@@ -110,7 +117,8 @@ export const BossWorkflowBuilderPage: React.FC = () => {
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   // ── Modals ──
-  const [showAddNodeModal, setShowAddNodeModal] = useState(false);
+  const [showAddChildModal, setShowAddChildModal] = useState(false);
+  const [addChildParentId, setAddChildParentId] = useState<string | null>(null);
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [showConnectEdgeModal, setShowConnectEdgeModal] = useState(false);
   const [showMoveParcelsModal, setShowMoveParcelsModal] = useState(false);
@@ -147,6 +155,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
   // ── Phase 9 Validation & Activation Modal ──
   const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
   const [validationModalMode, setValidationModalMode] = useState<'validate' | 'activate'>('validate');
+  const [showUnsavedModal, setShowUnsavedModal] = useState<boolean>(false);
 
   // ── Phase 10 Runtime Execution Engine ──
   const [showExecutionPanel, setShowExecutionPanel] = useState<boolean>(false);
@@ -170,13 +179,17 @@ export const BossWorkflowBuilderPage: React.FC = () => {
     loadProject();
   }, [projectId]);
 
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Sync inspector form fields whenever selectedNode data changes (not just ID).
+  // This ensures edits reflected by updateNode are re-synced into the form fields.
   useEffect(() => {
     if (selectedNode) {
       setInspectorName(selectedNode.name);
       setInspectorSla(selectedNode.slaDays);
       setInspectorResp(selectedNode.responsibility);
     }
-  }, [selectedNode]);
+  }, [selectedNode?.id, selectedNode?.name, selectedNode?.slaDays, selectedNode?.responsibility]);
 
   // ────────────────────────────────────────────────────
   // Layout computation (memoised including preview fragment)
@@ -228,11 +241,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
     setIsPanning(false);
   }, []);
 
-  const handleCanvasWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.08 : 0.08;
-    setZoom((prev) => Math.min(2, Math.max(0.3, prev + delta)));
-  }, []);
 
   const zoomIn = () => setZoom((z) => Math.min(2, z + 0.15));
   const zoomOut = () => setZoom((z) => Math.max(0.3, z - 0.15));
@@ -242,38 +250,77 @@ export const BossWorkflowBuilderPage: React.FC = () => {
     setPanY(0);
   };
 
-  // ────────────────────────────────────────────────────
-  // Node quick-add from library bar
-  // ────────────────────────────────────────────────────
+  /** Center the workflow DAG precisely in the viewport */
+  const centerCanvas = useCallback(() => {
+    if (!canvasRef.current || layout.positions.length === 0) {
+      setZoom(1);
+      setPanX(0);
+      setPanY(0);
+      return;
+    }
+    const containerW = canvasRef.current.clientWidth || 900;
+    const containerH = canvasRef.current.clientHeight || 600;
 
-  const handleQuickAddNode = async (type: WorkflowNodeType, label: string) => {
-    const nameMap: Record<string, string> = {
-      STAGE: 'New Stage',
-      SUB_DIVISION: 'New Sub-Division',
-      APPROVAL_GATE: 'Approval Gate',
-      BRANCH_GATE: 'Branch Gate',
-      SPECIAL_UNIT: 'Special Unit',
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (const p of layout.positions) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x + nodeW);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y + nodeH);
+    }
+
+    const graphWidth = maxX - minX;
+    const graphHeight = maxY - minY;
+    const graphCenterX = minX + graphWidth / 2;
+    const graphCenterY = minY + graphHeight / 2;
+
+    const fitZoom = Math.min(
+      1.0,
+      Math.max(0.65, Math.min((containerW - 120) / (graphWidth || 1), (containerH - 120) / (graphHeight || 1)))
+    );
+    setZoom(fitZoom);
+    const newPanX = Math.round(containerW / 2 - graphCenterX * fitZoom);
+    const newPanY = Math.round(Math.max(40, containerH / 2 - graphCenterY * fitZoom));
+
+    setPanX(newPanX);
+    setPanY(newPanY);
+  }, [layout.positions, nodeW, nodeH]);
+
+  const hasAutoCentered = useRef(false);
+  useEffect(() => {
+    if (!hasAutoCentered.current && layout.positions.length > 0 && canvasRef.current) {
+      hasAutoCentered.current = true;
+      const t = setTimeout(() => centerCanvas(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [layout.positions.length, centerCanvas]);
+
+  // Press Escape to cancel edge connecting mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && connectingFrom) {
+        setConnectingFrom(null);
+      }
     };
-    await createNode({
-      name: nameMap[type] || label,
-      nodeType: type,
-      responsibility: 'REVENUE_BRANCH',
-      slaDays: 15,
-      requiredDocuments: [],
-      positionX: 300,
-      positionY: 200,
-      parcelCount: 0,
-    });
-  };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [connectingFrom]);
 
-  // ────────────────────────────────────────────────────
-  // Form handlers
-  // ────────────────────────────────────────────────────
 
-  const handleAddNodeSubmit = async (e: React.FormEvent) => {
+  /**
+   * Add Child Node: Creates a new node AND auto-connects it as a child of parentNodeId.
+   * This is the primary node creation flow — click a node, add a child, auto-connect.
+   */
+  const handleAddChildNode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNodeName) return;
-    await createNode({
+    const parentId = addChildParentId;
+    if (!parentId || !newNodeName) return;
+
+    const newNode = await createNode({
       name: newNodeName,
       nodeType: newNodeType,
       responsibility: newNodeResp,
@@ -283,9 +330,59 @@ export const BossWorkflowBuilderPage: React.FC = () => {
       positionY: 200,
       parcelCount: 0,
     });
-    setShowAddNodeModal(false);
+
+    if (newNode) {
+      // Auto-connect parent → child
+      await createEdge(parentId, newNode.id);
+    }
+
+    setShowAddChildModal(false);
+    setAddChildParentId(null);
     setNewNodeName('');
   };
+
+  /** Open the Add Child modal for a specific parent node */
+  const openAddChildModal = (parentNodeId: string) => {
+    setAddChildParentId(parentNodeId);
+    setNewNodeName('');
+    setNewNodeType('SUB_DIVISION');
+    setNewNodeResp('REVENUE_BRANCH');
+    setNewNodeSla(15);
+    setShowAddChildModal(true);
+  };
+
+  /**
+   * Compute parcel hierarchy validation: for each node with children,
+   * check if sum(children.parcelCount) === node.parcelCount
+   */
+  const parcelHierarchyWarnings = useMemo(() => {
+    const warnings = new Map<string, { parentCount: number; childrenSum: number }>();
+    const childrenMap = new Map<string, string[]>();
+    for (const edge of edges) {
+      if (!childrenMap.has(edge.sourceNodeId)) {
+        childrenMap.set(edge.sourceNodeId, []);
+      }
+      childrenMap.get(edge.sourceNodeId)!.push(edge.targetNodeId);
+    }
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    for (const [parentId, childIds] of childrenMap.entries()) {
+      const parent = nodeMap.get(parentId);
+      if (!parent) continue;
+      const childrenSum = childIds.reduce((sum, cid) => {
+        const child = nodeMap.get(cid);
+        return sum + (child?.parcelCount || 0);
+      }, 0);
+      if ((parent.parcelCount ?? 0) > 0 && childrenSum !== (parent.parcelCount ?? 0)) {
+        warnings.set(parentId, { parentCount: parent.parcelCount ?? 0, childrenSum });
+      }
+    }
+    return warnings;
+  }, [nodes, edges]);
+
+  // ────────────────────────────────────────────────────
+  // Form handlers
+  // ────────────────────────────────────────────────────
+
 
   const handleSplitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -342,11 +439,15 @@ export const BossWorkflowBuilderPage: React.FC = () => {
   const handleInspectorSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedNodeId) return;
-    await updateNode(selectedNodeId, {
+    const res = await updateNode(selectedNodeId, {
       name: inspectorName,
       slaDays: Number(inspectorSla),
       responsibility: inspectorResp,
     });
+    if (res) {
+      setSaveSuccessMsg('✓ Saved successfully');
+      setTimeout(() => setSaveSuccessMsg(null), 2500);
+    }
   };
 
   // ── Edge connection via canvas click ──
@@ -449,9 +550,11 @@ export const BossWorkflowBuilderPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="wf-builder">
-        <div className="wf-builder-inner" style={{ paddingTop: '120px', textAlign: 'center' }}>
-          <div style={{ fontSize: '14px', color: '#838b96' }}>Loading V2 Workflow Graph Topology&hellip;</div>
-        </div>
+        <DemoLoading
+          title="Resolving V2 Workflow Topology & Cadastral Graph…"
+          subtitle="Computing DAG layout, branch structures, parcel cohorts, and statutory templates."
+          fullHeight
+        />
       </div>
     );
   }
@@ -467,10 +570,30 @@ export const BossWorkflowBuilderPage: React.FC = () => {
         <header className="wf-header">
           <div className="wf-header-left">
             <div className="wf-breadcrumb">
-              <Link to="/boss/dashboard">
+              <button
+                type="button"
+                onClick={() => {
+                  if (nodes.length > 0 && !isWorkflowActive) {
+                    setShowUnsavedModal(true);
+                  } else {
+                    window.location.href = '/boss/dashboard';
+                  }
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: 'inherit',
+                  font: 'inherit',
+                }}
+              >
                 <BhoomiLogo size={14} strokeWidth={2.4} />
                 <span>&larr; Command Center</span>
-              </Link>
+              </button>
               <span className="wf-breadcrumb-sep">/</span>
               <span className="wf-breadcrumb-code">{project?.code || 'PROJECT'}</span>
               <span className="wf-breadcrumb-sep">/</span>
@@ -552,42 +675,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
             <div className="wf-toolbar-stat">
               Nodes: <strong>{nodes.length}</strong> &bull; Edges: <strong>{edges.length}</strong>
             </div>
-            <div className="wf-toolbar-divider" />
-            {/* Node library — quick-add buttons */}
-            <div className="wf-node-library">
-              <button
-                type="button"
-                disabled={isWorkflowActive || isSaving}
-                onClick={() => handleQuickAddNode('STAGE', 'Stage')}
-                className="wf-node-library-btn"
-              >
-                + Stage
-              </button>
-              <button
-                type="button"
-                disabled={isWorkflowActive || isSaving}
-                onClick={() => handleQuickAddNode('SUB_DIVISION', 'Sub-Division')}
-                className="wf-node-library-btn"
-              >
-                + Sub-Division
-              </button>
-              <button
-                type="button"
-                disabled={isWorkflowActive || isSaving}
-                onClick={() => handleQuickAddNode('APPROVAL_GATE', 'Gate')}
-                className="wf-node-library-btn"
-              >
-                + Approval Gate
-              </button>
-              <button
-                type="button"
-                disabled={isWorkflowActive || isSaving}
-                onClick={() => setShowAddNodeModal(true)}
-                className="wf-btn wf-btn--primary wf-btn--sm"
-              >
-                + Custom Node
-              </button>
-            </div>
           </div>
 
           <div className="wf-toolbar-right">
@@ -599,17 +686,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
               title="Reset to standard District ├── Acquisition ├── Compensation └── Possession lifecycle"
             >
               🔄 Standard 3 Branches
-            </button>
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => {
-                setValidationModalMode('validate');
-                setShowValidationModal(true);
-              }}
-              className="wf-btn"
-            >
-              Validate
             </button>
             <button
               type="button"
@@ -627,15 +703,31 @@ export const BossWorkflowBuilderPage: React.FC = () => {
 
         {/* ──────── Connecting-edge hint ──────── */}
         {connectingFrom && (
-          <div className="wf-alert wf-alert--info">
-            <strong>🔗 Edge Mode:</strong> Click a target node to connect from &ldquo;{nodes.find((n) => n.id === connectingFrom)?.name}&rdquo;.{' '}
+          <div
+            className="wf-alert wf-alert--info"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#eff6ff',
+              border: '1.5px solid #3b82f6',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>🔗</span>
+              <span>
+                <strong>Edge Connecting Mode:</strong> Click any target node on the canvas below to connect from{' '}
+                <strong>&ldquo;{nodes.find((n) => n.id === connectingFrom)?.name}&rdquo;</strong>.
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setConnectingFrom(null)}
               className="wf-btn wf-btn--sm wf-btn--danger"
-              style={{ marginLeft: 8 }}
+              style={{ marginLeft: 12, fontWeight: 600 }}
             >
-              Cancel
+              ✕ Cancel (Esc)
             </button>
           </div>
         )}
@@ -651,7 +743,6 @@ export const BossWorkflowBuilderPage: React.FC = () => {
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
               onMouseLeave={handleCanvasMouseUp}
-              onWheel={handleCanvasWheel}
             >
               {/* Phase 7: Live Fragment Preview Floating Banner */}
               {previewFragment && (
@@ -788,6 +879,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                     const isConnectSource = node.id === connectingFrom;
                     const isSibling = selectedNodeId ? validSiblingNodes.some((s) => s.id === node.id) : false;
                     const isDropTarget = dropTargetNodeId === node.id;
+                    const isPreviewNode = previewFragment?.previewNodes?.some((pn: any) => pn.id === node.id) ?? false;
 
                     return (
                       <foreignObject
@@ -801,53 +893,81 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                         <div
                           className={`wf-node ${isSelected ? 'wf-node--selected' : ''} ${
                             isDropTarget ? 'wf-node--drop-active' : ''
+                          } ${isConnectSource ? 'wf-node--connect-source' : ''} ${
+                            connectingFrom && !isConnectSource ? 'wf-node--connect-candidate' : ''
                           }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (connectingFrom) {
+                              handleNodeSourceClick(node.id);
+                            } else {
+                              selectNode(node.id);
+                            }
+                          }}
+                          onDragOver={(e) => {
+                            // Allow dropping dragged parcels on valid sibling node
+                            if (isSibling) {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              if (dropTargetNodeId !== node.id) {
+                                setDropTargetNodeId(node.id);
+                              }
+                            }
+                          }}
+                          onDragLeave={() => {
+                            if (dropTargetNodeId === node.id) {
+                              setDropTargetNodeId(null);
+                            }
+                          }}
+                          onDrop={async (e) => {
+                            e.preventDefault();
+                            setDropTargetNodeId(null);
+                            try {
+                              const raw = e.dataTransfer.getData('application/json');
+                              if (!raw) return;
+                              const data = JSON.parse(raw);
+                              if (data.sourceNodeId && data.parcelIds && data.sourceNodeId !== node.id) {
+                                await moveParcels(data.sourceNodeId, node.id, data.parcelIds);
+                              }
+                            } catch (err) {
+                              console.error('Parcel drop error', err);
+                            }
+                          }}
+                          style={{
+                            position: 'relative',
+                          }}
+                        >
+                          {/* Input Port (Top Handle) */}
+                          <div
+                            className={`wf-node-handle wf-node-handle--target ${
+                              connectingFrom && !isConnectSource ? 'wf-node-handle--active' : ''
+                            }`}
+                            title={
+                              connectingFrom && !isConnectSource
+                                ? 'Click to complete connection to this node'
+                                : 'Input Port: Directed dependency entry'
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               if (connectingFrom) {
                                 handleNodeSourceClick(node.id);
-                              } else {
-                                selectNode(node.id);
                               }
                             }}
-                            onDragOver={(e) => {
-                              // Allow dropping dragged parcels on valid sibling node
-                              if (isSibling) {
-                                e.preventDefault();
-                                e.dataTransfer.dropEffect = 'move';
-                                if (dropTargetNodeId !== node.id) {
-                                  setDropTargetNodeId(node.id);
-                                }
-                              }
-                            }}
-                            onDragLeave={() => {
-                              if (dropTargetNodeId === node.id) {
-                                setDropTargetNodeId(null);
-                              }
-                            }}
-                            onDrop={async (e) => {
-                              e.preventDefault();
-                              setDropTargetNodeId(null);
-                              try {
-                                const raw = e.dataTransfer.getData('application/json');
-                                if (!raw) return;
-                                const data = JSON.parse(raw);
-                                if (data.sourceNodeId && data.parcelIds && data.sourceNodeId !== node.id) {
-                                  await moveParcels(data.sourceNodeId, node.id, data.parcelIds);
-                                }
-                              } catch (err) {
-                                console.error('Parcel drop error', err);
-                              }
-                            }}
-                            style={{
-                              outline: isConnectSource
-                                ? '2px dashed #2576eb'
-                                : isDropTarget
-                                ? '2px dashed #10b981'
-                                : undefined,
-                              position: 'relative',
-                            }}
-                          >
+                          />
+
+                          {/* If in Edge Connecting Mode and this node is a candidate target, show floating badge */}
+                          {connectingFrom && !isConnectSource && (
+                            <div className="wf-node-connect-badge">
+                              👉 Click to connect here
+                            </div>
+                          )}
+
+                          {/* If this node is the active connection source, show badge */}
+                          {isConnectSource && (
+                            <div className="wf-node-connect-badge" style={{ backgroundColor: '#2576eb' }}>
+                              🔗 Source: Pick target below
+                            </div>
+                          )}
                             {/* Header row: name + branch badge + type badge + template indicator */}
                             <div className="wf-node-header">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
@@ -871,7 +991,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                                   </span>
                                 )}
                                 <span className={`wf-node-type-badge ${getNodeTypeBadgeClass(node.nodeType)}`}>
-                                  {node.nodeType.replace(/_/g, ' ')}
+                                  {getNodeTypeLabel(node.nodeType)}
                                 </span>
                               </div>
                             </div>
@@ -908,19 +1028,41 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                               </div>
                             )}
 
+                          {/* Parcel hierarchy mismatch warning */}
+                          {parcelHierarchyWarnings.has(node.id) && (
+                            <div
+                              style={{
+                                fontSize: 10.5,
+                                color: '#b45309',
+                                backgroundColor: '#fffbeb',
+                                border: '1px solid #fcd34d',
+                                borderRadius: 5,
+                                padding: '3px 7px',
+                                margin: '2px 0 0 0',
+                                lineHeight: 1.3,
+                                fontWeight: 600,
+                              }}
+                              title={`Parent has ${parcelHierarchyWarnings.get(node.id)!.parentCount} parcels but children sum to ${parcelHierarchyWarnings.get(node.id)!.childrenSum}`}
+                            >
+                              ⚠ Children: {parcelHierarchyWarnings.get(node.id)!.childrenSum} / {parcelHierarchyWarnings.get(node.id)!.parentCount}
+                            </div>
+                          )}
+
                           {/* Action buttons (visible on hover / selection) */}
                           {!isWorkflowActive && (
                             <div className="wf-node-actions">
                               <button
                                 type="button"
                                 className="wf-node-action-btn"
+                                style={{ backgroundColor: '#f0fdf4', color: '#15803d', fontWeight: 700 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   selectNode(node.id);
-                                  setConnectingFrom(node.id);
+                                  openAddChildModal(node.id);
                                 }}
+                                title="Create a new child node and auto-connect it to this node"
                               >
-                                → Edge
+                                ➕ Add Child
                               </button>
                               <button
                                 type="button"
@@ -960,6 +1102,25 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                               </button>
                             </div>
                           )}
+
+                          {/* Output Port (Bottom Handle) */}
+                          {!isWorkflowActive && (
+                            <div
+                              className={`wf-node-handle wf-node-handle--source ${
+                                isConnectSource ? 'wf-node-handle--active' : ''
+                              }`}
+                              title="Output Port: Click to connect directed edge to another node"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectNode(node.id);
+                                setConnectingFrom(node.id);
+                              }}
+                            >
+                              <span style={{ fontSize: 9, lineHeight: 1, color: isConnectSource ? '#ffffff' : '#2576eb', fontWeight: 800 }}>
+                                ↓
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </foreignObject>
                     );
@@ -980,9 +1141,18 @@ export const BossWorkflowBuilderPage: React.FC = () => {
               <button
                 type="button"
                 className="wf-zoom-btn"
+                onClick={centerCanvas}
+                title="🎯 Center canvas (Reset view to middle)"
+                style={{ marginTop: 4, fontSize: 13 }}
+              >
+                🎯
+              </button>
+              <button
+                type="button"
+                className="wf-zoom-btn"
                 onClick={zoomReset}
-                title="Reset view"
-                style={{ marginTop: 4, fontSize: 11 }}
+                title="Reset view (100% zoom, 0,0 pan)"
+                style={{ marginTop: 2, fontSize: 11 }}
               >
                 ⊞
               </button>
@@ -1051,7 +1221,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
               </h3>
               {selectedNode && (
                 <span className={`wf-node-type-badge ${getNodeTypeBadgeClass(selectedNode.nodeType)}`}>
-                  {selectedNode.nodeType.replace(/_/g, ' ')}
+                  {getNodeTypeLabel(selectedNode.nodeType)}
                 </span>
               )}
             </div>
@@ -1097,7 +1267,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                     <div className="wf-field">
                       <label className="wf-field-label">Node Type</label>
                       <div className="wf-field-readonly">
-                        {selectedNode.nodeType.replace(/_/g, ' ')}
+                        {getNodeTypeLabel(selectedNode.nodeType)}
                       </div>
                     </div>
 
@@ -1163,30 +1333,31 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                       </button>
                     )}
 
+                    {/* Parcel Hierarchy Indicator */}
+                    {selectedNodeId && parcelHierarchyWarnings.has(selectedNodeId) && (
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          background: '#fffbeb',
+                          borderRadius: 8,
+                          border: '1.5px solid #fcd34d',
+                          fontSize: 12,
+                          color: '#92400e',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <strong>⚠ Parcel Mismatch:</strong> This node has <strong>{parcelHierarchyWarnings.get(selectedNodeId)!.parentCount}</strong> parcels but its immediate children sum to <strong>{parcelHierarchyWarnings.get(selectedNodeId)!.childrenSum}</strong>. Adjust child parcel counts to balance the hierarchy.
+                      </div>
+                    )}
+
                     {/* Inspector quick-actions */}
                     {!isWorkflowActive && (
                       <>
                         <button type="submit" disabled={isSaving} className="wf-btn wf-btn--primary" style={{ width: '100%', justifyContent: 'center' }}>
-                          {isSaving ? 'Saving…' : 'Save Properties'}
+                          {isSaving ? 'Saving…' : (saveSuccessMsg || 'Save Properties')}
                         </button>
 
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            className="wf-btn wf-btn--sm"
-                            onClick={() => {
-                              setConnectingFrom(selectedNodeId);
-                            }}
-                          >
-                            → Connect Edge
-                          </button>
-                          <button
-                            type="button"
-                            className="wf-btn wf-btn--sm"
-                            onClick={() => setShowSplitModal(true)}
-                          >
-                            ⑂ Split
-                          </button>
                           {(selectedNode.parcelCount || 0) > 0 && (
                             <button
                               type="button"
@@ -1231,21 +1402,29 @@ export const BossWorkflowBuilderPage: React.FC = () => {
           Modals
           ════════════════════════════════════════════════ */}
 
-      {/* ── Add Node Modal ── */}
-      {showAddNodeModal && (
-        <div className="wf-modal-overlay" onClick={() => setShowAddNodeModal(false)}>
+      {/* ── Add Child Node Modal ── */}
+      {showAddChildModal && (
+        <div className="wf-modal-overlay" onClick={() => { setShowAddChildModal(false); setAddChildParentId(null); }}>
           <div className="wf-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="wf-modal-title">Add Workflow Node</h3>
+            <h3 className="wf-modal-title">➕ Add Child Node</h3>
             <p className="wf-modal-desc">
-              Define a new statutory stage, sub-division branch, or approval gate in the workflow topology.
+              Create a new child stage under <strong>&ldquo;{nodes.find(n => n.id === addChildParentId)?.name || 'Selected Node'}&rdquo;</strong>.
+              The new node will be automatically connected as a direct downstream dependency.
             </p>
-            <form onSubmit={handleAddNodeSubmit} className="wf-modal-form">
+            <form onSubmit={handleAddChildNode} className="wf-modal-form">
               <div className="wf-field">
-                <label className="wf-field-label">Node Name</label>
+                <label className="wf-field-label">Parent Node</label>
+                <div className="wf-field-readonly" style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', color: '#15803d' }}>
+                  🔗 {nodes.find(n => n.id === addChildParentId)?.name || '—'}
+                </div>
+              </div>
+              <div className="wf-field">
+                <label className="wf-field-label">Child Node Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Haveli Sub-Division Scrutiny"
+                  autoFocus
+                  placeholder="e.g. Revenue Scrutiny, Forest Clearance"
                   value={newNodeName}
                   onChange={(e) => setNewNodeName(e.target.value)}
                   className="wf-field-input"
@@ -1274,8 +1453,11 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                 >
                   <option value="REVENUE_BRANCH">Revenue Branch</option>
                   <option value="SURVEY_OFFICE">Survey Office</option>
-                  <option value="COMPENSATION_BRANCH">Compensation Branch</option>
-                  <option value="POSSESSION_BRANCH">Possession Branch</option>
+                  <option value="FOREST_DEPT">Forest Department</option>
+                  <option value="ENVIRONMENT_DEPT">Environment Department</option>
+                  <option value="COMPENSATION_BRANCH">Compensation Branch (SLAO)</option>
+                  <option value="POSSESSION_BRANCH">Possession Branch (Tehsil)</option>
+                  <option value="LEGAL_CELL">Legal Cell</option>
                 </select>
               </div>
               <div className="wf-field">
@@ -1288,11 +1470,11 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                 />
               </div>
               <div className="wf-modal-footer">
-                <button type="button" onClick={() => setShowAddNodeModal(false)} className="wf-btn">
+                <button type="button" onClick={() => { setShowAddChildModal(false); setAddChildParentId(null); }} className="wf-btn">
                   Cancel
                 </button>
-                <button type="submit" className="wf-btn wf-btn--primary">
-                  Create Node
+                <button type="submit" className="wf-btn wf-btn--primary" style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}>
+                  Create & Connect
                 </button>
               </div>
             </form>
@@ -1367,7 +1549,7 @@ export const BossWorkflowBuilderPage: React.FC = () => {
                     .filter((n) => n.id !== selectedNodeId)
                     .map((n) => (
                       <option key={n.id} value={n.id}>
-                        {n.name} ({n.nodeType.replace(/_/g, ' ')})
+                        {n.name} ({getNodeTypeLabel(n.nodeType)})
                       </option>
                     ))}
                 </select>
@@ -1535,6 +1717,16 @@ export const BossWorkflowBuilderPage: React.FC = () => {
           onSelectNode={(nodeId) => selectNode(nodeId)}
         />
       )}
+
+      {/* ── Phase 23 Unsaved Changes Modal ── */}
+      <DemoUnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onKeepEditing={() => setShowUnsavedModal(false)}
+        onDiscard={() => {
+          setShowUnsavedModal(false);
+          window.location.href = '/boss/dashboard';
+        }}
+      />
     </div>
   );
 };

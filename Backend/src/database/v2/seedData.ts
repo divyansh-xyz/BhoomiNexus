@@ -44,6 +44,8 @@ export interface V2ParcelDefinition {
   approvedComp: number;
   paidComp: number;
   cohort: string;
+  disputed?: boolean;
+  disputeReason?: string;
 }
 
 export const V2_ROLES: V2RoleDefinition[] = [
@@ -58,7 +60,27 @@ export const V2_ROLES: V2RoleDefinition[] = [
   { id: "POSSESSION_OFFICER", name: "Possession Officer", description: "Enforces physical possession and clearance of acquired land" },
 ];
 
-export const V2_DEMO_USERS: V2UserDefinition[] = [
+/**
+ * Phase 24 Minimum Users (Exactly 8 Statutory Roles)
+ * 1 Requesting Authority, 1 BOSS, 1 Processing Officer, 1 Compensation Officer,
+ * 1 Possession Officer, 1 National Authority, 1 State Authority, 1 District Authority
+ */
+export const V2_MINIMUM_USERS: V2UserDefinition[] = [
+  { name: "Rajesh Sharma", email: "requestor@bhoomi.gov.in", role: "REQUESTING_AUTHORITY",
+    dept: "Ministry of Road Transport & Highways", designation: "Executive Engineer",
+    cadre: "IAS", phone: "+91-11-23384823", office: "Transport Bhawan, New Delhi", state: null, district: null },
+  { name: "Dr. Vikramaditya Sen", email: "boss@bhoomi.gov.in", role: "BOSS",
+    dept: "National Land Acquisition Authority", designation: "Bureau Officer & Section Supervisor",
+    cadre: "IAS", phone: "+91-11-23071234", office: "Krishi Bhawan, New Delhi", state: null, district: null },
+  { name: "Ananya Patel", email: "officer@bhoomi.gov.in", role: "PROCESSING_OFFICER",
+    dept: "Revenue & Land Records Branch", designation: "Processing & Field Officer",
+    cadre: "State Revenue", phone: "+91-20-25501234", office: "Collectorate, Pune", state: "Maharashtra", district: "Pune" },
+  { name: "Mahesh Patil", email: "comp.officer@bhoomi.gov.in", role: "COMPENSATION_OFFICER",
+    dept: "Special Land Acquisition Office No. 15", designation: "Competent Authority for Land Acquisition (CALA)",
+    cadre: "State Revenue", phone: "+91-20-26124455", office: "CALA Cell, Pune", state: "Maharashtra", district: "Pune" },
+  { name: "Vinayak Kulkarni", email: "possession.officer@bhoomi.gov.in", role: "POSSESSION_OFFICER",
+    dept: "Revenue & Land Survey Branch", designation: "Special Tehsildar (Possession & Encroachment)",
+    cadre: "State Revenue", phone: "+91-20-26125566", office: "Tehsil Office, Haveli, Pune", state: "Maharashtra", district: "Pune" },
   { name: "Alok Shekhar", email: "national@bhoomi.gov.in", role: "NATIONAL_AUTHORITY",
     dept: "National Land Acquisition Authority", designation: "Director General (Land)",
     cadre: "IAS", phone: "+91-11-23019876", office: "NITI Aayog, New Delhi", state: null, district: null },
@@ -68,15 +90,13 @@ export const V2_DEMO_USERS: V2UserDefinition[] = [
   { name: "Dr. Suhas Diwase", email: "district.pune@bhoomi.gov.in", role: "DISTRICT_AUTHORITY",
     dept: "District Collectorate, Pune", designation: "Collector & District Magistrate",
     cadre: "IAS", phone: "+91-20-26123345", office: "Collector Office, Pune", state: "Maharashtra", district: "Pune" },
+];
+
+export const V2_DEMO_USERS: V2UserDefinition[] = [
+  ...V2_MINIMUM_USERS.filter(u => ['NATIONAL_AUTHORITY', 'STATE_AUTHORITY', 'DISTRICT_AUTHORITY', 'COMPENSATION_OFFICER', 'POSSESSION_OFFICER'].includes(u.role)),
   { name: "Kishan Jawale", email: "district.raigad@bhoomi.gov.in", role: "DISTRICT_AUTHORITY",
     dept: "District Collectorate, Raigad", designation: "Collector & District Magistrate",
     cadre: "IAS", phone: "+91-2141-222001", office: "Collector Office, Alibag, Raigad", state: "Maharashtra", district: "Raigad" },
-  { name: "Mahesh Patil", email: "comp.officer@bhoomi.gov.in", role: "COMPENSATION_OFFICER",
-    dept: "Special Land Acquisition Office No. 15", designation: "Competent Authority for Land Acquisition (CALA)",
-    cadre: "State Revenue", phone: "+91-20-26124455", office: "CALA Cell, Pune", state: "Maharashtra", district: "Pune" },
-  { name: "Vinayak Kulkarni", email: "possession.officer@bhoomi.gov.in", role: "POSSESSION_OFFICER",
-    dept: "Revenue & Land Survey Branch", designation: "Special Tehsildar (Possession & Encroachment)",
-    cadre: "State Revenue", phone: "+91-20-26125566", office: "Tehsil Office, Haveli, Pune", state: "Maharashtra", district: "Pune" },
 ];
 
 export const V2_PRIMARY_PROJECT = {
@@ -109,7 +129,7 @@ export const V2_PARCELS: V2ParcelDefinition[] = [
     marketRate: 1500000,
     acquisitionStatus: "IN_PROGRESS",
     compensationStatus: "PENDING",
-    possessionStatus: "NOT_STARTED",
+    possessionStatus: "PENDING", // Possession Pending demonstrated
     intersectPercent: 92,
     polygon: [
       [73.4070, 18.7540],
@@ -120,8 +140,9 @@ export const V2_PARCELS: V2ParcelDefinition[] = [
     ],
     assessedComp: 5250000,
     approvedComp: 5250000,
-    paidComp: 0,
-    cohort: "Cohort 1 - Priority Agricultural"
+    paidComp: 0, // Compensation Pending demonstrated
+    cohort: "Cohort 1 - Priority Agricultural",
+    disputed: false
   },
   {
     ulpin: "ULPIN-MH-PUN-002",
@@ -133,9 +154,9 @@ export const V2_PARCELS: V2ParcelDefinition[] = [
     areaAcres: 2.80,
     landType: "AGRICULTURAL",
     marketRate: 1500000,
-    acquisitionStatus: "IN_PROGRESS",
-    compensationStatus: "PENDING",
-    possessionStatus: "NOT_STARTED",
+    acquisitionStatus: "ACQUIRED",
+    compensationStatus: "DISBURSED", // Compensation Paid demonstrated
+    possessionStatus: "TAKEN", // Possession Completed demonstrated
     intersectPercent: 88,
     polygon: [
       [73.4110, 18.7570],
@@ -146,8 +167,9 @@ export const V2_PARCELS: V2ParcelDefinition[] = [
     ],
     assessedComp: 4200000,
     approvedComp: 4200000,
-    paidComp: 0,
-    cohort: "Cohort 1 - Priority Agricultural"
+    paidComp: 4200000, // Compensation Paid demonstrated
+    cohort: "Cohort 1 - Priority Agricultural",
+    disputed: false
   },
   {
     ulpin: "ULPIN-MH-PUN-003",
@@ -173,7 +195,9 @@ export const V2_PARCELS: V2ParcelDefinition[] = [
     assessedComp: 11480000,
     approvedComp: 11480000,
     paidComp: 0,
-    cohort: "Cohort 2 - Commercial & Industrial"
+    cohort: "Cohort 2 - Commercial & Industrial",
+    disputed: true, // Disputed demonstrated
+    disputeReason: "Title ownership challenge pending before Civil Court, Haveli (Special Civil Suit No. 142/2025)"
   },
   {
     ulpin: "ULPIN-MH-PUN-004",

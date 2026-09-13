@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import type { WorkflowNode } from '../../types/workflowV2.types';
-import type { WorkflowTemplate } from '../../types/workflow.types';
 import { getContextualTemplatesForNode } from '../../utils/workflowTemplates.utils';
 
 interface WorkflowTemplateModalProps {

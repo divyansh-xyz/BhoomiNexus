@@ -115,6 +115,7 @@ const seedData = async () => {
       MH: ["Pune", "Mumbai", "Nagpur", "Nashik", "Aurangabad", "Thane", "Raigad", "Satara"],
       KA: ["Bengaluru Urban", "Bengaluru Rural", "Mysuru", "Mangaluru", "Hubballi-Dharwad", "Belagavi"],
       UP: ["Lucknow", "Agra", "Varanasi", "Kanpur", "Noida", "Prayagraj", "Meerut"],
+      DL: ["Rithala", "North West Delhi", "Rohini", "New Delhi"],
     };
 
     for (const [stateCode, districtList] of Object.entries(districts)) {
@@ -199,6 +200,13 @@ const seedData = async () => {
           status: "NEW_REQUEST", ministry: "Ministry of New & Renewable Energy",
           authority: "SECI", purpose: "Public Purpose - Renewable Energy",
         },
+        {
+          code: "PRJ-DL-7701", title: "Rithala-Narela Metro Corridor Expansion",
+          type: "METRO_RAIL", state: "Delhi", district: "Rithala",
+          area: 180, budget: 6200, corridorKm: 21.7, width: 25,
+          status: "WORKFLOW_ACTIVE", ministry: "Ministry of Housing and Urban Affairs",
+          authority: "DMRC", purpose: "Public Purpose - Urban Rapid Transit",
+        },
       ];
 
       for (const p of projects) {
@@ -255,6 +263,13 @@ const seedData = async () => {
               [27.2150, 78.0450],
               [27.2350, 78.0650]
             ];
+          } else if (p.code === "PRJ-DL-7701") {
+            coords = [
+              [28.7208, 77.1071],
+              [28.7450, 77.0950],
+              [28.7800, 77.0850],
+              [28.8500, 77.0900]
+            ];
           }
 
           if (coords.length > 0) {
@@ -292,7 +307,7 @@ const seedData = async () => {
                   marketRate: 1500000,
                   acquisitionStatus: "IN_PROGRESS",
                   compensationStatus: "PENDING",
-                  possessionStatus: "NOT_STARTED",
+                  possessionStatus: "PENDING", // Possession Pending demonstrated
                   intersectPercent: 92,
                   polygon: [
                     [73.4070, 18.7540],
@@ -303,8 +318,9 @@ const seedData = async () => {
                   ],
                   assessedComp: 5250000,
                   approvedComp: 5250000,
-                  paidComp: 0,
-                  cohort: "Cohort 1 - Priority Agricultural"
+                  paidComp: 0, // Compensation Pending demonstrated
+                  cohort: "Cohort 1 - Priority Agricultural",
+                  disputed: false
                 },
                 {
                   ulpin: "ULPIN-MH-PUN-002",
@@ -316,9 +332,9 @@ const seedData = async () => {
                   areaAcres: 2.80,
                   landType: "AGRICULTURAL",
                   marketRate: 1500000,
-                  acquisitionStatus: "IN_PROGRESS",
-                  compensationStatus: "PENDING",
-                  possessionStatus: "NOT_STARTED",
+                  acquisitionStatus: "ACQUIRED",
+                  compensationStatus: "DISBURSED", // Compensation Paid demonstrated
+                  possessionStatus: "TAKEN", // Possession Completed demonstrated
                   intersectPercent: 88,
                   polygon: [
                     [73.4110, 18.7570],
@@ -329,8 +345,9 @@ const seedData = async () => {
                   ],
                   assessedComp: 4200000,
                   approvedComp: 4200000,
-                  paidComp: 0,
-                  cohort: "Cohort 1 - Priority Agricultural"
+                  paidComp: 4200000, // Compensation Paid demonstrated
+                  cohort: "Cohort 1 - Priority Agricultural",
+                  disputed: false
                 },
                 {
                   ulpin: "ULPIN-MH-PUN-003",
@@ -356,7 +373,9 @@ const seedData = async () => {
                   assessedComp: 11480000,
                   approvedComp: 11480000,
                   paidComp: 0,
-                  cohort: "Cohort 2 - Commercial & Industrial"
+                  cohort: "Cohort 2 - Commercial & Industrial",
+                  disputed: true, // Disputed demonstrated
+                  disputeReason: "Title ownership challenge pending before Civil Court, Haveli (Special Civil Suit No. 142/2025)"
                 },
                 {
                   ulpin: "ULPIN-MH-PUN-004",
@@ -568,11 +587,18 @@ const seedData = async () => {
                     "SELECT id FROM compensation_records WHERE project_id = $1 AND parcel_id = $2",
                     [projId, pId]
                   );
+                  const isPaid = parcel.paidComp >= parcel.approvedComp && parcel.approvedComp > 0;
+                  const compRemarks = parcel.disputed
+                    ? `Compensation disbursement escrowed under Section 64 reference due to title dispute: ${parcel.disputeReason}`
+                    : isPaid
+                    ? `PFMS DBT Disbursal confirmed under Batch PFMS-MH-2026-0042`
+                    : `Initial seed assessment for ${parcel.cohort}`;
+
                   if (existingComp.rows.length === 0) {
                     await client.query(
                       `INSERT INTO compensation_records
-                       (project_id, parcel_id, beneficiary_reference, assessed_amount, approved_amount, paid_amount, pending_amount, payment_status, remarks, created_by)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                       (project_id, parcel_id, beneficiary_reference, assessed_amount, approved_amount, paid_amount, pending_amount, payment_status, payment_reference, payment_date, remarks, created_by)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
                       [
                         projId,
                         pId,
@@ -581,12 +607,42 @@ const seedData = async () => {
                         parcel.approvedComp,
                         parcel.paidComp,
                         parcel.approvedComp - parcel.paidComp,
-                        parcel.paidComp >= parcel.approvedComp && parcel.approvedComp > 0 ? 'COMPLETED' : 'PENDING',
-                        `Initial seed assessment for ${parcel.cohort}`,
+                        isPaid ? 'COMPLETED' : 'PENDING',
+                        isPaid ? 'PFMS-MH-PUN-2026-0042' : null,
+                        isPaid ? '2026-09-01' : null,
+                        compRemarks,
                         requestorId
                       ]
                     );
                   }
+                }
+
+                // Seed initial possession record for demo dataset
+                const existingPoss = await client.query(
+                  "SELECT id FROM possession_records WHERE project_id = $1 AND parcel_id = $2",
+                  [projId, pId]
+                );
+                const isPossTaken = parcel.possessionStatus === 'TAKEN';
+                const possStatus = isPossTaken ? 'COMPLETED' : parcel.possessionStatus === 'PENDING' ? 'PENDING' : 'NOT_STARTED';
+                const possRemarks = isPossTaken
+                  ? 'Section 38 physical possession formalized under Panchnama #PN-HAV-2026-09'
+                  : parcel.possessionStatus === 'PENDING'
+                  ? 'Demarcation completed, Section 38 notice served'
+                  : `Initial possession tracking for ${parcel.cohort}`;
+
+                if (existingPoss.rows.length === 0) {
+                  await client.query(
+                    `INSERT INTO possession_records
+                     (project_id, parcel_id, status, taken_at, remarks)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [
+                      projId,
+                      pId,
+                      possStatus,
+                      isPossTaken ? new Date('2026-09-02T10:30:00Z') : null,
+                      possRemarks
+                    ]
+                  );
                 }
               }
 

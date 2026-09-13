@@ -44,6 +44,8 @@ export const getPossessionDashboard = async (filter?: { state?: string; district
 
   const recordsRes = await pool.query(
     `SELECT pr.*,
+            pr.taken_at AS possession_date,
+            pr.taken_by AS possession_officer_id,
             lp.ulpin, lp.survey_number, lp.village, lp.district AS parcel_district, lp.area_acres,
             lp.possession_status AS parcel_possession_status,
             p.code AS project_code, p.title AS project_title,
@@ -51,7 +53,7 @@ export const getPossessionDashboard = async (filter?: { state?: string; district
      FROM possession_records pr
      JOIN land_parcels lp ON lp.id = pr.parcel_id
      JOIN projects p ON p.id = pr.project_id
-     LEFT JOIN users u ON u.id = pr.possession_officer_id
+     LEFT JOIN users u ON u.id = pr.taken_by
      ${whereClause}
      ORDER BY pr.created_at DESC
      LIMIT 100`,
@@ -73,7 +75,7 @@ export const getPossessionTasks = async (userId: string) => {
             we.id AS execution_id, we.parcel_id,
             lp.ulpin, lp.survey_number, lp.village, lp.district AS parcel_district, lp.area_acres,
             lp.possession_status AS parcel_possession_status,
-            pr.id AS possession_record_id, pr.status AS possession_record_status, pr.possession_date,
+            pr.id AS possession_record_id, pr.status AS possession_record_status, pr.taken_at AS possession_date,
             p.id AS project_id, p.code AS project_code, p.title AS project_title
      FROM workflow_tasks wt
      JOIN workflow_executions we ON we.id = wt.workflow_execution_id
@@ -96,6 +98,8 @@ export const getPossessionTasks = async (userId: string) => {
 export const getPossessionRecordById = async (recordId: string) => {
   const result = await pool.query(
     `SELECT pr.*,
+            pr.taken_at AS possession_date,
+            pr.taken_by AS possession_officer_id,
             lp.ulpin, lp.survey_number, lp.village, lp.district AS parcel_district,
             lp.state AS parcel_state, lp.area_acres, lp.land_type,
             p.code AS project_code, p.title AS project_title,
@@ -103,7 +107,7 @@ export const getPossessionRecordById = async (recordId: string) => {
      FROM possession_records pr
      JOIN land_parcels lp ON lp.id = pr.parcel_id
      JOIN projects p ON p.id = pr.project_id
-     LEFT JOIN users u ON u.id = pr.possession_officer_id
+     LEFT JOIN users u ON u.id = pr.taken_by
      WHERE pr.id = $1`,
     [recordId]
   );
@@ -173,11 +177,11 @@ export const completePossessionRecord = async (recordId: string, userId: string)
     const updatedRecord = await client.query(
       `UPDATE possession_records SET
          status = 'COMPLETED',
-         possession_date = COALESCE(possession_date, CURRENT_DATE),
-         possession_officer_id = COALESCE(possession_officer_id, $1),
+         taken_at = COALESCE(taken_at, NOW()),
+         taken_by = COALESCE(taken_by, $1),
          updated_at = NOW()
        WHERE id = $2
-       RETURNING *`,
+       RETURNING *, taken_at AS possession_date, taken_by AS possession_officer_id`,
       [userId, recordId]
     );
 

@@ -13,6 +13,13 @@ import type {
 // In-memory runtime task cache for interactive testing across accept/reject/resubmit
 let runtimeTasksCache: Record<string, WorkflowTask> | null = null;
 
+function unwrapData<T>(res: any): T {
+  if (res && res.data && typeof res.data === 'object' && 'data' in res.data) {
+    return res.data.data as T;
+  }
+  return res.data as T;
+}
+
 export const taskService = {
   /**
    * Section 17.1: GET /api/v1/tasks?assignedTo=me OR ?projectId=:projectId
@@ -22,9 +29,10 @@ export const taskService = {
       const params: Record<string, string> = {};
       if (assignedTo) params.assignedTo = assignedTo;
       if (projectId) params.projectId = projectId;
-      const res = await apiClient.get<WorkflowTask[]>('/tasks', { params });
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data;
+      const res = await apiClient.get<any>('/tasks', { params });
+      const data = unwrapData<WorkflowTask[]>(res);
+      if (data && Array.isArray(data) && data.length > 0) {
+        return data;
       }
     } catch (e) {
       console.warn('[taskService] GET /api/v1/tasks pending backend:', e);
@@ -38,8 +46,9 @@ export const taskService = {
    */
   async getTaskById(taskId: string): Promise<WorkflowTask | null> {
     try {
-      const res = await apiClient.get<WorkflowTask>(`/tasks/${taskId}`);
-      if (res.data) return res.data;
+      const res = await apiClient.get<any>(`/tasks/${taskId}`);
+      const data = unwrapData<WorkflowTask>(res);
+      if (data && (data.id || (data as any).stageId)) return data;
     } catch (e) {
       console.warn(`[taskService] GET /api/v1/tasks/${taskId} pending backend:`, e);
     }
@@ -51,8 +60,9 @@ export const taskService = {
    */
   async startTask(taskId: string): Promise<WorkflowTask> {
     try {
-      const res = await apiClient.post<WorkflowTask>(`/tasks/${taskId}/start`);
-      if (res.data) return res.data;
+      const res = await apiClient.post<any>(`/tasks/${taskId}/start`);
+      const data = unwrapData<WorkflowTask>(res);
+      if (data && (data.id || data.status)) return data;
     } catch (e) {
       console.warn(`[taskService] POST /api/v1/tasks/${taskId}/start fallback:`, e);
     }
@@ -72,8 +82,9 @@ export const taskService = {
    */
   async acceptTask(taskId: string): Promise<TaskAcceptResponse> {
     try {
-      const res = await apiClient.post<TaskAcceptResponse>(`/tasks/${taskId}/accept`);
-      if (res.data) return res.data;
+      const res = await apiClient.post<any>(`/tasks/${taskId}/accept`);
+      const data = unwrapData<TaskAcceptResponse>(res);
+      if (data && (data.task || data.completedStage)) return data;
     } catch (e) {
       console.warn(`[taskService] POST /api/v1/tasks/${taskId}/accept fallback:`, e);
     }
@@ -124,10 +135,11 @@ export const taskService = {
       throw new Error('Statutory rejection reason is required.');
     }
     try {
-      const res = await apiClient.post<TaskRejectResponse>(`/tasks/${taskId}/reject`, {
+      const res = await apiClient.post<any>(`/tasks/${taskId}/reject`, {
         reason: reason.trim(),
       });
-      if (res.data) return res.data;
+      const data = unwrapData<TaskRejectResponse>(res);
+      if (data && (data.task || data.rejectedStage)) return data;
     } catch (e) {
       console.warn(`[taskService] POST /api/v1/tasks/${taskId}/reject fallback:`, e);
     }
@@ -180,10 +192,11 @@ export const taskService = {
     formData.append('evidenceType', evidenceType);
 
     try {
-      const res = await apiClient.post<TaskEvidenceItem>(`/tasks/${taskId}/evidence`, formData, {
+      const res = await apiClient.post<any>(`/tasks/${taskId}/evidence`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      if (res.data) return res.data;
+      const data = unwrapData<TaskEvidenceItem>(res);
+      if (data && data.id) return data;
     } catch (e) {
       console.warn(`[taskService] POST /api/v1/tasks/${taskId}/evidence fallback:`, e);
     }
@@ -216,9 +229,10 @@ export const taskService = {
    */
   async getTaskEvidence(taskId: string): Promise<TaskEvidenceItem[]> {
     try {
-      const res = await apiClient.get<TaskEvidenceItem[]>(`/tasks/${taskId}/evidence`);
-      if (res.data && Array.isArray(res.data)) {
-        return res.data;
+      const res = await apiClient.get<any>(`/tasks/${taskId}/evidence`);
+      const data = unwrapData<TaskEvidenceItem[]>(res);
+      if (data && Array.isArray(data)) {
+        return data;
       }
     } catch (e) {
       console.warn(`[taskService] GET /api/v1/tasks/${taskId}/evidence fallback:`, e);
@@ -237,11 +251,12 @@ export const taskService = {
     payload: StageResubmitPayload
   ): Promise<StageResubmitResponse> {
     try {
-      const res = await apiClient.post<StageResubmitResponse>(
+      const res = await apiClient.post<any>(
         `/projects/${projectId}/workflow-stages/${stageId}/resubmit`,
         payload
       );
-      if (res.data) return res.data;
+      const data = unwrapData<StageResubmitResponse>(res);
+      if (data && (data.task || data.stage)) return data;
     } catch (e) {
       console.warn(`[taskService] resubmitStage fallback:`, e);
     }
@@ -652,7 +667,7 @@ function updateCachedTask(task: WorkflowTask) {
   }
 }
 
-function getDeterministicTasks(assignedTo?: string, projectId?: string): WorkflowTask[] {
+function getDeterministicTasks(_assignedTo?: string, projectId?: string): WorkflowTask[] {
   initCache();
   const list = Object.values(runtimeTasksCache || {});
   return list.filter((t) => {

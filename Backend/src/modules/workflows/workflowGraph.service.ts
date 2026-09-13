@@ -3,13 +3,27 @@ import { ApiError } from "../../utils/apiError";
 import * as graphRepo from "../../database/v2/graphRepository";
 import { createAuditEvent } from "../../utils/audit";
 
+const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+export const resolveProjectId = async (projectIdOrCode: string): Promise<string> => {
+  if (isUUID(projectIdOrCode)) {
+    return projectIdOrCode;
+  }
+  const res = await pool.query(`SELECT id FROM projects WHERE code = $1`, [projectIdOrCode]);
+  if (res.rows.length === 0) {
+    throw new ApiError(404, `Project not found for identifier: ${projectIdOrCode}`);
+  }
+  return res.rows[0].id;
+};
+
 /**
  * Retrieves the workflow instance for a project and checks if it is active/frozen.
  */
 export const getWorkflowInstance = async (projectId: string) => {
+  const actualId = await resolveProjectId(projectId);
   const result = await pool.query(
     `SELECT * FROM workflow_instances WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1`,
-    [projectId]
+    [actualId]
   );
   if (result.rows.length === 0) {
     throw new ApiError(404, "Workflow instance not found for this project");
@@ -35,12 +49,13 @@ export const assertWorkflowEditable = (instance: { status: string }) => {
  *   └── Possession
  */
 export const initializeProjectWorkflow = async (projectId: string, userId: string) => {
+  const actualId = await resolveProjectId(projectId);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     // 1. Verify project exists
-    const projRes = await client.query("SELECT * FROM projects WHERE id = $1", [projectId]);
+    const projRes = await client.query("SELECT * FROM projects WHERE id = $1", [actualId]);
     if (projRes.rows.length === 0) {
       throw new ApiError(404, "Project not found");
     }
@@ -49,7 +64,7 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
     // 2. Check existing workflow instance
     let wfRes = await client.query(
       "SELECT * FROM workflow_instances WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1",
-      [projectId]
+      [actualId]
     );
 
     let instance: any;
@@ -61,7 +76,7 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
         `INSERT INTO workflow_instances (project_id, template_name, status, version)
          VALUES ($1, 'V2 Graph Workflow', 'DRAFT', 2)
          RETURNING *`,
-        [projectId]
+        [actualId]
       );
       instance = insRes.rows[0];
     }
@@ -135,7 +150,7 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
     // 6. Assign confirmed/candidate project parcels to Acquisition branch by default
     const parcelsRes = await client.query(
       `SELECT parcel_id FROM project_parcels WHERE project_id = $1`,
-      [projectId]
+      [actualId]
     );
     const acqNode = createdBranchNodes[0];
     for (const p of parcelsRes.rows) {
@@ -167,6 +182,43 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
   }
 };
 
+function calculateHierarchicalParcelCounts(nodes: any[], edges: any[]): Map<string, number> {
+  const childrenMap = new Map<string, string[]>();
+  for (const edge of edges) {
+    const src = edge.source_node_id || edge.sourceNodeId;
+    const tgt = edge.target_node_id || edge.targetNodeId;
+    if (!childrenMap.has(src)) {
+      childrenMap.set(src, []);
+    }
+    childrenMap.get(src)!.push(tgt);
+  }
+
+  const countMap = new Map<string, number>();
+  for (const n of nodes) {
+    countMap.set(n.id, Number(n.parcel_count ?? n.parcelCount ?? 0));
+  }
+
+  // Bottom-up hierarchy calculation:
+  // Immediate children's parcel sum MUST equal the father's parcel count
+  for (let iter = 0; iter < 10; iter++) {
+    let changed = false;
+    for (const n of nodes) {
+      const children = childrenMap.get(n.id);
+      if (children && children.length > 0) {
+        const sum = children.reduce((acc, cid) => acc + (countMap.get(cid) || 0), 0);
+        const current = countMap.get(n.id) || 0;
+        if (current !== sum) {
+          countMap.set(n.id, sum);
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
+  }
+
+  return countMap;
+}
+
 /**
  * Retrieves the complete V2 workflow graph: nodes, edges, parcel counts, and assigned officers.
  */
@@ -197,6 +249,8 @@ export const getWorkflowGraph = async (projectId: string) => {
     [instance.id]
   );
 
+  const hierarchicalCounts = calculateHierarchicalParcelCounts(nodesRes.rows, edgesRes.rows);
+
   return {
     workflowInstanceId: instance.id,
     projectId,
@@ -216,7 +270,7 @@ export const getWorkflowGraph = async (projectId: string) => {
       templateSource: n.template_source,
       xPosition: n.x_position,
       yPosition: n.y_position,
-      parcelCount: n.parcel_count,
+      parcelCount: hierarchicalCounts.get(n.id) ?? n.parcel_count ?? 0,
       createdAt: n.created_at,
       updatedAt: n.updated_at,
     })),
@@ -230,6 +284,26 @@ export const getWorkflowGraph = async (projectId: string) => {
     })),
   };
 };
+
+export const formatNodeResponse = (n: any) => ({
+  id: n.id,
+  nodeKey: n.node_key || n.nodeKey,
+  name: n.name,
+  nodeType: n.node_type || n.nodeType || "STAGE",
+  responsibleRole: n.responsible_role || n.responsibleRole,
+  responsibleUnitId: n.responsible_unit_id || n.responsibleUnitId,
+  responsibleUserId: n.responsible_user_id || n.responsibleUserId,
+  responsibleUserName: n.responsible_user_name || n.responsibleUserName,
+  responsibleUserDesignation: n.responsible_user_designation || n.responsibleUserDesignation,
+  configuration: n.configuration || {},
+  templateSource: n.template_source || n.templateSource,
+  xPosition: n.x_position ?? n.xPosition ?? 0,
+  yPosition: n.y_position ?? n.yPosition ?? 0,
+  parcelCount: n.parcel_count ?? n.parcelCount ?? 0,
+  slaDays: n.sla_days ?? n.slaDays ?? 15,
+  createdAt: n.created_at || n.createdAt,
+  updatedAt: n.updated_at || n.updatedAt,
+});
 
 /**
  * Creates a new workflow node in an editable workflow instance.
@@ -261,7 +335,7 @@ export const createNode = async (projectId: string, payload: any, userId: string
     details: { projectId, nodeKey: node.node_key, name: node.name },
   });
 
-  return node;
+  return formatNodeResponse(node);
 };
 
 /**
@@ -285,7 +359,7 @@ export const updateNode = async (projectId: string, nodeId: string, updates: any
     details: { projectId, updates },
   });
 
-  return updatedNode;
+  return formatNodeResponse(updatedNode);
 };
 
 /**
@@ -527,7 +601,7 @@ export const splitNode = async (projectId: string, nodeId: string, payload: any,
 
     return {
       baseNodeId: nodeId,
-      newBranches: newNodes,
+      newBranches: newNodes.map(formatNodeResponse),
     };
   } catch (err) {
     await client.query("ROLLBACK");
@@ -611,7 +685,9 @@ export const getNodeParcels = async (projectId: string, nodeId: string) => {
   const instance = await getWorkflowInstance(projectId);
 
   const result = await pool.query(
-    `SELECT lp.*,
+    `SELECT DISTINCT lp.*,
+            lp.id AS "parcelId",
+            wnp.workflow_node_id AS "nodeId",
             wnp.assigned_at,
             pp.intersect_percent,
             cr.assessed_amount,
@@ -623,9 +699,10 @@ export const getNodeParcels = async (projectId: string, nodeId: string) => {
      LEFT JOIN project_parcels pp ON pp.project_id = $1 AND pp.parcel_id = lp.id
      LEFT JOIN compensation_records cr ON cr.project_id = $1 AND cr.parcel_id = lp.id
      JOIN workflow_nodes wn ON wn.id = wnp.workflow_node_id
-     WHERE wn.id = $2 AND wn.workflow_instance_id = $3
+     WHERE wn.workflow_instance_id = $3
+       AND wn.id = $2
      ORDER BY lp.ulpin ASC`,
-    [projectId, nodeId, instance.id]
+    [instance.project_id, nodeId, instance.id]
   );
 
   return result.rows;

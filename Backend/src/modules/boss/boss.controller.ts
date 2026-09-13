@@ -8,7 +8,7 @@ export const fetchLandRecords = async (req: Request, res: Response, next: NextFu
     const { projectId } = req.params;
 
     const projResult = await pool.query(
-      `SELECT p.id, p.state, p.district, pg.corridor_coordinates, ST_AsGeoJSON(pg.geometry)::jsonb as geojson FROM projects p
+      `SELECT p.id, p.status, p.state, p.district, pg.corridor_coordinates, ST_AsGeoJSON(pg.geometry)::jsonb as geojson FROM projects p
        LEFT JOIN project_geometry pg ON p.id = pg.project_id
        WHERE p.id = $1`,
       [projectId]
@@ -16,6 +16,9 @@ export const fetchLandRecords = async (req: Request, res: Response, next: NextFu
 
     if (projResult.rows.length === 0) return next(new ApiError(404, "Project not found"));
     const proj = projResult.rows[0];
+    if (proj.status === "ACTIVE" || proj.status === "COMPLETED") {
+      return next(new ApiError(403, "Forbidden: BOSS cannot modify post-activation projects"));
+    }
 
     // Determine anchor coordinates for generating parcel polygons
     let waypoints: [number, number][] = [];
@@ -156,6 +159,12 @@ export const confirmParcels = async (req: Request, res: Response, next: NextFunc
   try {
     const { projectId } = req.params;
     const { parcelIds } = req.body;
+
+    const projResult = await pool.query(`SELECT status FROM projects WHERE id = $1`, [projectId]);
+    if (projResult.rows.length === 0) return next(new ApiError(404, "Project not found"));
+    if (projResult.rows[0].status === "ACTIVE" || projResult.rows[0].status === "COMPLETED") {
+      return next(new ApiError(403, "Forbidden: BOSS cannot modify post-activation projects"));
+    }
 
     if (!Array.isArray(parcelIds)) {
       return next(new ApiError(400, "parcelIds must be an array"));

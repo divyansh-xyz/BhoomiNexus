@@ -44,7 +44,7 @@ export const createWorkflowNode = async (payload: CreateNodePayload) => {
   return result.rows[0];
 };
 
-export const updateWorkflowNode = async (id: string, updates: Partial<CreateNodePayload>) => {
+export const updateWorkflowNode = async (id: string, updates: any) => {
   const fields: string[] = [];
   const values: any[] = [];
   let idx = 1;
@@ -53,45 +53,89 @@ export const updateWorkflowNode = async (id: string, updates: Partial<CreateNode
     fields.push(`name = $${idx++}`);
     values.push(updates.name);
   }
-  if (updates.nodeType !== undefined) {
+  const nodeTypeVal = updates.nodeType || updates.node_type;
+  if (nodeTypeVal !== undefined) {
     fields.push(`node_type = $${idx++}`);
-    values.push(updates.nodeType);
+    values.push(nodeTypeVal);
   }
-  if (updates.responsibleRole !== undefined) {
+  const respRoleVal = updates.responsibleRole || updates.responsible_role || updates.responsibility;
+  if (respRoleVal !== undefined) {
     fields.push(`responsible_role = $${idx++}`);
-    values.push(updates.responsibleRole);
+    values.push(respRoleVal);
   }
-  if (updates.responsibleUnitId !== undefined) {
+  if (updates.responsibleUnitId !== undefined || updates.responsible_unit_id !== undefined) {
     fields.push(`responsible_unit_id = $${idx++}`);
-    values.push(updates.responsibleUnitId);
+    values.push(updates.responsibleUnitId || updates.responsible_unit_id);
   }
-  if (updates.responsibleUserId !== undefined) {
+  if (updates.responsibleUserId !== undefined || updates.responsible_user_id !== undefined) {
     fields.push(`responsible_user_id = $${idx++}`);
-    values.push(updates.responsibleUserId);
+    values.push(updates.responsibleUserId || updates.responsible_user_id);
   }
-  if (updates.configuration !== undefined) {
+  if (updates.configuration !== undefined || updates.slaDays !== undefined || updates.sla_days !== undefined) {
+    const existingConfigRes = await pool.query(`SELECT configuration FROM workflow_nodes WHERE id = $1`, [id]);
+    const prevConfig = existingConfigRes.rows[0]?.configuration || {};
+    const newConfig = {
+      ...prevConfig,
+      ...(updates.configuration || {}),
+    };
+    if (updates.slaDays !== undefined || updates.sla_days !== undefined) {
+      newConfig.slaDays = Number(updates.slaDays || updates.sla_days);
+    }
     fields.push(`configuration = $${idx++}::jsonb`);
-    values.push(JSON.stringify(updates.configuration));
+    values.push(JSON.stringify(newConfig));
   }
-  if (updates.xPosition !== undefined) {
+  if (updates.xPosition !== undefined || updates.x_position !== undefined) {
     fields.push(`x_position = $${idx++}`);
-    values.push(updates.xPosition);
+    values.push(updates.xPosition !== undefined ? updates.xPosition : updates.x_position);
   }
-  if (updates.yPosition !== undefined) {
+  if (updates.yPosition !== undefined || updates.y_position !== undefined) {
     fields.push(`y_position = $${idx++}`);
-    values.push(updates.yPosition);
+    values.push(updates.yPosition !== undefined ? updates.yPosition : updates.y_position);
   }
 
-  if (fields.length === 0) return null;
+  if (fields.length === 0) {
+    const existing = await pool.query(
+      `SELECT wn.*,
+              u.name AS responsible_user_name,
+              u.designation AS responsible_user_designation,
+              COALESCE(pc.parcel_count, 0)::int AS parcel_count
+       FROM workflow_nodes wn
+       LEFT JOIN users u ON u.id = wn.responsible_user_id
+       LEFT JOIN (
+         SELECT workflow_node_id, COUNT(*) AS parcel_count
+         FROM workflow_node_parcels
+         GROUP BY workflow_node_id
+       ) pc ON pc.workflow_node_id = wn.id
+       WHERE wn.id = $1`,
+      [id]
+    );
+    return existing.rows[0] || null;
+  }
 
   fields.push(`updated_at = NOW()`);
   values.push(id);
 
-  const result = await pool.query(
-    `UPDATE workflow_nodes SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
+  await pool.query(
+    `UPDATE workflow_nodes SET ${fields.join(", ")} WHERE id = $${idx}`,
     values
   );
-  return result.rows[0] || null;
+
+  const fullResult = await pool.query(
+    `SELECT wn.*,
+            u.name AS responsible_user_name,
+            u.designation AS responsible_user_designation,
+            COALESCE(pc.parcel_count, 0)::int AS parcel_count
+     FROM workflow_nodes wn
+     LEFT JOIN users u ON u.id = wn.responsible_user_id
+     LEFT JOIN (
+       SELECT workflow_node_id, COUNT(*) AS parcel_count
+       FROM workflow_node_parcels
+       GROUP BY workflow_node_id
+     ) pc ON pc.workflow_node_id = wn.id
+     WHERE wn.id = $1`,
+    [id]
+  );
+  return fullResult.rows[0] || null;
 };
 
 export const deleteWorkflowNode = async (id: string) => {

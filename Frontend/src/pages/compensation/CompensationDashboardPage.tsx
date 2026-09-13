@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { compensationV2Service } from '../../services/api/compensationV2.service';
 import type { CompensationDashboardData } from '../../services/api/compensationV2.service';
@@ -10,7 +10,6 @@ import './compensation.css';
 
 export const CompensationDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [stats, setStats] = useState<CompensationDashboardData | null>(null);
   const [tasks, setTasks] = useState<WorkflowTask[]>([]);
   const [records, setRecords] = useState<CompensationRecord[]>([]);

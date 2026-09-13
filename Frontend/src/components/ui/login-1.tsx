@@ -18,9 +18,9 @@ interface DemoAccount {
 const DEMO_ACCOUNTS: DemoAccount[] = [
   { label: 'National Authority', email: 'national@bhoomi.gov.in', role: 'NATIONAL_AUTHORITY', badge: 'DoLR MoRD', color: '#6366f1' },
   { label: 'State Authority', email: 'state.mh@bhoomi.gov.in', role: 'STATE_AUTHORITY', badge: 'Maharashtra', color: '#2563eb' },
-  { label: 'District Authority', email: 'collector.pune@bhoomi.gov.in', role: 'DISTRICT_AUTHORITY', badge: 'Pune District', color: '#059669' },
-  { label: 'Compensation Officer', email: 'compensation.pune@bhoomi.gov.in', role: 'COMPENSATION_OFFICER', badge: 'SLAO Haveli', color: '#d97706' },
-  { label: 'Possession Officer', email: 'possession.pune@bhoomi.gov.in', role: 'POSSESSION_OFFICER', badge: 'Revenue Div', color: '#0d9488' },
+  { label: 'District Authority', email: 'district.pune@bhoomi.gov.in', role: 'DISTRICT_AUTHORITY', badge: 'Pune District', color: '#059669' },
+  { label: 'Compensation Officer', email: 'comp.officer@bhoomi.gov.in', role: 'COMPENSATION_OFFICER', badge: 'SLAO Haveli', color: '#d97706' },
+  { label: 'Possession Officer', email: 'possession.officer@bhoomi.gov.in', role: 'POSSESSION_OFFICER', badge: 'Revenue Div', color: '#0d9488' },
   { label: 'BOSS Reviewer', email: 'boss@bhoomi.gov.in', role: 'BOSS', badge: 'Central Oversight', color: '#4f46e5' },
   { label: 'Processing Officer', email: 'officer@bhoomi.gov.in', role: 'PROCESSING_OFFICER', badge: 'Field Scrutiny', color: '#b45309' },
   { label: 'Requesting Authority', email: 'requestor@bhoomi.gov.in', role: 'REQUESTING_AUTHORITY', badge: 'NHAI Proponent', color: '#16a34a' },
@@ -108,10 +108,10 @@ export const Component: React.FC = () => {
 
   const handleSelectDemoAccount = async (account: DemoAccount) => {
     setEmail(account.email);
-    setPassword('sovereign2026');
+    setPassword('demo');
     setErrorMsg(null);
     try {
-      await login(account.email, 'sovereign2026', account.role);
+      await login(account.email, 'demo', account.role);
       navigate(routeByRole(account.role));
     } catch (err: any) {
       setErrorMsg(err?.message || 'Authentication failed.');
@@ -130,7 +130,7 @@ export const Component: React.FC = () => {
         inferredRole = 'STATE_AUTHORITY';
       } else if (lower.includes('district') || lower.includes('collector')) {
         inferredRole = 'DISTRICT_AUTHORITY';
-      } else if (lower.includes('compensation') || lower.includes('slao')) {
+      } else if (lower.includes('comp') || lower.includes('slao')) {
         inferredRole = 'COMPENSATION_OFFICER';
       } else if (lower.includes('possession') || lower.includes('tehsildar')) {
         inferredRole = 'POSSESSION_OFFICER';
@@ -143,7 +143,7 @@ export const Component: React.FC = () => {
       } else if (lower.includes('admin')) {
         inferredRole = 'ADMIN';
       }
-      await login(email, password, inferredRole);
+      await login(email, password || 'demo', inferredRole);
       navigate(routeByRole(inferredRole));
     } catch (err: any) {
       setErrorMsg(err?.message || 'Authentication failed. Please check your credentials.');

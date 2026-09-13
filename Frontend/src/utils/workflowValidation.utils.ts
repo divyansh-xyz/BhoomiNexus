@@ -123,7 +123,7 @@ export function validateWorkflowGraph(
   });
 
   if (allParcels.length > 0) {
-    const cohortCheck = validateCohortParcels(nodes, allParcels);
+    const cohortCheck = validateCohortParcels(nodes, allParcels, edges);
     if (!cohortCheck.valid) {
       checklist.noDuplicateActiveMembership = false;
       for (const dup of cohortCheck.duplicateAssignments) {

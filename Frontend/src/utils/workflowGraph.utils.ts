@@ -180,40 +180,7 @@ export function findOrphanNodes(nodes: WorkflowNode[], edges: WorkflowEdge[]): s
   return nodes.filter((n) => !connectedNodeIds.has(n.id)).map((n) => n.id);
 }
 
-/**
- * Validates cohort parcel assignments.
- * Rule: Under Phase 4 V2 rules, a parcel can belong to only 1 active cohort at design time.
- */
-export function validateCohortParcels(
-  _nodes: WorkflowNode[],
-  parcels: WorkflowNodeParcel[]
-): {
-  valid: boolean;
-  duplicateAssignments: { parcelId: string; nodeIds: string[] }[];
-  assignedCount: number;
-} {
-  const parcelToNodes = new Map<string, string[]>();
-
-  for (const p of parcels) {
-    if (!parcelToNodes.has(p.parcelId)) {
-      parcelToNodes.set(p.parcelId, []);
-    }
-    parcelToNodes.get(p.parcelId)!.push(p.nodeId);
-  }
-
-  const duplicates: { parcelId: string; nodeIds: string[] }[] = [];
-  for (const [parcelId, nodeIds] of parcelToNodes.entries()) {
-    if (nodeIds.length > 1) {
-      duplicates.push({ parcelId, nodeIds });
-    }
-  }
-
-  return {
-    valid: duplicates.length === 0,
-    duplicateAssignments: duplicates,
-    assignedCount: parcelToNodes.size,
-  };
-}
+export const findOrphanNodeIds = findOrphanNodes;
 
 /**
  * Returns direct children (outgoing targets) of a node
@@ -250,6 +217,91 @@ export function getDescendantNodeIds(nodeId: string, edges: WorkflowEdge[]): Set
   }
 
   return descendants;
+}
+
+/**
+ * Validates cohort parcel assignments.
+ * Rule: Under Phase 4 V2 rules, no parcel belongs to multiple active mutually exclusive branches simultaneously.
+ */
+export function validateCohortParcels(
+  nodes: WorkflowNode[] = [],
+  parcels: WorkflowNodeParcel[] = [],
+  edges: WorkflowEdge[] = []
+): {
+  valid: boolean;
+  duplicateAssignments: { parcelId: string; nodeIds: string[] }[];
+  assignedCount: number;
+} {
+  const nodeMap = new Map<string, WorkflowNode>();
+  for (const n of nodes) {
+    nodeMap.set(n.id, n);
+  }
+
+  const parcelToNodes = new Map<string, Set<string>>();
+
+  for (const p of parcels) {
+    if (!p) continue;
+    const parcelId = p.parcelId || (p as any).id || (p as any).ulpin;
+    const nodeId = p.nodeId || (p as any).workflow_node_id;
+    if (!parcelId || !nodeId) continue;
+
+    if (!parcelToNodes.has(parcelId)) {
+      parcelToNodes.set(parcelId, new Set<string>());
+    }
+    parcelToNodes.get(parcelId)!.add(nodeId);
+  }
+
+  // Precompute descendants for nodes if edges are provided
+  const descendantCache = new Map<string, Set<string>>();
+  const getDescendants = (nId: string): Set<string> => {
+    if (!descendantCache.has(nId)) {
+      descendantCache.set(nId, getDescendantNodeIds(nId, edges));
+    }
+    return descendantCache.get(nId)!;
+  };
+
+  const areMutuallyExclusive = (nodeId1: string, nodeId2: string): boolean => {
+    if (nodeId1 === nodeId2) return false;
+    const n1 = nodeMap.get(nodeId1);
+    const n2 = nodeMap.get(nodeId2);
+    // Root container nodes are not mutually exclusive with child operational branches
+    if (n1?.nodeType === 'DISTRICT_ACQUISITION' || n2?.nodeType === 'DISTRICT_ACQUISITION') {
+      return false;
+    }
+    if (edges && edges.length > 0) {
+      // Upstream and downstream stages along the same branch are not mutually exclusive
+      if (getDescendants(nodeId1).has(nodeId2) || getDescendants(nodeId2).has(nodeId1)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const duplicates: { parcelId: string; nodeIds: string[] }[] = [];
+
+  for (const [parcelId, nodeSet] of parcelToNodes.entries()) {
+    const nodeIds = Array.from(nodeSet);
+    if (nodeIds.length > 1) {
+      const conflictingNodes = new Set<string>();
+      for (let i = 0; i < nodeIds.length; i++) {
+        for (let j = i + 1; j < nodeIds.length; j++) {
+          if (areMutuallyExclusive(nodeIds[i], nodeIds[j])) {
+            conflictingNodes.add(nodeIds[i]);
+            conflictingNodes.add(nodeIds[j]);
+          }
+        }
+      }
+      if (conflictingNodes.size > 0) {
+        duplicates.push({ parcelId, nodeIds: Array.from(conflictingNodes) });
+      }
+    }
+  }
+
+  return {
+    valid: duplicates.length === 0,
+    duplicateAssignments: duplicates,
+    assignedCount: parcelToNodes.size,
+  };
 }
 
 /**

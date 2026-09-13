@@ -13,7 +13,7 @@ describe('Projects API Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({
         email: 'requestor@bhoomi.gov.in',
-        password: 'Demo@123',
+        password: 'demo',
       });
       
     token = res.body.data?.token;
@@ -88,7 +88,7 @@ describe('Projects API Integration Tests', () => {
       });
 
     expect(res.status).toBe(200);
-    expect(res.body.budget).toBe('600.00'); // Numeric types often come back as strings in pg
+    expect(res.body.estimatedBudgetCr).toBe(600);
     expect(res.body.description).toBe('Updated description');
   });
 

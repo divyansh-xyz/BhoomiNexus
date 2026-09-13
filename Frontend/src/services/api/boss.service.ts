@@ -25,9 +25,10 @@ export const bossService = {
    */
   async getProjects(filters?: { status?: string; search?: string; mine?: boolean }): Promise<ProjectRequest[]> {
     try {
-      const res = await apiClient.get<ProjectRequest[]>('/projects', { params: filters });
-      if (res.data && Array.isArray(res.data)) {
-        return res.data;
+      const res = await apiClient.get<any>('/projects', { params: filters });
+      const data = res.data?.data || res.data;
+      if (data && Array.isArray(data)) {
+        return data;
       }
     } catch (e) {
       console.warn('[bossService] GET /api/v1/projects pending backend deployment:', e);
@@ -41,8 +42,9 @@ export const bossService = {
    */
   async getProjectById(projectId: string): Promise<ProjectRequest | null> {
     try {
-      const res = await apiClient.get<ProjectRequest>(`/projects/${projectId}`);
-      if (res.data) return res.data;
+      const res = await apiClient.get<any>(`/projects/${projectId}`);
+      const data = res.data?.data || res.data;
+      if (data) return data;
     } catch (e) {
       console.warn(`[bossService] GET /api/v1/projects/${projectId} pending backend deployment:`, e);
     }
@@ -121,9 +123,10 @@ export const bossService = {
   async fetchCandidateLandRecords(projectId: string): Promise<LandParcel[]> {
     try {
       await apiClient.post(`/boss/projects/${projectId}/land-records/fetch`);
-      const res = await apiClient.get<any[]>(`/boss/projects/${projectId}/land-records`);
-      if (res.data && Array.isArray(res.data)) {
-        return res.data.map(mapLandParcelRow);
+      const res = await apiClient.get<any>(`/boss/projects/${projectId}/land-records`);
+      const data = res.data?.data || res.data;
+      if (data && Array.isArray(data)) {
+        return data.map(mapLandParcelRow);
       }
     } catch (e) {
       console.warn(`[bossService] fetchCandidateLandRecords for ${projectId} pending:`, e);
@@ -137,9 +140,10 @@ export const bossService = {
    */
   async getProjectParcels(projectId: string): Promise<LandParcel[]> {
     try {
-      const res = await apiClient.get<any[]>(`/boss/projects/${projectId}/land-records`);
-      if (res.data && Array.isArray(res.data)) {
-        return res.data.map(mapLandParcelRow);
+      const res = await apiClient.get<any>(`/boss/projects/${projectId}/land-records`);
+      const data = res.data?.data || res.data;
+      if (data && Array.isArray(data)) {
+        return data.map(mapLandParcelRow);
       }
     } catch (e) {
       console.warn(`[bossService] GET /api/v1/boss/projects/${projectId}/land-records pending:`, e);
@@ -156,11 +160,11 @@ export const bossService = {
     projectId: string,
     selectedParcelIds: string[]
   ): Promise<ParcelConfirmationResponse> {
-    const res = await apiClient.post<ParcelConfirmationResponse>(
+    const res = await apiClient.post<any>(
       `/boss/projects/${projectId}/parcels/confirm`,
       { parcelIds: selectedParcelIds }
     );
-    return res.data;
+    return res.data?.data || res.data;
   },
 
   /**

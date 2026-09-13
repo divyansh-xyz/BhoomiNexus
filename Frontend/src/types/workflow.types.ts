@@ -10,10 +10,16 @@ export interface GovernmentOfficer {
   name: string;
   designation: string;
   department: string;
-  cadre: string;
-  email: string;
-  phone: string;
-  officeLocation: string;
+  cadre?: string;
+  email?: string;
+  phone?: string;
+  officeLocation?: string;
+  role?: string;
+  authority?: string;
+  district?: string;
+  jurisdiction?: string;
+  state?: string;
+  activeTasksCount?: number;
 }
 
 export interface WorkflowStageTemplate {
@@ -62,13 +68,13 @@ export interface WorkflowStageInstance {
   id: string;
   order: number;
   name: string;
-  description: string;
+  description?: string;
   department: string;
   assignedRole: string;
   assignedOfficer?: GovernmentOfficer;
   assignedOfficerId?: string;
   slaDays: number;
-  isMandatory: boolean;
+  isMandatory?: boolean;
   requiredDocuments: string[];
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'SKIPPED' | 'REJECTED';
 }

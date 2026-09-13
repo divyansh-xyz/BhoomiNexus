@@ -1,7 +1,7 @@
 /**
  * ============================================================
  * V2 Institutional Dashboard Domain Types
- * Strictly adheres to: V2 API Endpoints and Behaviour.md (Section: Dashboards)
+ * Strictly adheres to: Phase Implementation.md (Phase 17) & DESIGN.md
  * 
  * Endpoints represented:
  * - GET /api/v1/dashboards/national
@@ -20,8 +20,11 @@ export interface StateAggregate {
   activeProjects: number;
   totalParcels: number;
   acquiredParcels: number;
+  landRequiredHa: number;
+  landAcquiredHa: number;
   disbursedCompensationCr: number;
-  possessionCompletedHa: number;
+  pendingCompensationCr: number;
+  possessionCompletedCount: number;
   complianceRate: number;
 }
 
@@ -30,10 +33,19 @@ export interface NationalDashboardData {
   totalDistricts: number;
   totalProjects: number;
   totalParcels: number;
-  totalLandAcquiredHa: number;
-  totalCompensationDisbursedCr: number;
-  totalPossessionCompletedHa: number;
-  pendingGrievancesCount: number;
+  landRequiredHa: number;
+  landAcquiredHa: number;
+  compensationAssessedCr: number;
+  compensationApprovedCr: number;
+  compensationPaidCr: number;
+  compensationPendingCr: number;
+  possessionReadyCount: number;
+  possessionPendingCount: number;
+  possessionCompletedCount: number;
+  totalCompensationDisbursedCr?: number;
+  totalPossessionCompletedHa?: number;
+  totalLandAcquiredHa?: number;
+  pendingGrievancesCount?: number;
   stateBreakdown: StateAggregate[];
 }
 
@@ -43,8 +55,13 @@ export interface DistrictAggregate {
   activeProjects: number;
   totalParcels: number;
   parcelsDemarcated: number;
+  landRequiredHa: number;
+  landAcquiredHa: number;
+  compensationAssessedCr: number;
   compensationDisbursedCr: number;
+  compensationPendingCr: number;
   possessionTakenParcels: number;
+  possessionPendingParcels: number;
   slaAdherenceRate: number;
 }
 
@@ -54,9 +71,18 @@ export interface StateDashboardData {
   totalDistricts: number;
   totalProjects: number;
   totalParcels: number;
-  totalLandAcquiredHa: number;
-  totalCompensationDisbursedCr: number;
-  totalPossessionCompletedHa: number;
+  landRequiredHa: number;
+  landAcquiredHa: number;
+  compensationAssessedCr: number;
+  compensationApprovedCr: number;
+  compensationPaidCr: number;
+  compensationPendingCr: number;
+  possessionReadyCount: number;
+  possessionPendingCount: number;
+  possessionCompletedCount: number;
+  totalCompensationDisbursedCr?: number;
+  totalPossessionCompletedHa?: number;
+  totalLandAcquiredHa?: number;
   districtBreakdown: DistrictAggregate[];
 }
 
@@ -67,10 +93,45 @@ export interface ProjectAggregate {
   authorityName: string;
   totalParcels: number;
   stage: string;
-  status: 'DRAFT' | 'SUBMITTED' | 'ACTIVE' | 'COMPLETED';
+  status: 'DRAFT' | 'SUBMITTED' | 'ACTIVE' | 'COMPLETED' | string;
   compensationProgressPercent: number;
   possessionProgressPercent: number;
   disputedCount: number;
+}
+
+export interface BranchAggregate {
+  branchKey: string;
+  branchName: string;
+  department: string;
+  officerInCharge: string;
+  officerDesignation: string;
+  activeParcelsCount: number;
+  slaAdherencePercent: number;
+  pendingTasksCount: number;
+}
+
+export interface PendingOfficerWorkItem {
+  taskId: string;
+  taskTitle: string;
+  parcelId: string;
+  ulpin: string;
+  surveyNumber: string;
+  village: string;
+  assignedOfficer: string;
+  branchType: string;
+  slaDaysRemaining: number;
+  status: string;
+  dueDate: string;
+}
+
+export interface ParcelCohortItem {
+  cohortId: string;
+  cohortName: string;
+  branchName: string;
+  unitName: string;
+  parcelCount: number;
+  activeStage: string;
+  progressPercent: number;
 }
 
 export interface DistrictDashboardData {
@@ -79,14 +140,17 @@ export interface DistrictDashboardData {
   stateName: string;
   totalProjects: number;
   totalParcels: number;
-  totalLandAreaHa: number;
-  stageBreakdown: {
+  landRequiredHa: number;
+  landAcquiredHa: number;
+  totalLandAreaHa?: number;
+  stageBreakdown?: {
     stage: string;
     parcelsCount: number;
     slaAdherencePercent: number;
   }[];
   compensationSummary: {
     assessedCr: number;
+    approvedCr: number;
     disbursedCr: number;
     pendingCr: number;
     beneficiaryCount: number;
@@ -98,4 +162,7 @@ export interface DistrictDashboardData {
     disputed: number;
   };
   projectBreakdown: ProjectAggregate[];
+  branchBreakdown: BranchAggregate[];
+  pendingOfficerWork: PendingOfficerWorkItem[];
+  parcelCohortVisibility: ParcelCohortItem[];
 }

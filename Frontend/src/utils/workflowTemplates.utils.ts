@@ -319,7 +319,7 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
     requiredDocuments: ['Administrative Sanction Order', 'Project Boundary GeoJSON'],
     positionX: 100,
     positionY: 80,
-    parcelCount: 4,
+    parcelCount: 0,
     status: 'DRAFT',
     createdAt: now,
   };

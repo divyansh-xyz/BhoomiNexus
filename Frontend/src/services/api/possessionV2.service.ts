@@ -205,6 +205,7 @@ const DEFAULT_POSS_TASKS: WorkflowTask[] = [
     assignedOfficer: {
       id: 'off-poss-01',
       name: 'Shri V. R. Kadam',
+      designation: 'Tehsildar & Competent Land Officer',
       role: 'POSSESSION_OFFICER',
       department: 'Revenue & Land Records Office (Haveli Tehsil)',
       authority: 'Tehsildar & Competent Land Officer',
@@ -255,6 +256,7 @@ const DEFAULT_POSS_TASKS: WorkflowTask[] = [
     assignedOfficer: {
       id: 'off-poss-01',
       name: 'Shri V. R. Kadam',
+      designation: 'Tehsildar & Competent Land Officer',
       role: 'POSSESSION_OFFICER',
       department: 'Revenue & Land Records Office (Haveli Tehsil)',
       authority: 'Tehsildar & Competent Land Officer',
@@ -345,8 +347,18 @@ export const possessionV2Service = {
    */
   async getDashboard(): Promise<PossessionDashboardData> {
     try {
-      const res = await apiClient.get<PossessionDashboardData>('/possession/dashboard');
-      if (res.data) return res.data;
+      const res = await apiClient.get<any>('/possession/dashboard');
+      const data = res.data?.data || res.data;
+      if (data) {
+        const metrics = data.metrics || data;
+        return {
+          totalParcels: Number(metrics.totalParcels || (data.records ? data.records.length : 0)),
+          possessionTaken: Number(metrics.possessionTaken || metrics.completedCount || 0),
+          possessionPending: Number(metrics.possessionPending || metrics.pendingCount || 0),
+          inspectionsScheduled: Number(metrics.inspectionsScheduled || 0),
+          disputedParcels: Number(metrics.disputedParcels || metrics.disputedCount || 0),
+        };
+      }
     } catch (err) {
       console.warn('[possessionV2Service] GET /api/v1/possession/dashboard using local state:', err);
     }
@@ -360,11 +372,12 @@ export const possessionV2Service = {
    */
   async getMyTasks(): Promise<WorkflowTask[]> {
     try {
-      const res = await apiClient.get<WorkflowTask[]>('/possession/tasks', {
+      const res = await apiClient.get<any>('/possession/tasks', {
         params: { assignedTo: 'me' },
       });
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data;
+      const data = res.data?.data || res.data;
+      if (data && Array.isArray(data) && data.length > 0) {
+        return data;
       }
     } catch (err) {
       console.warn('[possessionV2Service] GET /api/v1/possession/tasks using local state:', err);
@@ -378,8 +391,9 @@ export const possessionV2Service = {
    */
   async getRecord(recordId: string): Promise<PossessionRecord | null> {
     try {
-      const res = await apiClient.get<PossessionRecord>(`/possession/records/${recordId}`);
-      if (res.data) return res.data;
+      const res = await apiClient.get<any>(`/possession/records/${recordId}`);
+      const data = res.data?.data || res.data;
+      if (data && data.id) return data;
     } catch (err) {
       console.warn(`[possessionV2Service] GET /api/v1/possession/records/${recordId} using local state:`, err);
     }
@@ -396,17 +410,18 @@ export const possessionV2Service = {
     payload: FormData | { title: string; type: string; coordinates?: { lat: number; lng: number } }
   ): Promise<PossessionEvidenceItem> {
     try {
+      let res: any;
       if (payload instanceof FormData) {
-        const res = await apiClient.post(
+        res = await apiClient.post(
           `/possession/records/${recordId}/evidence`,
           payload,
           { headers: { 'Content-Type': 'multipart/form-data' } }
         );
-        if (res.data) return res.data;
       } else {
-        const res = await apiClient.post(`/possession/records/${recordId}/evidence`, payload);
-        if (res.data) return res.data;
+        res = await apiClient.post(`/possession/records/${recordId}/evidence`, payload);
       }
+      const data = res?.data?.data || res?.data;
+      if (data && data.id) return data;
     } catch (err) {
       console.warn(`[possessionV2Service] POST /api/v1/possession/records/${recordId}/evidence using local state:`, err);
     }
@@ -454,14 +469,15 @@ export const possessionV2Service = {
     payload: { possessionDate: string; remarks?: string; evidenceIds?: string[] }
   ): Promise<PossessionRecord> {
     try {
-      const res = await apiClient.post<PossessionRecord>(
+      const res = await apiClient.post<any>(
         `/possession/records/${recordId}/complete`,
         payload
       );
-      if (res.data) {
-        const records = getLocalRecords().map((r) => (r.id === recordId ? res.data : r));
+      const data = res.data?.data || res.data;
+      if (data && data.id) {
+        const records = getLocalRecords().map((r) => (r.id === recordId ? data : r));
         saveLocalRecords(records);
-        return res.data;
+        return data;
       }
     } catch (err) {
       console.warn(`[possessionV2Service] POST /api/v1/possession/records/${recordId}/complete using local state:`, err);

@@ -541,6 +541,13 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
             </div>
 
             <div className="things-dossier-actions">
+              <Link
+                to={`/boss/projects/${project.id}/workflow-builder`}
+                className="things-btn things-btn-primary"
+                style={{ backgroundColor: '#2563eb', borderColor: '#2563eb' }}
+              >
+                Launch Visual Workflow Builder &rarr;
+              </Link>
               {workflow && (
                 <button
                   type="button"
@@ -707,6 +714,13 @@ export const BossWorkflowConfigPage: React.FC<BossWorkflowConfigPageProps> = ({
           </div>
 
           <div className="things-dossier-actions">
+            <Link
+              to={`/boss/projects/${project.id}/workflow-builder`}
+              className="things-btn things-btn-primary"
+              style={{ backgroundColor: '#2563eb', borderColor: '#2563eb' }}
+            >
+              Visual Workflow Builder (DAG) &rarr;
+            </Link>
             <Link to={`/boss/projects/${project.id}`} className="things-btn things-btn-outline">
               &larr; Back to Dossier
             </Link>

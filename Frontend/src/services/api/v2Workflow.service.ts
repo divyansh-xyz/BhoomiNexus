@@ -13,16 +13,52 @@ import { apiClient } from './client';
 import type {
   V2WorkflowGraph,
   WorkflowNode,
+  WorkflowNodeType,
   WorkflowEdge,
   WorkflowNodeParcel,
   WorkflowValidationResult,
   WorkflowV2ActivationResponse,
-  WorkflowExecution,
   ProjectExecutionResponse,
   NodeExecutionRecord,
 } from '../../types/workflowV2.types';
 import type { WorkflowTemplate } from '../../types/workflow.types';
 import { createStandardDistrictStartingGraph } from '../../utils/workflowTemplates.utils';
+
+function unwrapData<T>(res: any): T {
+  if (res && res.data !== undefined) {
+    if (res.data && res.data.data !== undefined) {
+      return res.data.data;
+    }
+    return res.data;
+  }
+  return res;
+}
+
+export function normalizeNode(raw: any): WorkflowNode {
+  if (!raw) return raw;
+  return {
+    ...raw,
+    id: raw.id,
+    nodeKey: raw.nodeKey || raw.node_key || `node_${Date.now()}`,
+    name: raw.name || 'Untitled Node',
+    nodeType: (raw.nodeType || raw.node_type || 'STAGE') as WorkflowNodeType,
+    responsibility: raw.responsibility || raw.responsible_role || 'REVENUE_BRANCH',
+    responsibleRole: raw.responsibleRole || raw.responsible_role,
+    responsibleUnitId: raw.responsibleUnitId || raw.responsible_unit_id,
+    responsibleUserId: raw.responsibleUserId || raw.responsible_user_id,
+    responsibleUserName: raw.responsibleUserName || raw.responsible_user_name,
+    responsibleUserDesignation: raw.responsibleUserDesignation || raw.responsible_user_designation,
+    configuration: raw.configuration || {},
+    templateSource: raw.templateSource || raw.template_source,
+    positionX: raw.positionX ?? raw.x_position ?? raw.xPosition ?? 0,
+    positionY: raw.positionY ?? raw.y_position ?? raw.yPosition ?? 0,
+    parcelCount: raw.parcelCount ?? raw.parcel_count ?? 0,
+    slaDays: raw.slaDays ?? raw.sla_days ?? raw.configuration?.slaDays ?? 15,
+    requiredDocuments: raw.requiredDocuments || [],
+    createdAt: raw.createdAt || raw.created_at,
+    updatedAt: raw.updatedAt || raw.updated_at,
+  };
+}
 
 export const v2WorkflowService = {
   /**
@@ -32,8 +68,12 @@ export const v2WorkflowService = {
    */
   async getWorkflowGraph(projectId: string): Promise<V2WorkflowGraph | null> {
     try {
-      const res = await apiClient.get<V2WorkflowGraph>(`/projects/${projectId}/workflow`);
-      return res.data || null;
+      const res = await apiClient.get<any>(`/projects/${projectId}/workflow`);
+      const data = unwrapData<V2WorkflowGraph>(res);
+      if (data && Array.isArray(data.nodes)) {
+        data.nodes = data.nodes.map(normalizeNode);
+      }
+      return data || null;
     } catch (err) {
       console.warn(`[v2WorkflowService] GET /api/v1/projects/${projectId}/workflow pending:`, err);
       return null;
@@ -47,8 +87,9 @@ export const v2WorkflowService = {
    */
   async getWorkflowStagesCompatibility(projectId: string): Promise<any[]> {
     try {
-      const res = await apiClient.get<any[]>(`/projects/${projectId}/workflow/stages`);
-      return res.data || [];
+      const res = await apiClient.get<any>(`/projects/${projectId}/workflow/stages`);
+      const data = unwrapData<any[]>(res);
+      return data || [];
     } catch (err) {
       console.warn(`[v2WorkflowService] GET /api/v1/projects/${projectId}/workflow/stages pending:`, err);
       return [];
@@ -65,12 +106,13 @@ export const v2WorkflowService = {
     payload?: { templateId?: string }
   ): Promise<V2WorkflowGraph> {
     try {
-      const res = await apiClient.post<V2WorkflowGraph>(
+      const res = await apiClient.post<any>(
         `/projects/${projectId}/workflow/initialize`,
         payload || {}
       );
-      if (res.data && res.data.nodes && res.data.nodes.length > 0) {
-        return res.data;
+      const data = unwrapData<V2WorkflowGraph>(res);
+      if (data && data.nodes && data.nodes.length > 0) {
+        return data;
       }
     } catch (err) {
       console.warn(`[v2WorkflowService] POST /api/v1/projects/${projectId}/workflow/initialize fallback:`, err);
@@ -86,11 +128,11 @@ export const v2WorkflowService = {
     projectId: string,
     graph: { nodes: WorkflowNode[]; edges: WorkflowEdge[] }
   ): Promise<V2WorkflowGraph> {
-    const res = await apiClient.put<V2WorkflowGraph>(
+    const res = await apiClient.put<any>(
       `/projects/${projectId}/workflow`,
       graph
     );
-    return res.data;
+    return unwrapData<V2WorkflowGraph>(res);
   },
 
   /**
@@ -101,11 +143,12 @@ export const v2WorkflowService = {
     projectId: string,
     nodeData: Partial<WorkflowNode>
   ): Promise<WorkflowNode> {
-    const res = await apiClient.post<WorkflowNode>(
+    const res = await apiClient.post<any>(
       `/projects/${projectId}/workflow/nodes`,
       nodeData
     );
-    return res.data;
+    const data = unwrapData<any>(res);
+    return normalizeNode(data);
   },
 
   /**
@@ -117,11 +160,24 @@ export const v2WorkflowService = {
     nodeId: string,
     updates: Partial<WorkflowNode>
   ): Promise<WorkflowNode> {
-    const res = await apiClient.patch<WorkflowNode>(
+    const payload: any = { ...updates };
+    if (updates.responsibility) {
+      payload.responsibleRole = updates.responsibility;
+      payload.responsibility = updates.responsibility;
+    }
+    if (updates.slaDays !== undefined) {
+      payload.slaDays = updates.slaDays;
+      payload.configuration = {
+        ...(payload.configuration || {}),
+        slaDays: updates.slaDays,
+      };
+    }
+    const res = await apiClient.patch<any>(
       `/projects/${projectId}/workflow/nodes/${nodeId}`,
-      updates
+      payload
     );
-    return res.data;
+    const data = unwrapData<any>(res);
+    return normalizeNode(data);
   },
 
   /**
@@ -157,10 +213,15 @@ export const v2WorkflowService = {
     projectId: string,
     nodeId: string
   ): Promise<WorkflowNodeParcel[]> {
-    const res = await apiClient.get<WorkflowNodeParcel[]>(
+    const res = await apiClient.get<any>(
       `/projects/${projectId}/workflow/nodes/${nodeId}/parcels`
     );
-    return res.data || [];
+    const raw = unwrapData<any[]>(res) || [];
+    return raw.map((item: any) => ({
+      ...item,
+      parcelId: item.parcelId || item.parcel_id || item.id,
+      nodeId: item.nodeId || item.workflow_node_id || nodeId,
+    }));
   },
 
   /**
@@ -171,7 +232,7 @@ export const v2WorkflowService = {
   async getParcelById(parcelId: string): Promise<any> {
     try {
       const res = await apiClient.get<any>(`/parcels/${parcelId}`);
-      return res.data;
+      return unwrapData<any>(res);
     } catch (err) {
       console.warn(`[v2WorkflowService] GET /api/v1/parcels/${parcelId} pending:`, err);
       return null;
@@ -186,7 +247,7 @@ export const v2WorkflowService = {
   async getParcelGeometry(parcelId: string): Promise<any> {
     try {
       const res = await apiClient.get<any>(`/parcels/${parcelId}/geometry`);
-      return res.data;
+      return unwrapData<any>(res);
     } catch (err) {
       console.warn(`[v2WorkflowService] GET /api/v1/parcels/${parcelId}/geometry pending:`, err);
       return null;
@@ -201,11 +262,11 @@ export const v2WorkflowService = {
     projectId: string,
     edgeData: { sourceNodeId: string; targetNodeId: string; conditionExpression?: string; edgeLabel?: string }
   ): Promise<WorkflowEdge> {
-    const res = await apiClient.post<WorkflowEdge>(
+    const res = await apiClient.post<any>(
       `/projects/${projectId}/workflow/edges`,
       edgeData
     );
-    return res.data;
+    return unwrapData<WorkflowEdge>(res);
   },
 
   /**
@@ -229,7 +290,7 @@ export const v2WorkflowService = {
       `/projects/${projectId}/workflow/cohorts/move-parcels`,
       payload
     );
-    return res.data;
+    return unwrapData<{ movedCount: number; sourceCount: number; targetCount: number }>(res);
   },
 
   /**
@@ -244,7 +305,7 @@ export const v2WorkflowService = {
       `/projects/${projectId}/workflow/cohorts/assign`,
       payload
     );
-    return res.data;
+    return unwrapData<{ assignedCount: number }>(res);
   },
 
   /**
@@ -267,8 +328,8 @@ export const v2WorkflowService = {
    */
   async getTemplates(): Promise<WorkflowTemplate[]> {
     try {
-      const res = await apiClient.get<WorkflowTemplate[]>('/workflow-templates');
-      return res.data || [];
+      const res = await apiClient.get<any>('/workflow-templates');
+      return unwrapData<WorkflowTemplate[]>(res) || [];
     } catch (err) {
       console.warn('[v2WorkflowService] GET /api/v1/workflow-templates pending:', err);
       return [];
@@ -281,8 +342,8 @@ export const v2WorkflowService = {
    */
   async getTemplateById(templateId: string): Promise<WorkflowTemplate | null> {
     try {
-      const res = await apiClient.get<WorkflowTemplate>(`/workflow-templates/${templateId}`);
-      return res.data || null;
+      const res = await apiClient.get<any>(`/workflow-templates/${templateId}`);
+      return unwrapData<WorkflowTemplate>(res) || null;
     } catch (err) {
       console.warn(`[v2WorkflowService] GET /api/v1/workflow-templates/${templateId} pending:`, err);
       return null;
@@ -298,11 +359,11 @@ export const v2WorkflowService = {
     nodeId: string
   ): Promise<WorkflowTemplate[]> {
     try {
-      const res = await apiClient.get<WorkflowTemplate[]>(
+      const res = await apiClient.get<any>(
         '/workflow-templates/contextual',
         { params: { projectId, nodeId } }
       );
-      return res.data || [];
+      return unwrapData<WorkflowTemplate[]>(res) || [];
     } catch (err) {
       console.warn('[v2WorkflowService] GET /api/v1/workflow-templates/contextual pending:', err);
       return [];
@@ -322,7 +383,7 @@ export const v2WorkflowService = {
       `/projects/${projectId}/workflow/nodes/${nodeId}/templates/preview`,
       { templateId }
     );
-    return res.data;
+    return unwrapData<{ previewNodes: WorkflowNode[]; previewEdges: WorkflowEdge[] }>(res);
   },
 
   /**
@@ -335,11 +396,11 @@ export const v2WorkflowService = {
     nodeId: string,
     templateId: string
   ): Promise<V2WorkflowGraph> {
-    const res = await apiClient.post<V2WorkflowGraph>(
+    const res = await apiClient.post<any>(
       `/projects/${projectId}/workflow/nodes/${nodeId}/templates/apply`,
       { templateId }
     );
-    return res.data;
+    return unwrapData<V2WorkflowGraph>(res);
   },
 
   /**
@@ -348,10 +409,10 @@ export const v2WorkflowService = {
    * and activation readiness without activating.
    */
   async validateWorkflow(projectId: string): Promise<WorkflowValidationResult> {
-    const res = await apiClient.post<WorkflowValidationResult>(
+    const res = await apiClient.post<any>(
       `/projects/${projectId}/workflow/validate`
     );
-    return res.data;
+    return unwrapData<WorkflowValidationResult>(res);
   },
 
   /**
@@ -361,10 +422,10 @@ export const v2WorkflowService = {
    * and ends BOSS participation.
    */
   async activateWorkflow(projectId: string): Promise<WorkflowV2ActivationResponse> {
-    const res = await apiClient.post<WorkflowV2ActivationResponse>(
+    const res = await apiClient.post<any>(
       `/projects/${projectId}/workflow/activate`
     );
-    return res.data;
+    return unwrapData<WorkflowV2ActivationResponse>(res);
   },
 
   /**
@@ -378,11 +439,29 @@ export const v2WorkflowService = {
     currentGraph?: V2WorkflowGraph | null
   ): Promise<ProjectExecutionResponse | null> {
     try {
-      const res = await apiClient.get<ProjectExecutionResponse>(
+      const res = await apiClient.get<any>(
         `/projects/${projectId}/workflow/execution`
       );
-      if (res.data && res.data.executions && res.data.executions.length > 0) {
-        return res.data;
+      const data = unwrapData<any>(res);
+      if (data && (data.executions || Array.isArray(data))) {
+        const executions = Array.isArray(data) ? data : data.executions;
+        return {
+          id: data.id || `wf-exec-${projectId}`,
+          workflowId: data.workflowId || `wf-${projectId}`,
+          projectId,
+          status: data.status || 'RUNNING',
+          activatedAt: data.activatedAt || new Date().toISOString(),
+          activatedBy: data.activatedBy || 'System Administrator',
+          executions,
+          summary: data.summary || {
+            totalParcels: 4,
+            totalNodes: executions.length,
+            totalExecutions: executions.length,
+            actionableTasksCount: executions.filter((e: any) => e.status === 'ACTIONABLE').length,
+            inProgressTasksCount: executions.filter((e: any) => e.status === 'IN_PROGRESS' || e.status === 'ACTIVE').length,
+            completedTasksCount: executions.filter((e: any) => e.status === 'COMPLETED').length,
+          }
+        };
       }
     } catch (err) {
       console.warn(`[v2WorkflowService] GET /api/v1/projects/${projectId}/workflow/execution pending:`, err);
@@ -511,7 +590,7 @@ function generateDeterministicExecution(
         ? 'COMPENSATION'
         : isPoss
         ? 'POSSESSION'
-        : node.type === 'APPROVAL_GATE'
+        : (node as any).nodeType === 'APPROVAL_GATE' || (node as any).type === 'APPROVAL_GATE'
         ? 'GATE'
         : 'ACQUISITION';
 
@@ -527,8 +606,8 @@ function generateDeterministicExecution(
         parcelAreaAcres: parcel.acres,
         status,
         assignedOfficerId: node.assignedOfficerId || 'usr-sdm-01',
-        assignedOfficerName: node.assignedOfficerName || 'Ananya Patel',
-        assignedOfficerRole: node.assignedOfficerRole || 'Sub-Divisional Magistrate',
+        assignedOfficerName: (node as any).assignedOfficerName || (node as any).assignedOfficer?.name || 'Ananya Patel',
+        assignedOfficerRole: (node as any).assignedOfficerRole || (node as any).assignedOfficer?.designation || 'Sub-Divisional Magistrate',
         assignedOfficerDepartment: node.responsibility,
         taskId,
         taskStatus,

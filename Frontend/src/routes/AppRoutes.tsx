@@ -27,6 +27,8 @@ import CompensationTaskDetailPage from '../pages/compensation/CompensationTaskDe
 import PossessionDashboardPage from '../pages/possession/PossessionDashboardPage';
 import PossessionTaskDetailPage from '../pages/possession/PossessionTaskDetailPage';
 import NotificationCenterPage from '../pages/notifications/NotificationCenterPage';
+import AdvancedGISPage from '../pages/gis/AdvancedGISPage';
+import ParcelPassportPage from '../pages/parcels/ParcelPassportPage';
 
 const AdminOnlyPlaceholder: React.FC = () => (
   <div style={{ padding: '2rem' }}>
@@ -56,11 +58,21 @@ export const AppRoutes: React.FC = () => {
         <Route element={<GovernmentLayout />}>
           <Route path="/dashboard" element={<DashboardRedirect />} />
 
-          {/* Requesting Authority / Proponent Routes */}
+          {/* Requesting Authority / Proponent Project Creation */}
           <Route element={<RoleGuard allowedRoles={['REQUESTING_AUTHORITY']} />}>
             <Route path="/projects" element={<ProponentProjectsPage />} />
             <Route path="/projects/new" element={<CreateProjectPage />} />
+          </Route>
+
+          {/* Phase 18: Shared Project View & Project GIS (Reused across Proponent & Institutional Authorities) */}
+          <Route element={<RoleGuard allowedRoles={['REQUESTING_AUTHORITY', 'NATIONAL_AUTHORITY', 'STATE_AUTHORITY', 'DISTRICT_AUTHORITY', 'ADMIN', 'BOSS', 'PROCESSING_OFFICER']} />}>
             <Route path="/projects/:projectId" element={<ProponentProjectDetailPage />} />
+            <Route path="/projects/:projectId/gis" element={<AdvancedGISPage />} />
+          </Route>
+
+          {/* Phase 18 / 19: Standard Common Parcel Passport (Reused across all roles) */}
+          <Route element={<RoleGuard allowedRoles={['REQUESTING_AUTHORITY', 'NATIONAL_AUTHORITY', 'STATE_AUTHORITY', 'DISTRICT_AUTHORITY', 'ADMIN', 'BOSS', 'PROCESSING_OFFICER', 'COMPENSATION_OFFICER', 'POSSESSION_OFFICER']} />}>
+            <Route path="/parcels/:parcelId" element={<ParcelPassportPage />} />
           </Route>
           
           {/* BOSS Scrutiny, Cadastral Determination & Workflow Config */}
@@ -82,16 +94,31 @@ export const AppRoutes: React.FC = () => {
           {/* National Authority Route */}
           <Route element={<RoleGuard allowedRoles={['NATIONAL_AUTHORITY', 'ADMIN']} />}>
             <Route path="/dashboard/national" element={<NationalDashboardPage />} />
+            <Route path="/national-dashboard" element={<NationalDashboardPage />} />
+            <Route path="/dashboard/national/gis" element={<AdvancedGISPage />} />
+            <Route path="/national-dashboard/gis" element={<AdvancedGISPage />} />
           </Route>
 
           {/* State Authority Route */}
           <Route element={<RoleGuard allowedRoles={['STATE_AUTHORITY', 'NATIONAL_AUTHORITY', 'ADMIN']} />}>
             <Route path="/dashboard/state" element={<StateDashboardPage />} />
+            <Route path="/state-dashboard" element={<StateDashboardPage />} />
+            <Route path="/state-dashboard/:stateId" element={<StateDashboardPage />} />
+            <Route path="/dashboard/state/gis" element={<AdvancedGISPage />} />
+            <Route path="/dashboard/state/:stateId/gis" element={<AdvancedGISPage />} />
+            <Route path="/state-dashboard/gis" element={<AdvancedGISPage />} />
+            <Route path="/state-dashboard/:stateId/gis" element={<AdvancedGISPage />} />
           </Route>
 
           {/* District Authority Route */}
           <Route element={<RoleGuard allowedRoles={['DISTRICT_AUTHORITY', 'STATE_AUTHORITY', 'NATIONAL_AUTHORITY', 'ADMIN']} />}>
             <Route path="/dashboard/district" element={<DistrictDashboardPage />} />
+            <Route path="/district-dashboard" element={<DistrictDashboardPage />} />
+            <Route path="/district-dashboard/:districtId" element={<DistrictDashboardPage />} />
+            <Route path="/dashboard/district/gis" element={<AdvancedGISPage />} />
+            <Route path="/dashboard/district/:districtId/gis" element={<AdvancedGISPage />} />
+            <Route path="/district-dashboard/gis" element={<AdvancedGISPage />} />
+            <Route path="/district-dashboard/:districtId/gis" element={<AdvancedGISPage />} />
           </Route>
 
           {/* Compensation Officer Route */}
@@ -132,3 +159,4 @@ export const AppRoutes: React.FC = () => {
 };
 
 export default AppRoutes;
+

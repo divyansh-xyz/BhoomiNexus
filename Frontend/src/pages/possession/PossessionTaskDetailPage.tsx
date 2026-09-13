@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { possessionV2Service } from '../../services/api/possessionV2.service';
-import type { PossessionRecord, PossessionEvidenceItem } from '../../types/workflowV2.types';
+import type { PossessionRecord } from '../../types/workflowV2.types';
 import type { WorkflowTask } from '../../types/task.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
 import './possession.css';
 
 export const PossessionTaskDetailPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [task, setTask] = useState<WorkflowTask | null>(null);

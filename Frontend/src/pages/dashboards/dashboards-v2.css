@@ -1,0 +1,504 @@
+/**
+ * ============================================================
+ * BhoomiNexus V2 Dashboards Stylesheet
+ * Strictly adhering to: DESIGN.md ("Apple keynote at half volume")
+ * Canvas: #f2f5f7 | Paper: #ffffff | Hairline: #dfe3e8
+ * Ink: #303336 | Fog: #838b96 | Ash: #55606e | Signal Blue: #2576eb
+ * Border Radius: 18px cards, 6px controls
+ * Shadow: 0 2px 8px rgba(0,0,0,0.1), 0 0 2px rgba(0,0,0,0.1)
+ * ============================================================
+ */
+
+:root {
+  --dash-ink: #303336;
+  --dash-paper: #ffffff;
+  --dash-mist: #f2f5f7;
+  --dash-fog: #838b96;
+  --dash-ash: #55606e;
+  --dash-smoke: #44474b;
+  --dash-silver: #9299a4;
+  --dash-pebble: #8e9196;
+  --dash-hairline: #dfe3e8;
+  --dash-signal-blue: #2576eb;
+  --dash-signal-blue-hover: #1a5fb8;
+  --dash-sky-blue: #5c9cf5;
+  --dash-font-stack: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --dash-shadow-sm: rgba(0, 0, 0, 0.1) 0px 2px 8px 0px, rgba(0, 0, 0, 0.1) 0px 0px 2px 0px;
+  --dash-radius-card: 18px;
+  --dash-radius-btn: 6px;
+  --dash-radius-icon: 3px;
+  --dash-radius-pill: 9999px;
+}
+
+.dash-canvas {
+  background-color: var(--dash-mist);
+  min-height: 100vh;
+  padding: 36px 40px 80px 40px;
+  font-family: var(--dash-font-stack);
+  color: var(--dash-ink);
+  box-sizing: border-box;
+}
+
+.dash-container {
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+/* Header & Hierarchy */
+.dash-header-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.dash-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dash-signal-blue);
+  margin-bottom: 6px;
+}
+
+.dash-eyebrow-badge {
+  background-color: #e8f1fd;
+  color: var(--dash-signal-blue);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.dash-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--dash-ink);
+  margin: 0 0 6px 0;
+  letter-spacing: -0.01em;
+}
+
+.dash-subtitle {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--dash-fog);
+  margin: 0;
+  max-width: 720px;
+}
+
+.dash-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Buttons & Links matching DESIGN.md */
+.dash-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--dash-font-stack);
+  border-radius: var(--dash-radius-btn);
+  border: 1px solid var(--dash-hairline);
+  background-color: var(--dash-paper);
+  color: var(--dash-smoke);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.dash-btn-secondary:hover {
+  border-color: var(--dash-silver);
+  color: var(--dash-ink);
+}
+
+.dash-link-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dash-signal-blue);
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.dash-link-action:hover {
+  color: var(--dash-signal-blue-hover);
+}
+
+.dash-link-action .chevron {
+  font-size: 11px;
+  transition: transform 0.15s;
+}
+
+.dash-link-action:hover .chevron {
+  transform: translateX(2px);
+}
+
+/* Grouped KPI Section */
+.dash-kpi-section {
+  margin-bottom: 36px;
+}
+
+.dash-kpi-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dash-ash);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+/* Elevated Card (DESIGN.md specification) */
+.dash-card {
+  background-color: var(--dash-paper);
+  border-radius: var(--dash-radius-card);
+  box-shadow: var(--dash-shadow-sm);
+  border: 1px solid var(--dash-hairline);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.dash-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dash-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dash-fog);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-card-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: #f1f5f9;
+  color: var(--dash-ash);
+}
+
+.dash-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--dash-ink);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.dash-card-subtext {
+  font-size: 12px;
+  color: var(--dash-fog);
+  line-height: 1.4;
+}
+
+/* Elevated Container Card */
+.dash-elevated-table-card {
+  background-color: var(--dash-paper);
+  border-radius: var(--dash-radius-card);
+  box-shadow: var(--dash-shadow-sm);
+  border: 1px solid var(--dash-hairline);
+  overflow: hidden;
+  margin-bottom: 36px;
+}
+
+.dash-table-toolbar {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--dash-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.dash-table-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--dash-ink);
+  margin: 0 0 2px 0;
+}
+
+.dash-table-subtitle {
+  font-size: 13px;
+  color: var(--dash-fog);
+  margin: 0;
+}
+
+.dash-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-search-input {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: var(--dash-font-stack);
+  border-radius: var(--dash-radius-btn);
+  border: 1px solid var(--dash-hairline);
+  background-color: var(--dash-mist);
+  color: var(--dash-ink);
+  width: 220px;
+  outline: none;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.dash-search-input:focus {
+  border-color: var(--dash-signal-blue);
+  background-color: var(--dash-paper);
+}
+
+.dash-select-input {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: var(--dash-font-stack);
+  border-radius: var(--dash-radius-btn);
+  border: 1px solid var(--dash-hairline);
+  background-color: var(--dash-paper);
+  color: var(--dash-smoke);
+  outline: none;
+  cursor: pointer;
+}
+
+/* Table Design */
+.dash-table-container {
+  overflow-x: auto;
+}
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  font-family: var(--dash-font-stack);
+}
+
+.dash-table thead tr {
+  background-color: #fafbfc;
+  border-bottom: 1px solid var(--dash-hairline);
+}
+
+.dash-table th {
+  padding: 12px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dash-ash);
+  white-space: nowrap;
+}
+
+.dash-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #f2f4f7;
+  color: var(--dash-smoke);
+  vertical-align: middle;
+}
+
+.dash-table tbody tr {
+  transition: background-color 0.12s;
+}
+
+.dash-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.dash-table-bold {
+  font-weight: 600;
+  color: var(--dash-ink);
+}
+
+.dash-code-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: #e8f1fd;
+  color: var(--dash-signal-blue);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Progress bar inside tables */
+.dash-progress-track {
+  width: 70px;
+  height: 5px;
+  border-radius: 3px;
+  background-color: #e5e9ee;
+  overflow: hidden;
+}
+
+.dash-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background-color: var(--dash-signal-blue);
+}
+
+/* Branch Grid for District Dashboard */
+.dash-branch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.dash-branch-card {
+  background-color: var(--dash-paper);
+  border-radius: var(--dash-radius-card);
+  box-shadow: var(--dash-shadow-sm);
+  border: 1px solid var(--dash-hairline);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dash-branch-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dash-ink);
+  margin: 0 0 2px 0;
+}
+
+.dash-branch-dept {
+  font-size: 12px;
+  color: var(--dash-fog);
+  margin-bottom: 12px;
+}
+
+.dash-branch-officer-box {
+  padding: 10px 12px;
+  border-radius: var(--dash-radius-btn);
+  background-color: #fafbfc;
+  border: 1px solid var(--dash-hairline);
+  margin-bottom: 12px;
+}
+
+.dash-branch-officer-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--dash-ink);
+}
+
+.dash-branch-officer-desig {
+  font-size: 11px;
+  color: var(--dash-ash);
+}
+
+.dash-branch-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--dash-smoke);
+}
+
+/* Cohort Cards */
+.dash-cohort-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.dash-cohort-card {
+  background-color: var(--dash-paper);
+  border-radius: var(--dash-radius-card);
+  box-shadow: var(--dash-shadow-sm);
+  border: 1px solid var(--dash-hairline);
+  padding: 18px 20px;
+}
+
+.dash-cohort-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--dash-ink);
+  margin-bottom: 4px;
+}
+
+.dash-cohort-unit {
+  font-size: 11.5px;
+  color: var(--dash-fog);
+  margin-bottom: 10px;
+}
+
+.dash-cohort-count {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--dash-ink);
+  margin-bottom: 4px;
+}
+
+.dash-cohort-stage {
+  font-size: 12px;
+  color: var(--dash-ash);
+  margin-bottom: 8px;
+}
+
+/* Status Badges */
+.dash-status-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dash-status-pill.active {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+
+.dash-status-pill.pending {
+  background-color: #fef7e0;
+  color: #b06000;
+}
+
+.dash-status-pill.disputed {
+  background-color: #fce8e6;
+  color: #c5221f;
+}
+
+/* Loading & Empty States */
+.dash-loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  color: var(--dash-fog);
+  font-size: 14px;
+}

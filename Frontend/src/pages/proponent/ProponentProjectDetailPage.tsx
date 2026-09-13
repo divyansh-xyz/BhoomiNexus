@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import { bossService } from '../../services/api/boss.service';
+import { useAuth } from '../../hooks/useAuth';
+import DrilldownBreadcrumb from '../../components/common/DrilldownBreadcrumb';
 import type {
   ProjectRequest,
   PendingAction,
@@ -12,8 +14,25 @@ import './proponent-dashboard.css';
 
 export const ProponentProjectDetailPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+
   const [project, setProject] = useState<ProjectRequest | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Scope context
+  const stateId = searchParams.get('stateId') || project?.state || 'MH';
+  const districtId = searchParams.get('districtId') || project?.district || 'pune';
+  const isInstitutionalViewer = Boolean(
+    user?.role && ['NATIONAL_AUTHORITY', 'STATE_AUTHORITY', 'DISTRICT_AUTHORITY', 'ADMIN'].includes(user.role)
+  );
+
+  // Parcels Tab state (Phase 18 Cadastral Registry & Passport link)
+  const [parcels, setParcels] = useState<any[]>([]);
+  const [parcelsLoading, setParcelsLoading] = useState<boolean>(false);
+  const [parcelSearchQuery, setParcelSearchQuery] = useState<string>('');
+  const [activeViewTab, setActiveViewTab] = useState<'overview' | 'parcels' | 'grievances'>('overview');
 
   // Rejection resubmit modal state
   const [resubmitModal, setResubmitModal] = useState<{ open: boolean; action: PendingAction | null }>({
@@ -75,9 +94,93 @@ export const ProponentProjectDetailPage: React.FC = () => {
     }
   };
 
+  const loadParcels = async () => {
+    if (!projectId) return;
+    try {
+      setParcelsLoading(true);
+      const res = await bossService.getProjectParcels(projectId);
+      if (res && res.length > 0) {
+        setParcels(res);
+      } else {
+        // Fallback baseline for demo project corridors
+        setParcels([
+          {
+            id: 'parcel-mh-pun-001',
+            ulpin: 'ULPIN-MH-PUN-001',
+            surveyNumber: '42/1',
+            ownerReference: 'Ramesh K. Joshi & Co-sharers',
+            village: 'Lonavala',
+            district: 'Pune',
+            state: 'Maharashtra',
+            areaAcres: 3.5,
+            areaHa: 1.416,
+            landType: 'AGRICULTURAL',
+            marketRatePerAcre: 1500000,
+            acquisitionStatus: 'IN_PROGRESS',
+            compensationStatus: 'PENDING',
+            possessionStatus: 'NOT_STARTED',
+          },
+          {
+            id: 'parcel-mh-pun-002',
+            ulpin: 'ULPIN-MH-PUN-002',
+            surveyNumber: '42/2',
+            ownerReference: 'Suresh K. Joshi & Brothers',
+            village: 'Lonavala',
+            district: 'Pune',
+            state: 'Maharashtra',
+            areaAcres: 2.8,
+            areaHa: 1.133,
+            landType: 'AGRICULTURAL',
+            marketRatePerAcre: 1500000,
+            acquisitionStatus: 'IN_PROGRESS',
+            compensationStatus: 'PENDING',
+            possessionStatus: 'NOT_STARTED',
+          },
+          {
+            id: 'parcel-mh-pun-003',
+            ulpin: 'ULPIN-MH-PUN-003',
+            surveyNumber: '43/1',
+            ownerReference: 'Khandala Resorts Pvt Ltd',
+            village: 'Khandala',
+            district: 'Pune',
+            state: 'Maharashtra',
+            areaAcres: 4.1,
+            areaHa: 1.659,
+            landType: 'COMMERCIAL',
+            marketRatePerAcre: 2800000,
+            acquisitionStatus: 'IN_PROGRESS',
+            compensationStatus: 'PENDING',
+            possessionStatus: 'NOT_STARTED',
+          },
+          {
+            id: 'parcel-mh-pun-004',
+            ulpin: 'ULPIN-MH-PUN-004',
+            surveyNumber: '44/1',
+            ownerReference: 'Maharashtra Forest Dept',
+            village: 'Khandala',
+            district: 'Pune',
+            state: 'Maharashtra',
+            areaAcres: 5.2,
+            areaHa: 2.104,
+            landType: 'FOREST',
+            marketRatePerAcre: 800000,
+            acquisitionStatus: 'ACQUIRED',
+            compensationStatus: 'DISBURSED',
+            possessionStatus: 'TAKEN',
+          },
+        ]);
+      }
+    } catch (err) {
+      console.warn('Failed to load project parcels', err);
+    } finally {
+      setParcelsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadProject();
     loadGrievances();
+    loadParcels();
   }, [projectId]);
 
   // Leaflet map preview
@@ -301,16 +404,13 @@ export const ProponentProjectDetailPage: React.FC = () => {
   return (
     <div className="things-proponent-dashboard">
       <div className="things-dashboard-inner">
-        {/* Breadcrumb */}
-        <div className="things-breadcrumb-bar">
-          <Link to="/projects" className="things-breadcrumb-link">
-            &larr; Proponent Project Register
-          </Link>
-          <span className="things-breadcrumb-sep">/</span>
-          <span className="things-breadcrumb-current">{project.code}</span>
-          <span className="things-breadcrumb-sep">/</span>
-          <span className="things-breadcrumb-label">Statutory Lifecycle Tracker</span>
-        </div>
+        {/* Phase 18 Federal Drilldown Breadcrumb */}
+        <DrilldownBreadcrumb
+          currentLevel="project"
+          state={{ id: stateId, name: project.state || stateId }}
+          district={{ id: districtId, name: project.district || districtId }}
+          project={{ id: projectId || project.id || '', name: project.title, code: project.code }}
+        />
 
         {/* Main Masthead */}
         <section className="things-dossier-masthead">
@@ -330,6 +430,213 @@ export const ProponentProjectDetailPage: React.FC = () => {
             Statutory Proponent Intake &bull; {project.rfctlarrSection} &bull; {project.state} ({project.district})
           </p>
         </section>
+
+        {/* Institutional Authority Oversight Mode Indicator */}
+        {isInstitutionalViewer && (
+          <div
+            style={{
+              padding: '12px 18px',
+              borderRadius: '8px',
+              backgroundColor: '#e8f1fd',
+              border: '1px solid #bfdbfe',
+              color: '#1e40af',
+              fontSize: '13px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <span>
+              🏛 <strong>Institutional Oversight Mode:</strong> Signed in as <strong>{user?.role}</strong> ({user?.name}). Inspecting multi-tier project governance and parcel records.
+            </span>
+            <button
+              type="button"
+              className="things-btn things-btn-sm things-btn-secondary"
+              onClick={() => navigate(`/projects/${projectId}/gis`)}
+            >
+              🗺 Open Project GIS
+            </button>
+          </div>
+        )}
+
+        {/* Phase 18 View Mode Switcher Tabs */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #dfe3e8', paddingBottom: '12px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="things-btn things-btn-sm"
+            onClick={() => setActiveViewTab('overview')}
+            style={{
+              backgroundColor: activeViewTab === 'overview' ? '#ffffff' : 'transparent',
+              borderColor: activeViewTab === 'overview' ? '#2576eb' : '#dfe3e8',
+              color: activeViewTab === 'overview' ? '#2576eb' : '#44474b',
+              fontWeight: activeViewTab === 'overview' ? 700 : 500,
+              padding: '8px 14px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            📋 Project Dossier &amp; Lifecycle
+          </button>
+          <button
+            type="button"
+            className="things-btn things-btn-sm"
+            onClick={() => setActiveViewTab('parcels')}
+            style={{
+              backgroundColor: activeViewTab === 'parcels' ? '#ffffff' : 'transparent',
+              borderColor: activeViewTab === 'parcels' ? '#2576eb' : '#dfe3e8',
+              color: activeViewTab === 'parcels' ? '#2576eb' : '#44474b',
+              fontWeight: activeViewTab === 'parcels' ? 700 : 500,
+              padding: '8px 14px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            🗺 Cadastral Parcels Registry ({parcels.length})
+          </button>
+          <button
+            type="button"
+            className="things-btn things-btn-sm"
+            onClick={() => setActiveViewTab('grievances')}
+            style={{
+              backgroundColor: activeViewTab === 'grievances' ? '#ffffff' : 'transparent',
+              borderColor: activeViewTab === 'grievances' ? '#2576eb' : '#dfe3e8',
+              color: activeViewTab === 'grievances' ? '#2576eb' : '#44474b',
+              fontWeight: activeViewTab === 'grievances' ? 700 : 500,
+              padding: '8px 14px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            ⚖ Public Grievances ({grievances.length})
+          </button>
+        </div>
+
+        {/* Cadastral Parcels Registry Section (Phase 18 Drilldown to Passport) */}
+        {activeViewTab === 'parcels' && (
+          <section className="things-card" style={{ marginBottom: '32px', padding: '24px', backgroundColor: '#ffffff', borderRadius: '18px', border: '1px solid #dfe3e8', boxShadow: 'rgba(0,0,0,0.1) 0px 2px 8px 0px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#303336' }}>
+                  Cadastral Parcels &amp; Bhu-Aadhaar Register
+                </h2>
+                <p style={{ fontSize: '13px', color: '#838b96', margin: '4px 0 0 0' }}>
+                  Statutory land parcels under project alignment. Click any parcel to inspect its Sovereign Passport.
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="Filter by ULPIN, survey or owner..."
+                  value={parcelSearchQuery}
+                  onChange={(e) => setParcelSearchQuery(e.target.value)}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12.5px',
+                    borderRadius: '6px',
+                    border: '1px solid #dfe3e8',
+                    width: '240px',
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#fafbfc', borderBottom: '1px solid #dfe3e8', color: '#55606e', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <th style={{ padding: '12px 14px' }}>ULPIN &amp; Survey No</th>
+                    <th style={{ padding: '12px 14px' }}>Village &amp; District</th>
+                    <th style={{ padding: '12px 14px' }}>Area (Acres / Ha)</th>
+                    <th style={{ padding: '12px 14px' }}>Classification</th>
+                    <th style={{ padding: '12px 14px' }}>Recorded Owner</th>
+                    <th style={{ padding: '12px 14px' }}>Acquisition Stage</th>
+                    <th style={{ padding: '12px 14px' }}>Comp. Status</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Passport Drilldown</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parcelsLoading ? (
+                    <tr>
+                      <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#838b96' }}>
+                        Loading cadastral parcels registry...
+                      </td>
+                    </tr>
+                  ) : parcels
+                    .filter((p) => {
+                      const q = parcelSearchQuery.toLowerCase().trim();
+                      return (
+                        !q ||
+                        p.ulpin?.toLowerCase().includes(q) ||
+                        p.surveyNumber?.toLowerCase().includes(q) ||
+                        p.ownerReference?.toLowerCase().includes(q) ||
+                        p.village?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((p) => (
+                      <tr key={p.id || p.ulpin} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2576eb', fontSize: '11.5px', display: 'block' }}>
+                            {p.ulpin}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#303336', fontWeight: 600 }}>
+                            Survey {p.surveyNumber}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px', color: '#44474b' }}>
+                          {p.village}, {p.district}
+                        </td>
+                        <td style={{ padding: '12px 14px', fontWeight: 600, color: '#303336' }}>
+                          {p.areaAcres} Ac ({p.areaHa || (p.areaAcres * 0.404686).toFixed(3)} Ha)
+                        </td>
+                        <td style={{ padding: '12px 14px', color: '#55606e' }}>
+                          {p.landType}
+                        </td>
+                        <td style={{ padding: '12px 14px', color: '#303336' }}>
+                          {p.ownerReference}
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span className="things-status-pill pill-active" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                            {p.acquisitionStatus}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: p.compensationStatus === 'DISBURSED' ? '#0d7d56' : '#b06000' }}>
+                            {p.compensationStatus}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(
+                                `/parcels/${p.id || p.ulpin}?projectId=${projectId}&stateId=${stateId}&districtId=${districtId}`
+                              )
+                            }
+                            style={{
+                              padding: '5px 12px',
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              borderRadius: '5px',
+                              border: '1px solid #dfe3e8',
+                              backgroundColor: '#ffffff',
+                              color: '#2576eb',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            View Passport &rarr;
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* 4-Stage Statutory Workflow Lifecycle Stepper */}
         <section className="things-stepper-container">
@@ -593,7 +900,28 @@ export const ProponentProjectDetailPage: React.FC = () => {
                 <h4 className="things-gis-title">2. Plotted Alignment Vector</h4>
                 <p className="things-gis-sub">PostGIS Spatial Buffer &bull; WGS84 EPSG:4326</p>
               </div>
-              <span className="things-form-card-badge">GIS PostGIS</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Link
+                  to={`/projects/${project.id}/gis`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    borderRadius: '5px',
+                    border: '1px solid #1e293b',
+                    backgroundColor: '#0f172a',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                  }}
+                >
+                  🗺 Multi-Level GIS &rarr;
+                </Link>
+                <span className="things-form-card-badge">GIS PostGIS</span>
+              </div>
             </div>
             <div>
               <div ref={mapContainerRef} style={{ height: '240px', width: '100%', backgroundColor: '#1e293b' }} />

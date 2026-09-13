@@ -788,10 +788,10 @@ export const BossParcelDeterminationPage: React.FC = () => {
                 <>
                   <button
                     type="button"
-                    onClick={() => navigate(`/boss/projects/${project?.id}/workflow?select=true`)}
+                    onClick={() => navigate(`/boss/projects/${project?.id}/workflow-builder`)}
                     className="things-btn things-btn-success"
                   >
-                    Choose Workflow &rarr;
+                    Visual Workflow Builder &rarr;
                   </button>
                   <button
                     type="button"

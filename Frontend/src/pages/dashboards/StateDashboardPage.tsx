@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { dashboardV2Service } from '../../services/api/dashboardV2.service';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthorization } from '../../hooks/useAuthorization';
 import type { StateDashboardData } from '../../types/dashboardV2.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
+import DrilldownBreadcrumb from '../../components/common/DrilldownBreadcrumb';
+import './dashboards-v2.css';
 
 export const StateDashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const params = useParams<{ stateId?: string }>();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { canAccessState } = useAuthorization();
 
-  const requestedStateId = searchParams.get('stateId') || user?.administrativeScope?.state || user?.state || 'MH';
+  const requestedStateId = params.stateId || searchParams.get('stateId') || user?.administrativeScope?.state || user?.state || 'MH';
   const hasAccess = canAccessState(requestedStateId);
 
   const [data, setData] = useState<StateDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'sla' | 'projects' | 'compensation' | 'parcels'>('sla');
 
   useEffect(() => {
     if (hasAccess) {
@@ -39,31 +43,28 @@ export const StateDashboardPage: React.FC = () => {
 
   if (!hasAccess) {
     return (
-      <div style={{ maxWidth: '800px', margin: '60px auto', padding: '32px', textAlign: 'center', backgroundColor: '#ffffff', border: '1px solid #fee2e2', borderRadius: '12px' }}>
-        <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔒</div>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#991b1b', margin: '0 0 8px 0' }}>
-          Jurisdictional Access Boundary
-        </h2>
-        <p style={{ fontSize: '13.5px', color: '#475569', marginBottom: '20px' }}>
-          Your authorized administrative scope is restricted to <strong>{user?.state || user?.administrativeScope?.state || 'your assigned State'}</strong>.
-          You do not hold sovereign clearance to inspect jurisdiction <strong>{requestedStateId}</strong>.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate(`/dashboard/state?stateId=${user?.state || 'MH'}`)}
-          style={{
-            padding: '8px 16px',
-            fontSize: '12.5px',
-            fontWeight: 600,
-            borderRadius: '6px',
-            backgroundColor: '#2563eb',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          Return to My Authorized State &rarr;
-        </button>
+      <div className="dash-canvas">
+        <div className="dash-container" style={{ maxWidth: '640px', marginTop: '60px' }}>
+          <div className="dash-card" style={{ textAlign: 'center', padding: '40px' }}>
+            <div style={{ fontSize: '32px', marginBottom: '16px' }}>🔒</div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#c5221f', margin: '0 0 8px 0' }}>
+              Jurisdictional Access Boundary
+            </h2>
+            <p style={{ fontSize: '14px', color: 'var(--dash-fog)', lineHeight: 1.5, marginBottom: '24px' }}>
+              Your authorized administrative scope is restricted to <strong>{user?.state || user?.administrativeScope?.state || 'your assigned State'}</strong>.
+              You do not hold sovereign clearance to inspect jurisdiction <strong>{requestedStateId}</strong>.
+            </p>
+            <div>
+              <button
+                type="button"
+                className="dash-btn-secondary"
+                onClick={() => navigate(`/state-dashboard/${user?.state || 'MH'}`)}
+              >
+                Return to My Authorized State &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -71,208 +72,278 @@ export const StateDashboardPage: React.FC = () => {
   const districts = (data?.districtBreakdown || []).filter((d) => {
     const q = searchQuery.toLowerCase().trim();
     return !q || d.districtName.toLowerCase().includes(q) || d.districtId.toLowerCase().includes(q);
+  }).sort((a, b) => {
+    if (sortBy === 'sla') return b.slaAdherenceRate - a.slaAdherenceRate;
+    if (sortBy === 'projects') return b.activeProjects - a.activeProjects;
+    if (sortBy === 'compensation') return b.compensationDisbursedCr - a.compensationDisbursedCr;
+    if (sortBy === 'parcels') return b.totalParcels - a.totalParcels;
+    return 0;
   });
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px 32px' }}>
-      {/* Header telemetry row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <BhoomiLogo size={20} strokeWidth={2.4} />
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2563eb' }}>
-              State Directorate of Land Records &amp; Revenue Reforms • {data?.stateName || requestedStateId}
-            </span>
-          </div>
-          <h1 style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-            {data?.stateName || 'State'} Cadastral Monitoring Center
-          </h1>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-            Inter-district acquisition oversight, statutory SLA tracking, and compensation clearance
-          </p>
-        </div>
+    <div className="dash-canvas">
+      <div className="dash-container">
+        {/* Federal Scope Breadcrumb */}
+        <DrilldownBreadcrumb
+          currentLevel="state"
+          state={{ id: requestedStateId, name: data?.stateName }}
+        />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {user?.role === 'NATIONAL_AUTHORITY' && (
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard/national')}
-              style={{
-                padding: '8px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#f8fafc',
-                color: '#475569',
-                cursor: 'pointer',
-              }}
-            >
-              &larr; Back to National Overview
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => loadData(requestedStateId)}
-            disabled={loading}
-            style={{
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 600,
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-          >
-            <span>{loading ? 'Refreshing...' : '↻ Refresh Data'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Primary KPI Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Revenue Districts</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>{data?.totalDistricts ?? 36}</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Under State Registry</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Active Projects</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#2563eb' }}>{data?.totalProjects ?? 184}</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>State &amp; Central Corridors</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Total Parcels</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>{data?.totalParcels?.toLocaleString() ?? '14,200'}</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Cadastral Demarcations</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Land Acquired</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#059669' }}>{data?.totalLandAcquiredHa?.toLocaleString() ?? '2,450.8'} Ha</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Award Gazetted</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Compensation Disbursed</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#d97706' }}>₹{data?.totalCompensationDisbursedCr?.toLocaleString() ?? '1,280.4'} Cr</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Statutory Sec 26-30</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Possession Handover</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#0d9488' }}>{data?.totalPossessionCompletedHa?.toLocaleString() ?? '1,980.2'} Ha</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Vested in State Registry</div>
-        </div>
-      </div>
-
-      {/* District Comparison Table */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        {/* Header Telemetry Row */}
+        <div className="dash-header-bar">
           <div>
-            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-              District Administration Breakdown
-            </h2>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' }}>
-              Comparative progress across Collectorates &amp; Special Land Acquisition Offices
+            <div className="dash-eyebrow">
+              <BhoomiLogo size={18} strokeWidth={2.4} />
+              <span>State Directorate of Land Records &amp; Revenue Reforms</span>
+              <span className="dash-eyebrow-badge">{data?.stateName || requestedStateId} Jurisdiction</span>
+            </div>
+            <h1 className="dash-title">{data?.stateName || 'State'} Cadastral Command Center</h1>
+            <p className="dash-subtitle">
+              Inter-district acquisition oversight, statutory RFCTLARR SLA tracking, and direct benefit transfer surveillance.
             </p>
           </div>
 
-          <div>
-            <input
-              type="text"
-              placeholder="Filter district..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                width: '180px',
-              }}
-            />
+          <div className="dash-action-row">
+            {(user?.role === 'NATIONAL_AUTHORITY' || user?.role === 'ADMIN') && (
+              <button
+                type="button"
+                className="dash-btn-secondary"
+                onClick={() => navigate('/national-dashboard')}
+              >
+                <span>← Back to National</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="dash-btn-secondary"
+              onClick={() => navigate(`/state-dashboard/${requestedStateId}/gis`)}
+            >
+              <span>🗺 GIS Cadastral View</span>
+            </button>
+            <button
+              type="button"
+              className="dash-btn-secondary"
+              onClick={() => loadData(requestedStateId)}
+              disabled={loading}
+            >
+              <span>{loading ? 'Refreshing...' : '↻ Refresh State Data'}</span>
+            </button>
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <th style={{ padding: '12px 18px', fontWeight: 600 }}>District Collectorate</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Active Projects</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Parcels Demarcated</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Compensation Disbursed</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Possession Taken</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>SLA Adherence</th>
-                <th style={{ padding: '12px 18px', fontWeight: 600, textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {districts.map((d) => (
-                <tr
-                  key={d.districtId}
-                  style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                >
-                  <td style={{ padding: '14px 18px', fontWeight: 600, color: '#0f172a' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', backgroundColor: '#dbeafe', color: '#1e40af', fontFamily: 'monospace' }}>
-                        DIST
-                      </span>
-                      <span>{d.districtName}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 14px', color: '#2563eb', fontWeight: 600 }}>{d.activeProjects}</td>
-                  <td style={{ padding: '14px 14px', color: '#334155' }}>
-                    {d.parcelsDemarcated.toLocaleString()} / {d.totalParcels.toLocaleString()}
-                  </td>
-                  <td style={{ padding: '14px 14px', fontWeight: 600, color: '#0f172a' }}>
-                    ₹{d.compensationDisbursedCr.toLocaleString()} Cr
-                  </td>
-                  <td style={{ padding: '14px 14px', color: '#059669', fontWeight: 500 }}>
-                    {d.possessionTakenParcels.toLocaleString()} parcels
-                  </td>
-                  <td style={{ padding: '14px 14px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: d.slaAdherenceRate >= 95 ? '#059669' : '#2563eb' }}>
-                      {d.slaAdherenceRate}%
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/dashboard/district?districtId=${d.districtId}`)}
-                      style={{
-                        padding: '5px 10px',
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        borderRadius: '5px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        cursor: 'pointer',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#2563eb';
-                        e.currentTarget.style.color = '#2563eb';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#cbd5e1';
-                        e.currentTarget.style.color = '#1e293b';
-                      }}
-                    >
-                      Inspect District &rarr;
-                    </button>
-                  </td>
+        {/* State-Scoped KPIs: Scope & Land */}
+        <div className="dash-kpi-section">
+          <div className="dash-kpi-group-title">
+            <span>State Jurisdictional Scope &amp; Land Extent</span>
+          </div>
+          <div className="dash-kpi-grid">
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Collectorates</span>
+                <span className="dash-card-badge">State Scope</span>
+              </div>
+              <div className="dash-card-value">{data?.totalDistricts ?? 36}</div>
+              <div className="dash-card-subtext">Revenue districts</div>
+            </div>
+
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Active Projects</span>
+                <span className="dash-card-badge">Corridors</span>
+              </div>
+              <div className="dash-card-value" style={{ color: 'var(--dash-signal-blue)' }}>
+                {data?.totalProjects ?? 184}
+              </div>
+              <div className="dash-card-subtext">State &amp; central alignments</div>
+            </div>
+
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Total Parcels</span>
+                <span className="dash-card-badge">Cadastre</span>
+              </div>
+              <div className="dash-card-value">{data?.totalParcels?.toLocaleString() ?? '14,200'}</div>
+              <div className="dash-card-subtext">Digitized survey plots</div>
+            </div>
+
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Land Acquired</span>
+                <span className="dash-card-badge">Extent</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#0d7d56' }}>
+                {data?.landAcquiredHa?.toLocaleString()} Ha
+              </div>
+              <div className="dash-card-subtext">
+                of {data?.landRequiredHa?.toLocaleString()} Ha required ({data && data.landRequiredHa > 0 ? Math.round((data.landAcquiredHa / data.landRequiredHa) * 100) : 86}%)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* State-Scoped KPIs: Compensation & Possession */}
+        <div className="dash-kpi-section">
+          <div className="dash-kpi-group-title">
+            <span>Compensation Disbursal &amp; Possession Vesting</span>
+          </div>
+          <div className="dash-kpi-grid">
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Comp. Assessed</span>
+                <span className="dash-card-badge">Section 26</span>
+              </div>
+              <div className="dash-card-value">₹{data?.compensationAssessedCr?.toLocaleString()} Cr</div>
+              <div className="dash-card-subtext">Statutory baseline valuation</div>
+            </div>
+
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Comp. Disbursed</span>
+                <span className="dash-card-badge">PFMS DBT</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#0d7d56' }}>
+                ₹{data?.compensationPaidCr?.toLocaleString()} Cr
+              </div>
+              <div className="dash-card-subtext">Credited to beneficiary accounts</div>
+            </div>
+
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Comp. Pending</span>
+                <span className="dash-card-badge">Escrow</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#b06000' }}>
+                ₹{data?.compensationPendingCr?.toLocaleString()} Cr
+              </div>
+              <div className="dash-card-subtext">Verification in progress</div>
+            </div>
+
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Possession Completed</span>
+                <span className="dash-card-badge">Sec 38</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#0d7d56' }}>
+                {data?.possessionCompletedCount?.toLocaleString()} parcels
+              </div>
+              <div className="dash-card-subtext">
+                {data?.possessionPendingCount?.toLocaleString()} parcels pending
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* District Comparison Section (Phase 17 Requirement) */}
+        <div className="dash-elevated-table-card">
+          <div className="dash-table-toolbar">
+            <div>
+              <h2 className="dash-table-title">District Collectorate Comparison Matrix</h2>
+              <p className="dash-table-subtitle">
+                Comparative monitoring across Special Land Acquisition Offices, SLA adherence, and physical clearance
+              </p>
+            </div>
+
+            <div className="dash-toolbar-controls">
+              <input
+                type="text"
+                className="dash-search-input"
+                placeholder="Filter district by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <select
+                className="dash-select-input"
+                value={sortBy}
+                onChange={(e: any) => setSortBy(e.target.value)}
+              >
+                <option value="sla">Sort: SLA Adherence</option>
+                <option value="projects">Sort: Active Projects</option>
+                <option value="compensation">Sort: Compensation Disbursed</option>
+                <option value="parcels">Sort: Total Parcels</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="dash-table-container">
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>District Collectorate</th>
+                  <th>Active Projects</th>
+                  <th>Parcels (Demarcated / Total)</th>
+                  <th>Land Extent (Acquired / Req)</th>
+                  <th>Comp. Disbursed vs Pending</th>
+                  <th>Possession Taken</th>
+                  <th>SLA Adherence</th>
+                  <th style={{ textAlign: 'right' }}>Command Drilldown</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {districts.map((d) => (
+                  <tr key={d.districtId}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="dash-code-tag">DIST</span>
+                        <span className="dash-table-bold">{d.districtName}</span>
+                      </div>
+                    </td>
+                    <td style={{ color: 'var(--dash-signal-blue)', fontWeight: 600 }}>{d.activeProjects}</td>
+                    <td>
+                      <div>
+                        <span>{d.parcelsDemarcated?.toLocaleString()} / {d.totalParcels?.toLocaleString()}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--dash-fog)', marginLeft: '4px' }}>
+                          ({d.totalParcels > 0 ? Math.round((d.parcelsDemarcated / d.totalParcels) * 100) : 0}%)
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div>
+                        <span style={{ fontWeight: 600, color: 'var(--dash-ink)' }}>{d.landAcquiredHa?.toLocaleString()} Ha</span>
+                        <span style={{ fontSize: '11.5px', color: 'var(--dash-fog)', marginLeft: '4px' }}>
+                          / {d.landRequiredHa?.toLocaleString()} Ha
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#0d7d56' }}>₹{d.compensationDisbursedCr?.toLocaleString()} Cr</span>
+                        <span style={{ fontSize: '11.5px', color: 'var(--dash-fog)', marginLeft: '6px' }}>
+                          (₹{d.compensationPendingCr?.toLocaleString()} Cr pend)
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 500, color: '#0d7d56' }}>
+                      {d.possessionTakenParcels?.toLocaleString()} parcels
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="dash-progress-track">
+                          <div
+                            className="dash-progress-fill"
+                            style={{
+                              width: `${Math.min(100, d.slaAdherenceRate)}%`,
+                              backgroundColor: d.slaAdherenceRate >= 94 ? '#0d7d56' : d.slaAdherenceRate >= 90 ? 'var(--dash-signal-blue)' : '#b06000',
+                            }}
+                          />
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 600 }}>{d.slaAdherenceRate}%</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        type="button"
+                        className="dash-link-action"
+                        onClick={() => navigate(`/district-dashboard/${d.districtId}?stateId=${requestedStateId}`)}
+                      >
+                        <span>View District Command</span>
+                        <span className="chevron">→</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

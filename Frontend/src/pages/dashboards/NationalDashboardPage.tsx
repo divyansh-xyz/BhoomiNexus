@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { dashboardV2Service } from '../../services/api/dashboardV2.service';
 import type { NationalDashboardData } from '../../types/dashboardV2.types';
 import BhoomiLogo from '../../components/common/BhoomiLogo';
+import DrilldownBreadcrumb from '../../components/common/DrilldownBreadcrumb';
+import './dashboards-v2.css';
 
 export const NationalDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<NationalDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'compliance' | 'projects' | 'compensation'>('compliance');
+  const [sortBy, setSortBy] = useState<'compliance' | 'projects' | 'compensation' | 'parcels'>('compliance');
 
   useEffect(() => {
     loadData();
@@ -34,231 +36,333 @@ export const NationalDashboardPage: React.FC = () => {
     if (sortBy === 'compliance') return b.complianceRate - a.complianceRate;
     if (sortBy === 'projects') return b.activeProjects - a.activeProjects;
     if (sortBy === 'compensation') return b.disbursedCompensationCr - a.disbursedCompensationCr;
+    if (sortBy === 'parcels') return b.totalParcels - a.totalParcels;
     return 0;
   });
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px 32px' }}>
-      {/* Header telemetry row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <BhoomiLogo size={20} strokeWidth={2.4} />
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6366f1' }}>
-              Central Cadastre & Federal Land Acquisition Command • MoRD / DoLR
-            </span>
-          </div>
-          <h1 style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-            National Land Governance Dashboard
-          </h1>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-            Consolidated cross-state surveillance under RFCTLARR Act 2013 across all 36 States &amp; Union Territories
-          </p>
-        </div>
+    <div className="dash-canvas">
+      <div className="dash-container">
+        {/* Federal Scope Breadcrumb */}
+        <DrilldownBreadcrumb currentLevel="national" />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={loadData}
-            disabled={loading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 600,
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-          >
-            <span>{loading ? 'Refreshing...' : '↻ Refresh Metrics'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Primary KPI Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Federation Jurisdictions</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>{data?.totalStates ?? 28} States</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Across {data?.totalDistricts ?? 785} Districts</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Infrastructure Projects</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#2563eb' }}>{data?.totalProjects?.toLocaleString() ?? '1,420'}</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Major Corridors &amp; Expressways</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Demarcated Parcels</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>{data?.totalParcels?.toLocaleString() ?? '84,250'}</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Digitized Cadastral Polygons</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Land Acquired</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#059669' }}>{data?.totalLandAcquiredHa?.toLocaleString() ?? '12,450.7'} Ha</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Section 19 Published</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Disbursed Compensation</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#d97706' }}>₹{data?.totalCompensationDisbursedCr?.toLocaleString() ?? '4,820.5'} Cr</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>PFMS Direct Benefit Transfer</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>Possession Handover</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#0d9488' }}>{data?.totalPossessionCompletedHa?.toLocaleString() ?? '9,840.2'} Ha</div>
-          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>Vested in Government (Sec 38)</div>
-        </div>
-      </div>
-
-      {/* State Federation Table Section */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-        {/* Table Toolbar */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        {/* Header telemetry row */}
+        <div className="dash-header-bar">
           <div>
-            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-              State &amp; UT Jurisdictional Performance
-            </h2>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' }}>
-              Statutory SLA adherence, parcel clearance velocity, and financial disbursals
+            <div className="dash-eyebrow">
+              <BhoomiLogo size={18} strokeWidth={2.4} />
+              <span>Ministry of Rural Development • Department of Land Resources</span>
+              <span className="dash-eyebrow-badge">DoLR Federal Command</span>
+            </div>
+            <h1 className="dash-title">National Land Governance Dashboard</h1>
+            <p className="dash-subtitle">
+              Sovereign monitoring across 36 States &amp; Union Territories under RFCTLARR Act 2013 with live compensation and possession telemetry.
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input
-              type="text"
-              placeholder="Filter state by name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                width: '200px',
-              }}
-            />
-            <select
-              value={sortBy}
-              onChange={(e: any) => setSortBy(e.target.value)}
-              style={{
-                padding: '6px 10px',
-                fontSize: '12px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                color: '#334155',
-              }}
+          <div className="dash-action-row">
+            <button
+              type="button"
+              className="dash-btn-secondary"
+              onClick={() => navigate('/national-dashboard/gis')}
             >
-              <option value="compliance">Sort: Compliance Rate</option>
-              <option value="projects">Sort: Active Projects</option>
-              <option value="compensation">Sort: Compensation Disbursed</option>
-            </select>
+              <span>🗺 GIS Cadastral View</span>
+            </button>
+            <button
+              type="button"
+              className="dash-btn-secondary"
+              onClick={loadData}
+              disabled={loading}
+            >
+              <span>{loading ? 'Refreshing...' : '↻ Refresh Telemetry'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Table Content */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <th style={{ padding: '12px 18px', fontWeight: 600 }}>State / UT</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Districts</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Active Projects</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Parcels (Acquired/Total)</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Compensation Disbursed</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>Possession Handover</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600 }}>RFCTLARR Compliance</th>
-                <th style={{ padding: '12px 18px', fontWeight: 600, textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {states.map((st) => (
-                <tr
-                  key={st.stateId}
-                  style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                >
-                  <td style={{ padding: '14px 18px', fontWeight: 600, color: '#0f172a' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', backgroundColor: '#e0e7ff', color: '#3730a3', fontFamily: 'monospace' }}>
-                        {st.stateId}
-                      </span>
-                      <span>{st.stateName}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 14px', color: '#334155' }}>{st.districtsCount}</td>
-                  <td style={{ padding: '14px 14px', color: '#2563eb', fontWeight: 600 }}>{st.activeProjects}</td>
-                  <td style={{ padding: '14px 14px', color: '#334155' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{st.acquiredParcels.toLocaleString()} / {st.totalParcels.toLocaleString()}</span>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>
-                        ({Math.round((st.acquiredParcels / st.totalParcels) * 100)}%)
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 14px', fontWeight: 600, color: '#0f172a' }}>
-                    ₹{st.disbursedCompensationCr.toLocaleString()} Cr
-                  </td>
-                  <td style={{ padding: '14px 14px', color: '#059669', fontWeight: 500 }}>
-                    {st.possessionCompletedHa.toLocaleString()} Ha
-                  </td>
-                  <td style={{ padding: '14px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '60px', height: '6px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            width: `${st.complianceRate}%`,
-                            height: '100%',
-                            backgroundColor: st.complianceRate >= 95 ? '#059669' : st.complianceRate >= 90 ? '#2563eb' : '#d97706',
-                          }}
-                        />
-                      </div>
-                      <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#334155' }}>
-                        {st.complianceRate}%
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/dashboard/state?stateId=${st.stateId}`)}
-                      style={{
-                        padding: '5px 10px',
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        borderRadius: '5px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#6366f1';
-                        e.currentTarget.style.color = '#6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#cbd5e1';
-                        e.currentTarget.style.color = '#1e293b';
-                      }}
-                    >
-                      Inspect State &rarr;
-                    </button>
-                  </td>
+        {/* 13 Statutory KPIs — Group 1: Federal Jurisdiction & Scope */}
+        <div className="dash-kpi-section">
+          <div className="dash-kpi-group-title">
+            <span>Jurisdiction &amp; Cadastral Demarcation</span>
+          </div>
+          <div className="dash-kpi-grid">
+            {/* KPI 1: States */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">States / UTs</span>
+                <span className="dash-card-badge">KPI 1</span>
+              </div>
+              <div className="dash-card-value">{data?.totalStates ?? 28}</div>
+              <div className="dash-card-subtext">Active state directorates</div>
+            </div>
+
+            {/* KPI 2: Districts */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Revenue Districts</span>
+                <span className="dash-card-badge">KPI 2</span>
+              </div>
+              <div className="dash-card-value">{data?.totalDistricts ?? 785}</div>
+              <div className="dash-card-subtext">Collectorates onboarded</div>
+            </div>
+
+            {/* KPI 3: Projects */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">National Projects</span>
+                <span className="dash-card-badge">KPI 3</span>
+              </div>
+              <div className="dash-card-value" style={{ color: 'var(--dash-signal-blue)' }}>
+                {data?.totalProjects?.toLocaleString() ?? '1,420'}
+              </div>
+              <div className="dash-card-subtext">Corridors &amp; public works</div>
+            </div>
+
+            {/* KPI 4: Parcels */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Demarcated Parcels</span>
+                <span className="dash-card-badge">KPI 4</span>
+              </div>
+              <div className="dash-card-value">{data?.totalParcels?.toLocaleString() ?? '84,250'}</div>
+              <div className="dash-card-subtext">Digitized survey plots</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 13 Statutory KPIs — Group 2: Land Required & Acquired */}
+        <div className="dash-kpi-section">
+          <div className="dash-kpi-group-title">
+            <span>Land Extent Surveillance (Hectares)</span>
+          </div>
+          <div className="dash-kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+            {/* KPI 5: Land Required */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Total Land Required</span>
+                <span className="dash-card-badge">KPI 5</span>
+              </div>
+              <div className="dash-card-value">{data?.landRequiredHa?.toLocaleString() ?? '14,850.5'} Ha</div>
+              <div className="dash-card-subtext">Section 4(1) preliminary alignment scope</div>
+            </div>
+
+            {/* KPI 6: Land Acquired */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Total Land Acquired</span>
+                <span className="dash-card-badge">KPI 6</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#0d7d56' }}>
+                {data?.landAcquiredHa?.toLocaleString() ?? '12,450.7'} Ha
+              </div>
+              <div className="dash-card-subtext">
+                Section 19 declaration gazetted ({data && data.landRequiredHa > 0 ? Math.round((data.landAcquiredHa / data.landRequiredHa) * 100) : 84}%)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 13 Statutory KPIs — Group 3: Financial Compensation Disbursal */}
+        <div className="dash-kpi-section">
+          <div className="dash-kpi-group-title">
+            <span>Statutory Compensation Matrix (₹ Crore)</span>
+          </div>
+          <div className="dash-kpi-grid">
+            {/* KPI 7: Compensation Assessed */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Comp. Assessed</span>
+                <span className="dash-card-badge">KPI 7</span>
+              </div>
+              <div className="dash-card-value">₹{data?.compensationAssessedCr?.toLocaleString() ?? '6,240.8'} Cr</div>
+              <div className="dash-card-subtext">Section 26-30 valuation</div>
+            </div>
+
+            {/* KPI 8: Compensation Approved */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Comp. Approved</span>
+                <span className="dash-card-badge">KPI 8</span>
+              </div>
+              <div className="dash-card-value">₹{data?.compensationApprovedCr?.toLocaleString() ?? '5,410.2'} Cr</div>
+              <div className="dash-card-subtext">Award sanctioned by CA</div>
+            </div>
+
+            {/* KPI 9: Compensation Paid */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Comp. Paid</span>
+                <span className="dash-card-badge">KPI 9</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#0d7d56' }}>
+                ₹{data?.compensationPaidCr?.toLocaleString() ?? '4,820.5'} Cr
+              </div>
+              <div className="dash-card-subtext">Direct Benefit Transfer</div>
+            </div>
+
+            {/* KPI 10: Compensation Pending */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Comp. Pending</span>
+                <span className="dash-card-badge">KPI 10</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#b06000' }}>
+                ₹{data?.compensationPendingCr?.toLocaleString() ?? '1,420.3'} Cr
+              </div>
+              <div className="dash-card-subtext">Escrow / verification queue</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 13 Statutory KPIs — Group 4: Physical Possession & Vesting */}
+        <div className="dash-kpi-section">
+          <div className="dash-kpi-group-title">
+            <span>Physical Possession &amp; Vesting (Parcels)</span>
+          </div>
+          <div className="dash-kpi-grid">
+            {/* KPI 11: Possession Ready */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Possession Ready</span>
+                <span className="dash-card-badge">KPI 11</span>
+              </div>
+              <div className="dash-card-value">{data?.possessionReadyCount?.toLocaleString() ?? '68,400'}</div>
+              <div className="dash-card-subtext">Awards gazetted &amp; funds cleared</div>
+            </div>
+
+            {/* KPI 12: Possession Pending */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Possession Pending</span>
+                <span className="dash-card-badge">KPI 12</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#b06000' }}>
+                {data?.possessionPendingCount?.toLocaleString() ?? '15,850'}
+              </div>
+              <div className="dash-card-subtext">Demarcation inspection stage</div>
+            </div>
+
+            {/* KPI 13: Possession Completed */}
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <span className="dash-card-label">Possession Completed</span>
+                <span className="dash-card-badge">KPI 13</span>
+              </div>
+              <div className="dash-card-value" style={{ color: '#0d7d56' }}>
+                {data?.possessionCompletedCount?.toLocaleString() ?? '52,100'}
+              </div>
+              <div className="dash-card-subtext">Section 38 government vested</div>
+            </div>
+          </div>
+        </div>
+
+        {/* State Federation Table Section with Drilldown */}
+        <div className="dash-elevated-table-card">
+          <div className="dash-table-toolbar">
+            <div>
+              <h2 className="dash-table-title">State &amp; Union Territory Jurisdictions</h2>
+              <p className="dash-table-subtitle">
+                Cross-state statutory monitoring, SLA compliance, and financial disbursals
+              </p>
+            </div>
+
+            <div className="dash-toolbar-controls">
+              <input
+                type="text"
+                className="dash-search-input"
+                placeholder="Filter by state or code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <select
+                className="dash-select-input"
+                value={sortBy}
+                onChange={(e: any) => setSortBy(e.target.value)}
+              >
+                <option value="compliance">Sort: Compliance Rate</option>
+                <option value="projects">Sort: Active Projects</option>
+                <option value="compensation">Sort: Compensation Paid</option>
+                <option value="parcels">Sort: Total Parcels</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="dash-table-container">
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>State / UT</th>
+                  <th>Districts</th>
+                  <th>Projects</th>
+                  <th>Parcels (Acquired / Total)</th>
+                  <th>Land Acquired</th>
+                  <th>Comp. Paid vs Pending</th>
+                  <th>Possession Handover</th>
+                  <th>Statutory Compliance</th>
+                  <th style={{ textAlign: 'right' }}>Drilldown</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {states.map((st) => (
+                  <tr key={st.stateId}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="dash-code-tag">{st.stateId}</span>
+                        <span className="dash-table-bold">{st.stateName}</span>
+                      </div>
+                    </td>
+                    <td>{st.districtsCount}</td>
+                    <td style={{ color: 'var(--dash-signal-blue)', fontWeight: 600 }}>{st.activeProjects}</td>
+                    <td>
+                      <div>
+                        <span>{st.acquiredParcels?.toLocaleString() ?? st.totalParcels} / {st.totalParcels?.toLocaleString()}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--dash-fog)', marginLeft: '4px' }}>
+                          ({st.totalParcels > 0 ? Math.round(((st.acquiredParcels || 0) / st.totalParcels) * 100) : 0}%)
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 600, color: 'var(--dash-ink)' }}>
+                      {st.landAcquiredHa?.toLocaleString()} Ha
+                    </td>
+                    <td>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#0d7d56' }}>₹{st.disbursedCompensationCr?.toLocaleString()} Cr</span>
+                        <span style={{ fontSize: '11.5px', color: 'var(--dash-fog)', marginLeft: '6px' }}>
+                          (₹{st.pendingCompensationCr?.toLocaleString()} Cr pend)
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 500, color: '#0d7d56' }}>
+                      {st.possessionCompletedCount?.toLocaleString()} parcels
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="dash-progress-track">
+                          <div
+                            className="dash-progress-fill"
+                            style={{
+                              width: `${Math.min(100, st.complianceRate)}%`,
+                              backgroundColor: st.complianceRate >= 94 ? '#0d7d56' : st.complianceRate >= 90 ? 'var(--dash-signal-blue)' : '#b06000',
+                            }}
+                          />
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 600 }}>{st.complianceRate}%</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        type="button"
+                        className="dash-link-action"
+                        onClick={() => navigate(`/state-dashboard/${st.stateId}`)}
+                      >
+                        <span>View State</span>
+                        <span className="chevron">→</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

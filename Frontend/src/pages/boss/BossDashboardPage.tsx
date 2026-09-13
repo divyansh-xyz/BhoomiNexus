@@ -603,7 +603,7 @@ export const BossDashboardPage: React.FC = () => {
                                     Parcels ({project.selectedParcelsCount ?? 0}) &rarr;
                                   </Link>
                                   <Link
-                                    to={`/boss/projects/${project.id}/workflow`}
+                                    to={`/boss/projects/${project.id}/workflow-builder`}
                                     className="things-btn-outline"
                                     style={{ fontSize: '12.5px', padding: '6px 12px' }}
                                     onClick={(e) => e.stopPropagation()}
@@ -630,7 +630,7 @@ export const BossDashboardPage: React.FC = () => {
                                     Parcels ({project.selectedParcelsCount ?? 0}) &rarr;
                                   </Link>
                                   <Link
-                                    to={`/boss/projects/${project.id}/workflow?select=true`}
+                                    to={`/boss/projects/${project.id}/workflow-builder`}
                                     className="things-btn-requisition"
                                     style={{ margin: 0, fontSize: '12.5px', padding: '6px 14px' }}
                                     onClick={(e) => e.stopPropagation()}

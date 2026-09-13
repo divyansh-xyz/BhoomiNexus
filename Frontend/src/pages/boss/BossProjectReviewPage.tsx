@@ -481,21 +481,21 @@ export const BossProjectReviewPage: React.FC = () => {
             {isWorkflowConfigured ? (
               <button
                 type="button"
-                onClick={() => navigate(`/boss/projects/${project.id}/workflow`)}
+                onClick={() => navigate(`/boss/projects/${project.id}/workflow-builder`)}
                 className="things-btn things-btn-outline-green"
-                title="Statutory workflow pipeline has been configured with scrutiny stages"
+                title="Statutory visual workflow pipeline has been configured with scrutiny branches"
               >
                 <span>✓ Pipeline Configured ({(workflow?.stages || []).length} Stages)</span>
-                <span style={{ fontSize: '12px', opacity: 0.85 }}>(Manage &rarr;)</span>
+                <span style={{ fontSize: '12px', opacity: 0.85 }}>(Visual Builder &rarr;)</span>
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => navigate(`/boss/projects/${project.id}/workflow?select=true`)}
+                onClick={() => navigate(`/boss/projects/${project.id}/workflow-builder`)}
                 className="things-btn things-btn-outline-amber"
-                title="Statutory action required: Choose and instantiate a workflow template"
+                title="Statutory action required: Launch visual workflow builder to design scrutiny pipeline"
               >
-                <span>⚡ Choose Workflow</span>
+                <span>⚡ Choose Workflow (Visual Builder)</span>
                 <span>&rarr;</span>
               </button>
             )}
@@ -1049,7 +1049,7 @@ export const BossProjectReviewPage: React.FC = () => {
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                           {activeTask.requiredDocuments?.map((doc, dIdx) => (
                             <span key={dIdx} className="things-pill things-pill-neutral things-pill-mono" style={{ fontSize: '11px' }}>
-                              {doc}
+                              {typeof doc === 'string' ? doc : doc.name}
                             </span>
                           ))}
                         </div>
@@ -1200,11 +1200,11 @@ export const BossProjectReviewPage: React.FC = () => {
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
                     type="button"
-                    onClick={() => navigate(`/boss/projects/${project.id}/workflow?select=true`)}
+                    onClick={() => navigate(`/boss/projects/${project.id}/workflow-builder`)}
                     className="things-btn things-btn-outline"
                     style={{ whiteSpace: 'nowrap' }}
                   >
-                    Choose Workflow Template &rarr;
+                    Visual Workflow Builder &rarr;
                   </button>
                   {canApproveProject && (
                     <button

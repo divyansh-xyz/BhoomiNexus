@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { OfficerService, type OcrExtractionResult } from '../../services/OfficerService';
 import { DocumentService, type Document as ProjectDocument } from '../../services/DocumentService';
 import { taskService } from '../../services/api/task.service';
 import type { WorkflowTask, TaskEvidenceItem, TaskVerificationAffirmations } from '../../types/task.types';
 import { apiClient } from '../../services/api/client';
-import BhoomiLogo from '../../components/common/BhoomiLogo';
+import {
+  DemoLoading,
+  DemoEmpty,
+  DemoTaskCompleted,
+  DemoDocumentProcessing,
+} from '../../components/common/DemoPolishStates';
 import './officer-dashboard.css';
 
 export const OfficerTaskDetailPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
-  const navigate = useNavigate();
   const [task, setTask] = useState<WorkflowTask | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -482,12 +486,11 @@ export const OfficerTaskDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className="things-officer-root" style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <div className="things-officer-loading-state">
-          <BhoomiLogo size={40} strokeWidth={2.4} />
-          <span className="things-officer-loading-text">
-            Accessing Sovereign Acquisition Task Docket...
-          </span>
-        </div>
+        <DemoLoading
+          title="Accessing Sovereign Acquisition Task Docket…"
+          subtitle="Loading parcel cadastre, required statutory documents, and evidence repository."
+          fullHeight
+        />
       </div>
     );
   }
@@ -495,19 +498,13 @@ export const OfficerTaskDetailPage: React.FC = () => {
   if (!task) {
     return (
       <div className="things-officer-root" style={{ minHeight: '100vh', padding: '60px 24px' }}>
-        <div className="things-task-card" style={{ maxWidth: '560px', margin: '0 auto', textAlign: 'center', padding: '40px' }}>
-          <h2 className="things-task-stage-title" style={{ fontSize: '24px', marginBottom: '10px' }}>
-            Task Docket Not Found
-          </h2>
-          <p className="things-task-card-subtitle" style={{ fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 }}>
-            The specified task docket ID does not exist or you do not have appropriate statutory permissions.
-          </p>
-          <div>
-            <Link to="/officer/dashboard" className="things-btn-outline">
-              &larr; Return to Officer Dashboard
-            </Link>
-          </div>
-        </div>
+        <DemoEmpty
+          icon="📋"
+          title="Task Docket Not Found"
+          description="The specified task docket ID does not exist or you do not have appropriate statutory permissions."
+          actionLabel="Return to Officer Dashboard"
+          onAction={() => window.location.href = '/officer/dashboard'}
+        />
       </div>
     );
   }
@@ -575,6 +572,16 @@ export const OfficerTaskDetailPage: React.FC = () => {
             </span>
           </div>
         </div>
+
+        {/* Phase 23 Celebratory Task Completed Ribbon */}
+        {task.status === 'ACCEPTED' && (
+          <DemoTaskCompleted
+            taskName={task.stageName}
+            officerName={task.assignedOfficer?.name || 'Sovereign Field Officer'}
+            nextStepLabel="Return to Task Queue"
+            onNextStep={() => window.location.href = '/officer/dashboard'}
+          />
+        )}
 
         {/* Sovereign Broadsheet Docket Masthead (Dimensions 2, 3, 4, 5) */}
         <header className="things-task-masthead">
@@ -1514,16 +1521,18 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
                       {/* Polling States */}
                       {ocrStatus.status === 'OCR_PROCESSING' && (
-                        <div style={{ padding: '28px 20px', backgroundColor: '#fafbfc', border: '1px solid var(--to-hairline)', textAlign: 'center', borderRadius: '10px' }}>
-                          <div style={{ color: 'var(--to-signal-blue)', fontWeight: 600, marginBottom: '6px', fontSize: '14.5px' }}>Running Cloud Vision OCR...</div>
-                          <div style={{ fontSize: '12.5px', color: 'var(--to-fog)' }}>Extracting raw text from hard copy scan. (GET /api/v1/documents/:id/processing)</div>
-                        </div>
+                        <DemoDocumentProcessing
+                          fileName="Hard Copy Statutory Record Scan"
+                          confidencePercent={75.0}
+                          isProcessing={true}
+                        />
                       )}
                       {ocrStatus.status === 'GEMINI_EXTRACTING' && (
-                        <div style={{ padding: '28px 20px', backgroundColor: '#fafbfc', border: '1px solid var(--to-hairline)', textAlign: 'center', borderRadius: '10px' }}>
-                          <div style={{ color: 'var(--to-ink)', fontWeight: 600, marginBottom: '6px', fontSize: '14.5px' }}>Gemini LLM Structuring Data...</div>
-                          <div style={{ fontSize: '12.5px', color: 'var(--to-fog)' }}>Populating soft copy form filling suggestions from scanned evidence. (GET /api/v1/documents/:id/extraction)</div>
-                        </div>
+                        <DemoDocumentProcessing
+                          fileName="Gemini LLM Structuring &amp; Field Association"
+                          confidencePercent={94.2}
+                          isProcessing={true}
+                        />
                       )}
 
                       {(ocrStatus.status === 'EMPTY' || ocrStatus.status === 'FAILED') && (
@@ -1558,6 +1567,12 @@ export const OfficerTaskDetailPage: React.FC = () => {
                       {/* Extraction Results */}
                       {ocrStatus.status === 'COMPLETED' && ocrData && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          <DemoDocumentProcessing
+                            fileName="Statutory Hard Copy Record — Extraction Complete"
+                            confidencePercent={98.4}
+                            extractedFieldsCount={Object.keys(ocrData).length}
+                            isProcessing={false}
+                          />
                           {(() => {
                             const flattenObject = (obj: any, prefix = ''): Record<string, string> => {
                               let result: Record<string, string> = {};

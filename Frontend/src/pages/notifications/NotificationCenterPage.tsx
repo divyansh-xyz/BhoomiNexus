@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import {
   NotificationService,
   type NotificationItem,
@@ -10,7 +9,6 @@ import BhoomiLogo from '../../components/common/BhoomiLogo';
 import './notifications.css';
 
 export const NotificationCenterPage: React.FC = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);

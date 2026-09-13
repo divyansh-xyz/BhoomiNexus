@@ -74,72 +74,147 @@ function generateDemoCohortParcels(nodeId: string): WorkflowNodeParcel[] {
     {
       nodeId,
       parcelId: 'parcel-demo-001',
-      parcelName: 'Parcel A',
+      parcelName: 'Parcel A (Rithala Sector 5)',
       surveyNumber: 'SV-101/A',
-      ulpin: '27-104-5829-1021',
+      ulpin: '07-104-5829-1021',
       ownerReference: 'Smt. Lakshmi Devi & Ors.',
-      village: 'Rampur Khas',
-      district: 'Bareilly',
-      state: 'Uttar Pradesh',
+      village: 'Rithala Urban',
+      district: 'Rithala',
+      state: 'Delhi',
       areaAcres: 3.45,
       areaHa: 1.40,
-      landType: 'AGRICULTURAL',
-      marketRatePerAcre: 1200000,
+      landType: 'COMMERCIAL',
+      marketRatePerAcre: 3500000,
       status: 'ASSIGNED',
       assignedAt: new Date().toISOString(),
     },
     {
       nodeId,
       parcelId: 'parcel-demo-002',
-      parcelName: 'Parcel B',
+      parcelName: 'Parcel B (Rithala Metro Corridor)',
       surveyNumber: 'SV-102/B',
-      ulpin: '27-104-5829-1022',
-      ownerReference: 'Shri Rajesh Kumar',
-      village: 'Rampur Khas',
-      district: 'Bareilly',
-      state: 'Uttar Pradesh',
+      ulpin: '07-104-5829-1022',
+      ownerReference: 'Shri Rajesh Kumar & Sons',
+      village: 'Rithala Extension',
+      district: 'Rithala',
+      state: 'Delhi',
       areaAcres: 1.80,
       areaHa: 0.73,
-      landType: 'AGRICULTURAL',
-      marketRatePerAcre: 1200000,
+      landType: 'COMMERCIAL',
+      marketRatePerAcre: 3500000,
       status: 'ASSIGNED',
       assignedAt: new Date().toISOString(),
     },
     {
       nodeId,
       parcelId: 'parcel-demo-003',
-      parcelName: 'Parcel C',
+      parcelName: 'Parcel C (Rohini-Rithala Abadi)',
       surveyNumber: 'SV-103/C',
-      ulpin: '27-104-5829-1023',
-      ownerReference: 'Shri Harish Chandra',
-      village: 'Devipura',
-      district: 'Bareilly',
-      state: 'Uttar Pradesh',
+      ulpin: '07-104-5829-1023',
+      ownerReference: 'Shri Harish Chandra Gupta',
+      village: 'Rithala Village',
+      district: 'Rithala',
+      state: 'Delhi',
       areaAcres: 4.20,
       areaHa: 1.70,
-      landType: 'COMMERCIAL',
-      marketRatePerAcre: 2000000,
+      landType: 'RESIDENTIAL',
+      marketRatePerAcre: 4200000,
       status: 'ASSIGNED',
       assignedAt: new Date().toISOString(),
     },
     {
       nodeId,
       parcelId: 'parcel-demo-004',
-      parcelName: 'Parcel D',
+      parcelName: 'Parcel D (Rithala Logistics Depot)',
       surveyNumber: 'SV-104/D',
-      ulpin: '27-104-5829-1024',
-      ownerReference: 'M/s Kissan Agro Producer Co.',
-      village: 'Devipura',
-      district: 'Bareilly',
-      state: 'Uttar Pradesh',
+      ulpin: '07-104-5829-1024',
+      ownerReference: 'M/s Kissan & Logistics Agro Producer Co.',
+      village: 'Rithala Industrial Zone',
+      district: 'Rithala',
+      state: 'Delhi',
       areaAcres: 2.65,
       areaHa: 1.07,
+      landType: 'INDUSTRIAL',
+      marketRatePerAcre: 4800000,
+      status: 'ASSIGNED',
+      assignedAt: new Date().toISOString(),
+    },
+    {
+      nodeId,
+      parcelId: 'parcel-demo-005',
+      parcelName: 'Parcel E (Rithala West Corridor)',
+      surveyNumber: 'SV-105/E',
+      ulpin: '07-104-5829-1025',
+      ownerReference: 'Chaudhary Mahender Singh & Brothers',
+      village: 'Rithala West',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 5.10,
+      areaHa: 2.06,
       landType: 'AGRICULTURAL',
-      marketRatePerAcre: 1200000,
+      marketRatePerAcre: 3100000,
+      status: 'ASSIGNED',
+      assignedAt: new Date().toISOString(),
+    },
+    {
+      nodeId,
+      parcelId: 'parcel-demo-006',
+      parcelName: 'Parcel F (DDA Rithala Transport Hub)',
+      surveyNumber: 'SV-106/F',
+      ulpin: '07-104-5829-1026',
+      ownerReference: 'Delhi Development Authority (DDA)',
+      village: 'Rithala Sector 24',
+      district: 'Rithala',
+      state: 'Delhi',
+      areaAcres: 3.80,
+      areaHa: 1.54,
+      landType: 'COMMERCIAL',
+      marketRatePerAcre: 5200000,
       status: 'ASSIGNED',
       assignedAt: new Date().toISOString(),
     },
   ];
+}
+
+/**
+ * Statutory Invariant: Immediate children's parcel sum MUST equal father's parcel count.
+ * Propagates parcel counts bottom-up from leaf nodes to parent/ancestor nodes across DAG edges.
+ */
+export function enforceHierarchyParcelCounts(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
+  const childrenMap = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (!childrenMap.has(edge.sourceNodeId)) {
+      childrenMap.set(edge.sourceNodeId, []);
+    }
+    childrenMap.get(edge.sourceNodeId)!.push(edge.targetNodeId);
+  }
+
+  let currentNodes = [...nodes];
+  for (let iter = 0; iter < 10; iter++) {
+    const nodeMap = new Map(currentNodes.map((n) => [n.id, n]));
+    let changed = false;
+
+    currentNodes = currentNodes.map((node) => {
+      const childIds = childrenMap.get(node.id);
+      if (!childIds || childIds.length === 0) {
+        return node;
+      }
+      const childrenSum = childIds.reduce((sum, cid) => {
+        const child = nodeMap.get(cid);
+        return sum + (child?.parcelCount || 0);
+      }, 0);
+
+      if (node.parcelCount !== childrenSum) {
+        changed = true;
+        return { ...node, parcelCount: childrenSum };
+      }
+      return node;
+    });
+
+    if (!changed) break;
+  }
+
+  return currentNodes;
 }
 
 export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
@@ -186,26 +261,15 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         // Initialize default starting DAG if empty
         currentGraph = await v2WorkflowService.initializeWorkflow(projectId);
       }
-      const loadedNodes = (currentGraph.nodes || []).map((node, index) => {
-        if (index === 0 && (node.parcelCount === undefined || node.parcelCount === 0)) {
-          return { ...node, parcelCount: 4 };
-        }
-        return node;
-      });
-      setGraph({ ...currentGraph, nodes: loadedNodes });
-      setNodes(loadedNodes);
-      setEdges(currentGraph.edges || []);
-      if (loadedNodes.length > 0) {
-        const rootId = loadedNodes[0].id;
-        setNodeParcelsMap((prev) => {
-          if (!prev[rootId] || prev[rootId].length === 0) {
-            return { ...prev, [rootId]: generateDemoCohortParcels(rootId) };
-          }
-          return prev;
-        });
-        if (!selectedNodeId) {
-          setSelectedNodeId(rootId);
-        }
+      const rawNodes = currentGraph.nodes || [];
+      const rawEdges = currentGraph.edges || [];
+      const balancedNodes = enforceHierarchyParcelCounts(rawNodes, rawEdges);
+
+      setGraph({ ...currentGraph, nodes: balancedNodes, edges: rawEdges });
+      setNodes(balancedNodes);
+      setEdges(rawEdges);
+      if (balancedNodes.length > 0 && !selectedNodeId) {
+        setSelectedNodeId(balancedNodes[0].id);
       }
     } catch (err: any) {
       console.error('[useWorkflowGraph] Failed to load workflow graph', err);
@@ -229,32 +293,15 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         if (parcels && parcels.length > 0) {
           setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: parcels }));
         } else {
-          // If first node or default cohort, seed with 4 acceptance demo parcels
-          const isInitialCohort = nodes.findIndex((n) => n.id === selectedNodeId) === 0;
-          if (isInitialCohort) {
-            setNodeParcelsMap((prev) => ({
-              ...prev,
-              [selectedNodeId]: generateDemoCohortParcels(selectedNodeId),
-            }));
-          } else {
-            setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: [] }));
-          }
+          setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: [] }));
         }
       } catch (err) {
         console.warn(`[useWorkflowGraph] Error fetching parcels for node ${selectedNodeId}`, err);
-        const isInitialCohort = nodes.findIndex((n) => n.id === selectedNodeId) === 0;
-        if (isInitialCohort) {
-          setNodeParcelsMap((prev) => ({
-            ...prev,
-            [selectedNodeId]: generateDemoCohortParcels(selectedNodeId),
-          }));
-        } else {
-          setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: [] }));
-        }
+        setNodeParcelsMap((prev) => ({ ...prev, [selectedNodeId]: [] }));
       }
     }
     fetchParcels();
-  }, [projectId, selectedNodeId, nodeParcelsMap, nodes]);
+  }, [projectId, selectedNodeId, nodeParcelsMap]);
 
   const selectNode = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
@@ -302,12 +349,52 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       }
       setIsSaving(true);
       setError(null);
+
+      // Optimistic update: immediately update canvas node state so edits reflect instantly
+      setNodes((prev) => {
+        const next = prev.map((n) => {
+          if (n.id === nodeId) {
+            const merged = { ...n, ...updates };
+            if (updates.parcelCount === undefined && n.parcelCount !== undefined) {
+              merged.parcelCount = n.parcelCount;
+            }
+            return merged;
+          }
+          return n;
+        });
+        return enforceHierarchyParcelCounts(next, edges);
+      });
+
       try {
         const updated = await v2WorkflowService.updateNode(projectId, nodeId, updates);
-        setNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, ...updated } : n)));
+        setNodes((prev) => {
+          const next = prev.map((n) => {
+            if (n.id === nodeId) {
+              const merged = { ...n, ...updated };
+              if (updates.parcelCount === undefined && n.parcelCount !== undefined) {
+                merged.parcelCount = n.parcelCount;
+              }
+              return merged;
+            }
+            return n;
+          });
+          return enforceHierarchyParcelCounts(next, edges);
+        });
         setGraph((prev) =>
           prev
-            ? { ...prev, nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, ...updated } : n)) }
+            ? {
+                ...prev,
+                nodes: prev.nodes.map((n) => {
+                  if (n.id === nodeId) {
+                    const merged = { ...n, ...updated };
+                    if (updates.parcelCount === undefined && n.parcelCount !== undefined) {
+                      merged.parcelCount = n.parcelCount;
+                    }
+                    return merged;
+                  }
+                  return n;
+                }),
+              }
             : null
         );
         setIsDirty(true);
@@ -319,7 +406,7 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setIsSaving(false);
       }
     },
-    [projectId, isLocked, handleMutationError]
+    [projectId, isLocked, edges, handleMutationError]
   );
 
   /**
@@ -337,22 +424,23 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       setIsSaving(true);
       setError(null);
       try {
-        // Collect descendants to remove from state
         const descendantIds = getDescendantNodeIds(nodeId, edges);
         const nodeIdsToRemove = new Set([nodeId, ...Array.from(descendantIds)]);
-
-        // Find deterministic sibling for parcel merge
         const sibling = findDeterministicSiblingNode(nodeId, nodes, edges);
 
         await v2WorkflowService.deleteNode(projectId, nodeId);
 
-        // Update local state
+        // Filter edges referencing removed nodes
+        const remainingEdges = edges.filter(
+          (e) => !nodeIdsToRemove.has(e.sourceNodeId) && !nodeIdsToRemove.has(e.targetNodeId)
+        );
+
+        // Update local state and balance hierarchy
         setNodes((prev) => {
-          return prev
+          const filtered = prev
             .filter((n) => !nodeIdsToRemove.has(n.id))
             .map((n) => {
               if (sibling && n.id === sibling.id) {
-                // Sibling receives the parcel cohort count
                 const deletedNode = nodes.find((x) => x.id === nodeId);
                 return {
                   ...n,
@@ -361,14 +449,10 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
               }
               return n;
             });
+          return enforceHierarchyParcelCounts(filtered, remainingEdges);
         });
 
-        // Filter edges referencing removed nodes
-        setEdges((prev) =>
-          prev.filter(
-            (e) => !nodeIdsToRemove.has(e.sourceNodeId) && !nodeIdsToRemove.has(e.targetNodeId)
-          )
-        );
+        setEdges(remainingEdges);
 
         if (selectedNodeId && nodeIdsToRemove.has(selectedNodeId)) {
           setSelectedNodeId(sibling ? sibling.id : null);
@@ -422,8 +506,10 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
           edgeLabel,
         });
 
-        setEdges((prev) => [...prev, newEdge]);
-        setGraph((prev) => (prev ? { ...prev, edges: [...prev.edges, newEdge] } : null));
+        const nextEdges = [...edges, newEdge];
+        setEdges(nextEdges);
+        setNodes((prev) => enforceHierarchyParcelCounts(prev, nextEdges));
+        setGraph((prev) => (prev ? { ...prev, edges: nextEdges } : null));
         setIsDirty(true);
         return newEdge;
       } catch (err: any) {
@@ -450,8 +536,10 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       setError(null);
       try {
         await v2WorkflowService.deleteEdge(projectId, edgeId);
-        setEdges((prev) => prev.filter((e) => e.id !== edgeId));
-        setGraph((prev) => (prev ? { ...prev, edges: prev.edges.filter((e) => e.id !== edgeId) } : null));
+        const nextEdges = edges.filter((e) => e.id !== edgeId);
+        setEdges(nextEdges);
+        setNodes((prev) => enforceHierarchyParcelCounts(prev, nextEdges));
+        setGraph((prev) => (prev ? { ...prev, edges: nextEdges } : null));
         setIsDirty(true);
         return true;
       } catch (err: any) {
@@ -461,7 +549,7 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setIsSaving(false);
       }
     },
-    [projectId, isLocked, handleMutationError]
+    [projectId, edges, isLocked, handleMutationError]
   );
 
   /**
@@ -479,10 +567,11 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       try {
         const result = await v2WorkflowService.splitNode(projectId, nodeId, { branchNames, unitName });
         if (result && result.nodes) {
-          setNodes(result.nodes);
-          setEdges(result.edges);
+          const balanced = enforceHierarchyParcelCounts(result.nodes, result.edges || edges);
+          setNodes(balanced);
+          setEdges(result.edges || edges);
           setGraph((prev) =>
-            prev ? { ...prev, nodes: result.nodes, edges: result.edges } : null
+            prev ? { ...prev, nodes: balanced, edges: result.edges || edges } : null
           );
         } else {
           await loadGraph();
@@ -496,7 +585,7 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setIsSaving(false);
       }
     },
-    [projectId, loadGraph, isLocked, handleMutationError]
+    [projectId, edges, loadGraph, isLocked, handleMutationError]
   );
 
   /**
@@ -541,9 +630,9 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         };
       });
 
-      // Update node parcel counts
-      setNodes((prev) =>
-        prev.map((n) => {
+      // Update node parcel counts and enforce hierarchy
+      setNodes((prev) => {
+        const updated = prev.map((n) => {
           if (n.id === sourceNodeId) {
             return { ...n, parcelCount: Math.max(0, (n.parcelCount || 0) - parcelIds.length) };
           }
@@ -551,14 +640,15 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
             return { ...n, parcelCount: (n.parcelCount || 0) + parcelIds.length };
           }
           return n;
-        })
-      );
+        });
+        return enforceHierarchyParcelCounts(updated, edges);
+      });
 
       setIsDirty(true);
       setIsSaving(false);
       return true;
     },
-    [projectId, isLocked]
+    [projectId, edges, isLocked]
   );
 
   /**
@@ -652,10 +742,11 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       if (res.nodes.length > 0) {
         const rootId = res.nodes[0].id;
         setSelectedNodeId(rootId);
-        setNodeParcelsMap((prev) => ({
-          ...prev,
+        setNodeParcelsMap({
           [rootId]: generateDemoCohortParcels(rootId),
-        }));
+        });
+      } else {
+        setNodeParcelsMap({});
       }
     } catch (err: any) {
       handleMutationError(err, 'Failed to reset workflow graph');

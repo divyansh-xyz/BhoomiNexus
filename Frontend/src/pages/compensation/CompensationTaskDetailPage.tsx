@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { compensationV2Service } from '../../services/api/compensationV2.service';
 import type { CompensationRecord } from '../../types/workflowV2.types';
@@ -9,7 +9,6 @@ import './compensation.css';
 
 export const CompensationTaskDetailPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [task, setTask] = useState<WorkflowTask | null>(null);
@@ -55,7 +54,6 @@ export const CompensationTaskDetailPage: React.FC = () => {
       setTask(currentTask);
 
       // 2. Fetch compensation record using GET /api/v1/compensation/records/:recordId
-      const parcelId = currentTask.parcel?.id || currentTask.id;
       // Look up by taskId or parcelId
       const compRecord = await compensationV2Service.getRecord(tId);
       if (compRecord) {
