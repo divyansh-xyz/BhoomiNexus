@@ -113,9 +113,8 @@ export const PossessionDashboardPage: React.FC = () => {
     return matchesStatus && matchesQuery;
   });
 
-  // Find Demo Parcel 1 and Demo Parcel 2 for live display
+  // Find Demo Parcel 1 for live display
   const demoRecord1 = records.find((r) => r.parcelId === '07-104-5829-1021' || r.parcelId === 'MH-PUN-HAV-084/2A') || records[0];
-  const demoRecord2 = records.find((r) => r.parcelId === '07-104-5829-1022' || r.parcelId === 'MH-PUN-HAV-084/2B') || records[1];
   const isParcel1Completed = demoRecord1?.status === 'POSSESSION_TAKEN' || demoRecord1?.status === 'COMPLETED';
 
   return (
@@ -166,52 +165,60 @@ export const PossessionDashboardPage: React.FC = () => {
       )}
 
       {/* Acceptance Demo Dual-Parcel Callout Banner */}
-      <div className="poss-direct-banner">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f766e' }}>
-              Phase 14 Acceptance Demonstration Status
-            </span>
-            <span style={{ fontSize: '11px', color: '#115e59' }}>
-              (Section 17 Direct Execution: No Second Approval Step)
-            </span>
+      {records.length === 0 ? (
+        <div className="poss-direct-banner" style={{ background: '#f8fafc', borderColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ fontSize: '24px' }}>⏳</div>
+            <div>
+              <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', marginBottom: '2px' }}>
+                Awaiting Acquisition &amp; Compensation Clearance
+              </div>
+              <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+                The Processing Officer has not yet approved the acquisition stage. Only land parcels that complete acquisition clearance will be routed to this possession docket.
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', color: '#134e4a' }}>
-            <span>
-              <strong>Demo Parcel 1</strong> (<code>{demoRecord1?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord1.parcelDetails.khasraNumber} • ${demoRecord1.parcelId}` : '07-104-5829-1021'}</code>):{' '}
-              <span className={`poss-badge ${isParcel1Completed ? 'poss-badge-completed' : 'poss-badge-scheduled'}`}>
-                {isParcel1Completed ? 'POSSESSION COMPLETED' : demoRecord1?.status?.replace('_', ' ') || 'SCHEDULED'}
-              </span>
-              {isParcel1Completed && ' (Vested under Sec 38)'}
-            </span>
-            <span style={{ color: '#99f6e4' }}>|</span>
-            <span>
-              <strong>Demo Parcel 2</strong> (<code>{demoRecord2?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord2.parcelDetails.khasraNumber} • ${demoRecord2.parcelId}` : '07-104-5829-1022'}</code>):{' '}
-              <span className="poss-badge poss-badge-pending">
-                {demoRecord2?.status || 'PENDING'}
-              </span>
-              {' (Remains Pending Demarcation)'}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Link
-            to="/possession/tasks/TASK-POSS-101-1"
-            className="poss-btn poss-btn-teal"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
-          >
-            Inspect Demo Parcel 1 &rarr;
-          </Link>
-          <Link
-            to="/possession/tasks/TASK-POSS-101-2"
+            to="/officer/dashboard"
             className="poss-btn poss-btn-outline"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
+            style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}
           >
-            Inspect Demo Parcel 2 &rarr;
+            View Officer Docket &rarr;
           </Link>
         </div>
-      </div>
+      ) : (
+        <div className="poss-direct-banner">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f766e' }}>
+                Acquisition Stage Cleared &bull; Field Demarcation Pipeline Active
+              </span>
+              <span style={{ fontSize: '11px', color: '#047857', fontWeight: 600 }}>
+                ✓ {records.length} Land Parcel(s) Cleared for Demarcation
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', color: '#134e4a' }}>
+              <span>
+                <strong>Cleared Parcel</strong> (<code>{demoRecord1?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord1.parcelDetails.khasraNumber} • ${demoRecord1.parcelId}` : '07-104-5829-1021'}</code>):{' '}
+                <span className={`poss-badge ${isParcel1Completed ? 'poss-badge-completed' : 'poss-badge-scheduled'}`}>
+                  {isParcel1Completed ? 'POSSESSION COMPLETED' : demoRecord1?.status?.replace('_', ' ') || 'SCHEDULED'}
+                </span>
+                {isParcel1Completed && ' (Vested under Sec 38)'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link
+              to="/possession/tasks/TASK-POSS-101-1"
+              className="poss-btn poss-btn-teal"
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+            >
+              Inspect Cleared Parcel &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Live KPI Cards */}
       <div className="poss-kpi-grid">
@@ -268,77 +275,89 @@ export const PossessionDashboardPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {tasks.map((t) => {
-            const linkedRec = records.find((r) => r.taskId === t.id || r.parcelId === t.parcel?.id);
-            const isParcel1 = t.id === 'TASK-POSS-101-1';
-            const isCompleted = linkedRec?.status === 'POSSESSION_TAKEN' || linkedRec?.status === 'COMPLETED';
-
-            return (
-              <div
-                key={t.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px 20px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '10px',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#f0fdfa', color: '#0d9488', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700 }}>
-                    {isParcel1 ? '1' : '2'}
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
-                        {t.parcel?.khasraNumber ? `Parcel ${t.parcel.khasraNumber}` : t.id}
-                      </span>
-                      <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#64748b' }}>
-                        ({t.parcel?.id || t.id})
-                      </span>
-                      <span
-                        className={`poss-badge ${
-                          isCompleted
-                            ? 'poss-badge-completed'
-                            : linkedRec?.status === 'INSPECTION_SCHEDULED'
-                            ? 'poss-badge-scheduled'
-                            : 'poss-badge-pending'
-                        }`}
-                      >
-                        {isCompleted ? 'POSSESSION COMPLETED' : linkedRec?.status.replace('_', ' ') || 'PENDING'}
-                      </span>
-                      {isParcel1 ? (
-                        <span style={{ fontSize: '11px', background: '#ccfbf1', color: '#0f766e', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                          Acceptance Demo Parcel 1
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                          Acceptance Demo Parcel 2 (Pending)
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '12.5px', color: '#475569' }}>
-                      Village: <strong>{t.parcel?.village || 'Haveli'}</strong> • Area: <strong>{t.parcel?.areaAcres || 2.45} Acres</strong> • Due: {t.dueDate}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Link
-                    to={`/possession/tasks/${t.id}`}
-                    className="poss-btn poss-btn-teal"
-                    style={{ padding: '6px 14px', fontSize: '12px' }}
-                  >
-                    Execute Possession Handover &rarr;
-                  </Link>
-                </div>
+          {tasks.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '36px 20px', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>📋</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                No Active Field Demarcation Tasks
               </div>
-            );
-          })}
+              <div style={{ fontSize: '12.5px', color: '#64748b', maxWidth: '480px', margin: '0 auto' }}>
+                Possession tasks appear automatically when land parcels are approved in the Acquisition branch and cleared for physical handover.
+              </div>
+            </div>
+          ) : (
+            tasks.map((t) => {
+              const linkedRec = records.find((r) => r.taskId === t.id || r.parcelId === t.parcel?.id);
+              const isParcel1 = t.id === 'TASK-POSS-101-1';
+              const isCompleted = linkedRec?.status === 'POSSESSION_TAKEN' || linkedRec?.status === 'COMPLETED';
+
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px 20px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#f0fdfa', color: '#0d9488', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700 }}>
+                      {isParcel1 ? '1' : '2'}
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                          {t.parcel?.khasraNumber ? `Parcel ${t.parcel.khasraNumber}` : t.id}
+                        </span>
+                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#64748b' }}>
+                          ({t.parcel?.id || t.id})
+                        </span>
+                        <span
+                          className={`poss-badge ${
+                            isCompleted
+                              ? 'poss-badge-completed'
+                              : linkedRec?.status === 'INSPECTION_SCHEDULED'
+                              ? 'poss-badge-scheduled'
+                              : 'poss-badge-pending'
+                          }`}
+                        >
+                          {isCompleted ? 'POSSESSION COMPLETED' : linkedRec?.status.replace('_', ' ') || 'PENDING'}
+                        </span>
+                        {isParcel1 ? (
+                          <span style={{ fontSize: '11px', background: '#ccfbf1', color: '#0f766e', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                            Acceptance Demo Parcel 1
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                            Acceptance Demo Parcel 2 (Pending)
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '12.5px', color: '#475569' }}>
+                        Village: <strong>{t.parcel?.village || 'Haveli'}</strong> • Area: <strong>{t.parcel?.areaAcres || 2.45} Acres</strong> • Due: {t.dueDate}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Link
+                      to={`/possession/tasks/${t.id}`}
+                      className="poss-btn poss-btn-teal"
+                      style={{ padding: '6px 14px', fontSize: '12px' }}
+                    >
+                      Execute Possession Handover &rarr;
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -408,7 +427,20 @@ export const PossessionDashboardPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((r) => {
+              {filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '8px' }}>📍</div>
+                    <div style={{ fontWeight: 600, fontSize: '13.5px', color: '#334155' }}>
+                      No Possession Records Available
+                    </div>
+                    <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                      Only land parcels that have completed acquisition clearance appear in this register.
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredRecords.map((r) => {
                 const isTaken = r.status === 'POSSESSION_TAKEN' || r.status === 'COMPLETED';
 
                 return (
@@ -481,7 +513,7 @@ export const PossessionDashboardPage: React.FC = () => {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

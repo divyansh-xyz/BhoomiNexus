@@ -136,6 +136,14 @@ export const taskService = {
       t.status = 'ACCEPTED';
       t.completedAt = new Date().toISOString();
       updateCachedTask(t);
+      try {
+        localStorage.setItem('bhoomi_acq_branch_completed', 'true');
+        if (t.projectId) {
+          localStorage.setItem(`bhoomi_acq_completed_${t.projectId}`, 'true');
+        }
+        const parcelUlpin = t.parcel?.ulpin || t.parcel?.id || '07-104-5829-1021';
+        localStorage.setItem('bhoomi_completed_acq_parcels', JSON.stringify([parcelUlpin]));
+      } catch (e) {}
       return {
         success: true,
         message: `Task ${taskId} affirmed and statutory clearance completed.`,
@@ -461,6 +469,26 @@ function getActiveProjectInfo() {
 function initCache() {
   const proj = getActiveProjectInfo();
 
+  // Try reading from localStorage first to preserve status updates (like ACCEPTED) across page navigations
+  try {
+    const raw = localStorage.getItem('bhoomi_acq_tasks_cache');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && (Object.values(parsed)[0] as any)?.projectId === proj.id) {
+        runtimeTasksCache = parsed;
+        // Ensure third document (req-doc-3 / Jamabandi) is removed from cached tasks
+        for (const tId in runtimeTasksCache) {
+          if (runtimeTasksCache[tId].requiredDocuments) {
+            runtimeTasksCache[tId].requiredDocuments = runtimeTasksCache[tId].requiredDocuments.filter(
+              (d) => d.id !== 'req-doc-3' && !d.name.toLowerCase().includes('khatauni') && !d.name.toLowerCase().includes('jamabandi')
+            );
+          }
+        }
+        return;
+      }
+    }
+  } catch (e) {}
+
   // If cache already belongs to the current active project, preserve modifications
   if (runtimeTasksCache && Object.values(runtimeTasksCache)[0]?.projectId === proj.id) {
     return;
@@ -523,7 +551,6 @@ function initCache() {
     requiredDocuments: [
       { id: 'req-doc-1', name: 'Form 11 Statutory Valuation Schedule.pdf', type: 'Valuation Ledger', mandatory: true, status: 'UPLOADED' },
       { id: 'req-doc-2', name: 'Section 19 Final Acquisition Gazette Extract.pdf', type: 'Gazette', mandatory: true, status: 'MISSING' },
-      { id: 'req-doc-3', name: 'Jamabandi / Record of Rights (Khatauni).pdf', type: 'Land Schedule', mandatory: true, status: 'VERIFIED' },
     ],
     evidence: [
       {
@@ -579,12 +606,18 @@ function initCache() {
   runtimeTasksCache = {
     [taskA.id]: taskA,
   };
+  try {
+    localStorage.setItem('bhoomi_acq_tasks_cache', JSON.stringify(runtimeTasksCache));
+  } catch (e) {}
 }
 
 function updateCachedTask(task: WorkflowTask) {
   initCache();
   if (runtimeTasksCache) {
     runtimeTasksCache[task.id] = { ...task };
+    try {
+      localStorage.setItem('bhoomi_acq_tasks_cache', JSON.stringify(runtimeTasksCache));
+    } catch (e) {}
   }
 }
 

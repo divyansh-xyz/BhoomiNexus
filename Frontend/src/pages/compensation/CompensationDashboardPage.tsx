@@ -154,9 +154,8 @@ export const CompensationDashboardPage: React.FC = () => {
     return matchesStatus && matchesQuery;
   });
 
-  // Find Demo Parcel 1 and Demo Parcel 2 for live display
+  // Find Demo Parcel 1 for live display
   const demoRecord1 = records.find((r) => r.parcelId === '07-104-5829-1021' || r.parcelId === 'MH-PUN-HAV-084/2A') || records[0];
-  const demoRecord2 = records.find((r) => r.parcelId === '07-104-5829-1022' || r.parcelId === 'MH-PUN-HAV-084/2B') || records[1];
 
   return (
     <div className="comp-workspace">
@@ -212,55 +211,63 @@ export const CompensationDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Acceptance Demo Dual-Parcel Callout Banner */}
-      <div className="comp-demo-banner">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
-              Phase 13 Acceptance Demonstration Status
-            </span>
-            <span style={{ fontSize: '11px', color: '#64748b' }}>
-              (Section 16 RFCTLARR Lifecycle)
-            </span>
+      {/* Acceptance Demo Callout Banner */}
+      {records.length === 0 ? (
+        <div className="comp-demo-banner" style={{ background: '#f8fafc', borderColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ fontSize: '24px' }}>⏳</div>
+            <div>
+              <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a', marginBottom: '2px' }}>
+                Awaiting Acquisition Branch Completion
+              </div>
+              <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+                The Processing Officer (Ananya Patel) has not yet approved the acquisition stage. Only land parcels that complete acquisition clearance will be routed to this compensation queue.
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', color: '#334155' }}>
-            <span>
-              <strong>Demo Parcel 1</strong> (<code>{demoRecord1?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord1.parcelDetails.khasraNumber} • ${demoRecord1.parcelId}` : '07-104-5829-1021'}</code>):{' '}
-              <span className={`comp-badge ${demoRecord1?.status === 'DISBURSED' ? 'comp-badge-paid' : demoRecord1?.status === 'APPROVED' ? 'comp-badge-approved' : 'comp-badge-assessed'}`}>
-                {demoRecord1?.status || 'ASSESSED'}
-              </span>
-              {demoRecord1?.status === 'DISBURSED' && ' (Paid via PFMS)'}
-            </span>
-            <span style={{ color: '#cbd5e1' }}>|</span>
-            <span>
-              <strong>Demo Parcel 2</strong> (<code>{demoRecord2?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord2.parcelDetails.khasraNumber} • ${demoRecord2.parcelId}` : '07-104-5829-1022'}</code>):{' '}
-              <span className="comp-badge comp-badge-pending">
-                {demoRecord2?.status || 'ASSESSED (PENDING)'}
-              </span>
-              {' (Remains Pending Disbursal)'}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Link
-            to="/compensation/tasks/TASK-COMP-101-1"
-            className="comp-btn comp-btn-primary"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
-          >
-            Inspect Demo Parcel 1 &rarr;
-          </Link>
-          <Link
-            to="/compensation/tasks/TASK-COMP-101-2"
+            to="/officer/dashboard"
             className="comp-btn comp-btn-outline"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
+            style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}
           >
-            Inspect Demo Parcel 2 &rarr;
+            View Officer Docket &rarr;
           </Link>
         </div>
-      </div>
+      ) : (
+        <div className="comp-demo-banner">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+                Acquisition Stage Cleared &bull; Compensation Pipeline Active
+              </span>
+              <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>
+                ✓ {records.length} Land Parcel(s) Cleared by Processing Officer
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', color: '#334155' }}>
+              <span>
+                <strong>Cleared Parcel</strong> (<code>{demoRecord1?.parcelDetails?.khasraNumber ? `Khasra ${demoRecord1.parcelDetails.khasraNumber} • ${demoRecord1.parcelId}` : '07-104-5829-1021'}</code>):{' '}
+                <span className={`comp-badge ${demoRecord1?.status === 'DISBURSED' ? 'comp-badge-paid' : demoRecord1?.status === 'APPROVED' ? 'comp-badge-approved' : 'comp-badge-assessed'}`}>
+                  {demoRecord1?.status || 'ASSESSED'}
+                </span>
+                {demoRecord1?.status === 'DISBURSED' && ' (Paid via PFMS)'}
+              </span>
+            </div>
+          </div>
 
-      {/* KPI Cards: Dynamic Totals reflecting both Demo Parcel 1 and Demo Parcel 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link
+              to="/compensation/tasks/TASK-COMP-101-1"
+              className="comp-btn comp-btn-primary"
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+            >
+              Inspect Cleared Parcel &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* KPI Cards: Dynamic Totals reflecting Cleared Acquisition Parcels */}
       <div className="comp-kpi-grid">
         <div className="comp-kpi-card">
           <div className="comp-kpi-label">Total Assessed</div>
@@ -317,7 +324,16 @@ export const CompensationDashboardPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {tasks.map((t) => {
+          {tasks.length === 0 ? (
+            <div style={{ padding: '36px 20px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>📋</div>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '4px' }}>No Compensation Tasks Available</div>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                Parcels must complete the Acquisition Verification &amp; Final Clearance branch before appearing in this queue.
+              </p>
+            </div>
+          ) : (
+            tasks.map((t) => {
             const linkedRec = records.find((r) => r.taskId === t.id || r.parcelId === t.parcel?.id);
             const isParcel1 = t.id === 'TASK-COMP-101-1';
             return (
@@ -381,7 +397,8 @@ export const CompensationDashboardPage: React.FC = () => {
                 </div>
               </div>
             );
-          })}
+          })
+        )}
         </div>
       </div>
 
@@ -454,7 +471,20 @@ export const CompensationDashboardPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((r) => {
+              {filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '8px' }}>📑</div>
+                    <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '4px' }}>No Compensation Records Available</div>
+                    <div style={{ fontSize: '12.5px' }}>
+                      {records.length === 0
+                        ? 'Parcels will be transferred to this ledger once the Processing Officer approves the Acquisition stage.'
+                        : 'No records match the active search or status filter.'}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredRecords.map((r) => {
                 const isPaid = r.status === 'DISBURSED';
                 const approvedAmt = r.approvedAmount || 0;
                 const paidAmt = r.paidAmount || 0;
@@ -539,7 +569,8 @@ export const CompensationDashboardPage: React.FC = () => {
                     </td>
                   </tr>
                 );
-              })}
+              })
+            )}
             </tbody>
           </table>
         </div>

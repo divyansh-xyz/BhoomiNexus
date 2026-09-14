@@ -221,6 +221,9 @@ export const CreateProjectPage: React.FC = () => {
       localStorage.setItem('bhoomi_demo_active_project_title', newProject.title);
       localStorage.setItem('bhoomi_demo_active_project_code', newProject.code);
       localStorage.setItem('bhoomi_demo_active_district', newProject.district || 'Rithala');
+      localStorage.removeItem('bhoomi_acq_branch_completed');
+      localStorage.removeItem('bhoomi_completed_acq_parcels');
+      localStorage.removeItem('bhoomi_acq_tasks_cache');
 
       // Navigate to project detail view
       navigate(`/projects/${newProject.id}`);

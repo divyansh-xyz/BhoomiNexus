@@ -341,12 +341,51 @@ function calculateDashboardMetrics(records: PossessionRecord[]): PossessionDashb
   };
 }
 
+export function isAcquisitionBranchCompleted(projectId?: string): boolean {
+  if (localStorage.getItem('bhoomi_acq_branch_completed') === 'true') return true;
+  const activeCustomId = localStorage.getItem('bhoomi_demo_active_project_id');
+  const pId = projectId || activeCustomId;
+  if (pId && localStorage.getItem(`bhoomi_acq_completed_${pId}`) === 'true') return true;
+
+  try {
+    const raw = localStorage.getItem('bhoomi_acq_tasks_cache');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Object.values(parsed).some((t: any) => t.status === 'ACCEPTED')) {
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+export function getCompletedAcquisitionParcels(): string[] {
+  if (!isAcquisitionBranchCompleted()) return [];
+  try {
+    const raw = localStorage.getItem('bhoomi_completed_acq_parcels');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return ['07-104-5829-1021'];
+}
+
 export const possessionV2Service = {
   /**
    * GET /api/v1/possession/dashboard
    * Spec Line 291: Returns Possession Officer work metrics and authorized possession summary.
    */
   async getDashboard(): Promise<PossessionDashboardData> {
+    if (!isAcquisitionBranchCompleted()) {
+      return {
+        totalParcels: 0,
+        possessionTaken: 0,
+        possessionPending: 0,
+        inspectionsScheduled: 0,
+        disputedParcels: 0,
+      };
+    }
     try {
       const res = await apiClient.get<any>('/possession/dashboard');
       const data = res.data?.data || res.data;
@@ -363,7 +402,10 @@ export const possessionV2Service = {
     } catch (err) {
       console.warn('[possessionV2Service] GET /api/v1/possession/dashboard using local state:', err);
     }
-    const records = getLocalRecords();
+    const allowed = getCompletedAcquisitionParcels();
+    const records = getLocalRecords().filter(
+      (r) => allowed.includes(r.parcelId) || allowed.includes(r.parcelDetails?.ulpin || '')
+    );
     return calculateDashboardMetrics(records);
   },
 
@@ -372,6 +414,10 @@ export const possessionV2Service = {
    * Spec Line 294: Returns possession tasks assigned to the authenticated Possession Officer.
    */
   async getMyTasks(): Promise<WorkflowTask[]> {
+    if (!isAcquisitionBranchCompleted()) {
+      return [];
+    }
+
     const activeCustomId = localStorage.getItem('bhoomi_demo_active_project_id');
     const activeCustomCode = localStorage.getItem('bhoomi_demo_active_project_code');
     const activeCustomTitle = localStorage.getItem('bhoomi_demo_active_project_title');
@@ -398,10 +444,15 @@ export const possessionV2Service = {
       list = getLocalTasks();
     }
 
+    const allowed = getCompletedAcquisitionParcels();
+
     // Isolate tasks strictly to the active demo project so only this project is visible
     const filtered = list.filter((t) => {
       const pId = t.projectId || '';
       const pCode = t.projectCode || '';
+      const parcelUlpin = t.parcel?.ulpin || t.parcel?.id || '';
+      if (!allowed.includes(parcelUlpin)) return false;
+
       if (activeCustomId || activeCustomCode) {
         return (activeCustomId && pId === activeCustomId) || (activeCustomCode && pCode === activeCustomCode);
       }
@@ -442,6 +493,10 @@ export const possessionV2Service = {
    * Spec Line 297: Returns an authorized possession record and its evidence/status context.
    */
   async getRecord(recordId: string): Promise<PossessionRecord | null> {
+    if (!isAcquisitionBranchCompleted()) {
+      return null;
+    }
+
     try {
       const res = await apiClient.get<any>(`/possession/records/${recordId}`);
       const data = res.data?.data || res.data;
@@ -449,7 +504,10 @@ export const possessionV2Service = {
     } catch (err) {
       console.warn(`[possessionV2Service] GET /api/v1/possession/records/${recordId} using local state:`, err);
     }
-    const records = getLocalRecords();
+    const allowed = getCompletedAcquisitionParcels();
+    const records = getLocalRecords().filter(
+      (r) => allowed.includes(r.parcelId) || allowed.includes(r.parcelDetails?.ulpin || '')
+    );
     return records.find((r) => r.id === recordId || r.taskId === recordId) || null;
   },
 
@@ -607,6 +665,10 @@ export const possessionV2Service = {
    * Helper: Reset demo state for interactive evaluation
    */
   resetDemoState(): void {
+    try {
+      localStorage.removeItem('bhoomi_acq_branch_completed');
+      localStorage.removeItem('bhoomi_completed_acq_parcels');
+    } catch (e) {}
     saveLocalRecords(DEFAULT_POSS_RECORDS);
     saveLocalTasks(DEFAULT_POSS_TASKS);
   },

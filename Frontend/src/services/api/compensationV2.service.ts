@@ -381,12 +381,54 @@ function calculateDashboardMetrics(records: CompensationRecord[]): CompensationD
   };
 }
 
+export function isAcquisitionBranchCompleted(projectId?: string): boolean {
+  if (localStorage.getItem('bhoomi_acq_branch_completed') === 'true') return true;
+  const activeCustomId = localStorage.getItem('bhoomi_demo_active_project_id');
+  const pId = projectId || activeCustomId;
+  if (pId && localStorage.getItem(`bhoomi_acq_completed_${pId}`) === 'true') return true;
+
+  try {
+    const raw = localStorage.getItem('bhoomi_acq_tasks_cache');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Object.values(parsed).some((t: any) => t.status === 'ACCEPTED')) {
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+export function getCompletedAcquisitionParcels(): string[] {
+  if (!isAcquisitionBranchCompleted()) return [];
+  try {
+    const raw = localStorage.getItem('bhoomi_completed_acq_parcels');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return ['07-104-5829-1021'];
+}
+
 export const compensationV2Service = {
   /**
    * GET /api/v1/compensation/dashboard
    * Spec Line 268: Returns Compensation Officer work metrics and authorized compensation summary.
    */
   async getDashboard(): Promise<CompensationDashboardData> {
+    // Only land parcels that have completed the acquisition branch enter compensation
+    if (!isAcquisitionBranchCompleted()) {
+      return {
+        totalAssessed: 0,
+        totalApproved: 0,
+        totalDisbursed: 0,
+        pendingDisbursement: 0,
+        recordsCount: 0,
+        disputedCount: 0,
+      };
+    }
+
     try {
       const res = await apiClient.get<any>('/compensation/dashboard');
       const data = res.data?.data || res.data;
@@ -404,7 +446,10 @@ export const compensationV2Service = {
     } catch (err) {
       console.warn('[compensationV2Service] GET /api/v1/compensation/dashboard using computed state:', err);
     }
-    const records = getLocalRecords();
+    const allowed = getCompletedAcquisitionParcels();
+    const records = getLocalRecords().filter(
+      (r) => allowed.includes(r.parcelId) || allowed.includes(r.parcelDetails?.ulpin || '')
+    );
     return calculateDashboardMetrics(records);
   },
 
@@ -413,6 +458,11 @@ export const compensationV2Service = {
    * Spec Line 271: Returns compensation tasks assigned to the authenticated Compensation Officer.
    */
   async getMyTasks(): Promise<WorkflowTask[]> {
+    // Only land parcels that have completed the acquisition branch enter compensation
+    if (!isAcquisitionBranchCompleted()) {
+      return [];
+    }
+
     const activeCustomId = localStorage.getItem('bhoomi_demo_active_project_id');
     const activeCustomCode = localStorage.getItem('bhoomi_demo_active_project_code');
     const activeCustomTitle = localStorage.getItem('bhoomi_demo_active_project_title');
@@ -439,10 +489,15 @@ export const compensationV2Service = {
       list = getLocalTasks();
     }
 
-    // Isolate tasks strictly to the active demo project so only this project is visible
+    const allowed = getCompletedAcquisitionParcels();
+
+    // Isolate tasks strictly to the active demo project and completed acquisition parcels
     const filtered = list.filter((t) => {
       const pId = t.projectId || '';
       const pCode = t.projectCode || '';
+      const parcelUlpin = t.parcel?.ulpin || t.parcel?.id || '';
+      if (!allowed.includes(parcelUlpin)) return false;
+
       if (activeCustomId || activeCustomCode) {
         return (activeCustomId && pId === activeCustomId) || (activeCustomCode && pCode === activeCustomCode);
       }
@@ -483,6 +538,10 @@ export const compensationV2Service = {
    * Spec Line 274: Returns an authorized compensation record.
    */
   async getRecord(recordId: string): Promise<CompensationRecord | null> {
+    if (!isAcquisitionBranchCompleted()) {
+      return null;
+    }
+
     try {
       const res = await apiClient.get<any>(`/compensation/records/${recordId}`);
       const data = res.data?.data || res.data;
@@ -490,7 +549,10 @@ export const compensationV2Service = {
     } catch (err) {
       console.warn(`[compensationV2Service] GET /api/v1/compensation/records/${recordId} using local state:`, err);
     }
-    const records = getLocalRecords();
+    const allowed = getCompletedAcquisitionParcels();
+    const records = getLocalRecords().filter(
+      (r) => allowed.includes(r.parcelId) || allowed.includes(r.parcelDetails?.ulpin || '')
+    );
     return records.find((r) => r.id === recordId || r.taskId === recordId) || null;
   },
 
@@ -737,5 +799,10 @@ export const compensationV2Service = {
   resetDemoState(): void {
     saveLocalRecords(DEFAULT_RECORDS);
     saveLocalTasks(DEFAULT_TASKS);
+    try {
+      localStorage.removeItem('bhoomi_acq_branch_completed');
+      localStorage.removeItem('bhoomi_completed_acq_parcels');
+      localStorage.removeItem('bhoomi_acq_tasks_cache');
+    } catch (e) {}
   },
 };

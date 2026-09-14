@@ -89,6 +89,11 @@ export const OfficerTaskDetailPage: React.FC = () => {
     setLoading(true);
     try {
       const data = await taskService.getTaskById(id);
+      if (data && data.requiredDocuments) {
+        data.requiredDocuments = data.requiredDocuments.filter(
+          (d) => d.id !== 'req-doc-3' && !d.name.toLowerCase().includes('khatauni') && !d.name.toLowerCase().includes('jamabandi')
+        );
+      }
       setTask(data);
       if (data) {
         if (data.evidence && data.evidence.length > 0) {
@@ -178,6 +183,14 @@ export const OfficerTaskDetailPage: React.FC = () => {
     try {
       const response = await taskService.acceptTask(task.id);
       setTask(response.task);
+      try {
+        localStorage.setItem('bhoomi_acq_branch_completed', 'true');
+        if (task.projectId) {
+          localStorage.setItem(`bhoomi_acq_completed_${task.projectId}`, 'true');
+        }
+        const pId = task.parcel?.ulpin || task.parcel?.id || '07-104-5829-1021';
+        localStorage.setItem('bhoomi_completed_acq_parcels', JSON.stringify([pId]));
+      } catch (e) {}
     } catch (err) {
       console.error('Failed to accept task', err);
     } finally {
