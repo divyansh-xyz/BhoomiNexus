@@ -142,7 +142,7 @@ export const getParcelById = async (req: Request, res: Response, next: NextFunct
     }
 
     // 2. Fallback to rich V2 seed parcels
-    const norm = parcelId.toLowerCase();
+    const norm = (parcelId as string).toLowerCase();
     const seed = V2_PARCELS.find(
       (p) =>
         p.ulpin.toLowerCase() === norm ||
@@ -250,7 +250,7 @@ export const getParcelById = async (req: Request, res: Response, next: NextFunct
 export const getParcelGeometry = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { parcelId } = req.params;
-    const norm = parcelId.toLowerCase();
+    const norm = (parcelId as string).toLowerCase();
     const seed = V2_PARCELS.find(
       (p) =>
         p.ulpin.toLowerCase() === norm ||

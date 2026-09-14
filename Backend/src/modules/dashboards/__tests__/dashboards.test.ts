@@ -121,7 +121,7 @@ describe('Phase 17 — National / State / District Dashboards', () => {
 
   it('Phase 19 Parcel Passport: enforces statutory 9 sections and strict high-level acquisition status', async () => {
     // Test V2 Parcel definition
-    const { V2_PARCELS } = await import('../../../database/v2/seedData');
+    const { V2_PARCELS } = await import('../../../database/v2/seedData.js');
     expect(V2_PARCELS.length).toBeGreaterThan(0);
     const p = V2_PARCELS[0];
 

@@ -73,9 +73,9 @@ describe('Phases 4, 5, 6, 7 — Workflow Graph & Template Services', () => {
     });
 
     it('verifies getNodeParcels and validateWorkflowGraph handle parcelId mapping and ancestor exclusivity', async () => {
-      const { getNodeParcels } = await import('../workflowGraph.service');
-      const { validateWorkflowGraph } = await import('../workflowValidation.service');
-      const { pool } = await import('../../../config/db');
+      const { getNodeParcels } = await import('../workflowGraph.service.js');
+      const { validateWorkflowGraph } = await import('../workflowValidation.service.js');
+      const { pool } = await import('../../../config/db.js');
 
       const prjRes = await pool.query('SELECT id FROM projects WHERE status != $1 ORDER BY created_at DESC LIMIT 1', ['ARCHIVED']);
       if (prjRes.rows.length > 0) {

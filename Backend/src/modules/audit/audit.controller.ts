@@ -20,7 +20,7 @@ export const getAuditLogs = async (req: Request, res: Response, next: NextFuncti
 export const verifyAuditLog = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const result = await AuditService.verifyAuditLog(id);
+    const result = await AuditService.verifyAuditLog(id as string);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

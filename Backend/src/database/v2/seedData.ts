@@ -113,6 +113,7 @@ export const V2_PRIMARY_PROJECT = {
   ministry: "Ministry of Road Transport & Highways",
   authority: "NHAI",
   purpose: "Public Purpose - Highway Infrastructure",
+  totalParcels: 38,
 };
 
 export const V2_PARCELS: V2ParcelDefinition[] = [
