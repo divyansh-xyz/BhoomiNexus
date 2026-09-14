@@ -161,7 +161,7 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
 
     // 7. Assign confirmed/candidate project parcels to District Root (Acquisition Stage) by default
     const parcelsRes = await client.query(
-      `SELECT parcel_id FROM project_parcels WHERE project_id = $1`,
+      `SELECT parcel_id FROM project_parcels WHERE project_id = $1 AND status = 'CONFIRMED'`,
       [actualId]
     );
     for (const p of parcelsRes.rows) {
