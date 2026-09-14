@@ -23,40 +23,40 @@
   --surface-carbon-ink: #000000;
   --surface-bone-white: #ffffff;
 
-  /* Typography — High-Contrast Transitional Serifs */
-  --font-copernicus: 'Playfair Display', 'Lora', Georgia, serif;
-  --font-body-serif: 'Lora', 'Playfair Display', Georgia, serif;
-  --font-helvetica: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography — Professional Sovereign Institutional Sans-Serif (Inter) */
+  --font-copernicus: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body-serif: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-helvetica: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   /* Type Scale */
   --text-nano: 11px;
-  --leading-nano: 1.3;
+  --leading-nano: 1.35;
   --text-caption: 14px;
-  --leading-caption: 1.3;
+  --leading-caption: 1.35;
   --text-body: 16px;
-  --leading-body: 1.27;
-  --tracking-body: -0.16px;
+  --leading-body: 1.45;
+  --tracking-body: -0.01em;
   --text-body-lg: 18px;
-  --leading-body-lg: 1.21;
-  --tracking-body-lg: -0.216px;
+  --leading-body-lg: 1.4;
+  --tracking-body-lg: -0.012em;
   --text-subheading: 25px;
-  --leading-subheading: 1.15;
-  --tracking-subheading: -0.875px;
+  --leading-subheading: 1.25;
+  --tracking-subheading: -0.018em;
   --text-heading: 40px;
-  --leading-heading: 1.08;
-  --tracking-heading: -2px;
+  --leading-heading: 1.15;
+  --tracking-heading: -0.022em;
   --text-heading-lg: 48px;
-  --leading-heading-lg: 1.05;
-  --tracking-heading-lg: -2.69px;
+  --leading-heading-lg: 1.1;
+  --tracking-heading-lg: -0.024em;
   --text-heading-xl: 60px;
-  --leading-heading-xl: 1.04;
-  --tracking-heading-xl: -3.78px;
+  --leading-heading-xl: 1.08;
+  --tracking-heading-xl: -0.028em;
   --text-display: 70px;
-  --leading-display: 1;
-  --tracking-display: -4.83px;
+  --leading-display: 1.05;
+  --tracking-display: -0.03em;
   --text-display-lg: 90px;
-  --leading-display-lg: 0.84;
-  --tracking-display-lg: -8.28px;
+  --leading-display-lg: 1.02;
+  --tracking-display-lg: -0.032em;
 
   /* Font Weights */
   --font-weight-regular: 400;
@@ -176,8 +176,9 @@ a.btn-cta-black,
   color: var(--color-bone-white) !important;
   font-family: var(--font-copernicus);
   font-size: 14px;
-  font-style: italic;
-  font-weight: var(--font-weight-regular);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   padding: 8px 20px;
   border-radius: var(--radius-buttons);
   border: 1px solid var(--color-carbon-ink);
@@ -204,7 +205,8 @@ a.btn-cta-black:hover,
   gap: var(--spacing-4);
   font-family: var(--font-copernicus);
   font-size: 14px;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 500;
   color: var(--color-signal-blue);
   text-decoration: underline;
   text-underline-offset: 4px;
@@ -227,8 +229,9 @@ button.btn-cta-blue {
   color: #ffffff !important;
   font-family: var(--font-copernicus);
   font-size: 14px;
-  font-style: italic;
-  font-weight: 500;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   padding: 10px 22px;
   border-radius: var(--radius-buttons);
   border: 1px solid var(--color-signal-blue);
@@ -261,8 +264,9 @@ button.btn-cta-blue:active {
   color: var(--color-carbon-ink);
   font-family: var(--font-copernicus);
   font-size: 14px;
-  font-style: italic;
-  font-weight: var(--font-weight-regular);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   padding: 10px 22px;
   border-radius: var(--radius-buttons);
   border: 1px solid var(--color-carbon-ink);
@@ -477,9 +481,9 @@ button.btn-cta-blue:active {
 .hero-title {
   font-family: var(--font-copernicus);
   font-size: 48px;
-  font-weight: var(--font-weight-regular);
+  font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -1.8px;
+  letter-spacing: -0.025em;
   color: var(--color-carbon-ink);
   margin: 0 auto 20px;
   max-width: 900px;
@@ -489,9 +493,9 @@ button.btn-cta-blue:active {
 .hero-subtitle {
   font-family: var(--font-copernicus);
   font-size: 16.5px;
-  font-weight: var(--font-weight-regular);
+  font-weight: 400;
   line-height: 1.6;
-  letter-spacing: -0.15px;
+  letter-spacing: -0.01em;
   color: #3e4247;
   max-width: 760px;
   margin: 0 auto 32px;
@@ -599,9 +603,9 @@ button.btn-cta-blue:active {
 }
 
 .instrument-tab.active {
-  font-weight: var(--font-weight-bold);
+  font-weight: 700;
   color: var(--color-signal-blue);
-  font-style: italic;
+  font-style: normal;
 }
 
 .instrument-table {
@@ -679,7 +683,8 @@ button.btn-cta-blue:active {
 .instrument-btn-cancel {
   font-family: var(--font-copernicus);
   font-size: 12px;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 500;
   color: var(--color-carbon-ink);
   padding: 6px 12px;
   border: 1px solid var(--color-carbon-ink);
@@ -690,7 +695,8 @@ button.btn-cta-blue:active {
 .instrument-btn-save {
   font-family: var(--font-copernicus);
   font-size: 12px;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 600;
   color: var(--color-bone-white);
   background: var(--color-carbon-ink);
   padding: 6px 14px;
@@ -704,7 +710,7 @@ button.btn-cta-blue:active {
   right: 20px;
   font-family: var(--font-copernicus);
   font-size: 11px;
-  font-style: italic;
+  font-style: normal;
   color: var(--color-fossil-gray);
   pointer-events: none;
 }
@@ -833,7 +839,7 @@ button.btn-cta-blue:active {
 .overview-section-title {
   font-family: var(--font-copernicus);
   font-size: var(--text-subheading);
-  font-weight: var(--font-weight-regular);
+  font-weight: 700;
   letter-spacing: var(--tracking-subheading);
   color: var(--color-carbon-ink);
 }
@@ -841,7 +847,8 @@ button.btn-cta-blue:active {
 .overview-period-stamp {
   font-family: var(--font-copernicus);
   font-size: var(--text-caption);
-  font-style: italic;
+  font-style: normal;
+  font-weight: 500;
   color: var(--color-fossil-gray);
 }
 
@@ -863,7 +870,7 @@ button.btn-cta-blue:active {
 .overview-value {
   font-family: var(--font-copernicus);
   font-size: var(--text-heading-xl);
-  font-weight: var(--font-weight-regular);
+  font-weight: 700;
   line-height: var(--leading-heading-xl);
   letter-spacing: var(--tracking-heading-xl);
   color: var(--color-carbon-ink);
@@ -872,7 +879,8 @@ button.btn-cta-blue:active {
 
 .overview-value .unit {
   font-size: 24px;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 600;
   color: var(--color-signal-blue);
   margin-left: 6px;
 }
@@ -1003,7 +1011,8 @@ svg.leaflet-zoom-animated path:focus {
   border-radius: 0px;
   padding: 8px 16px;
   font-size: 13px;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 600;
   font-family: var(--font-copernicus);
   cursor: pointer;
   display: flex;
@@ -1025,7 +1034,7 @@ svg.leaflet-zoom-animated path:focus {
   padding: 4px 10px !important;
   font-family: var(--font-copernicus) !important;
   font-size: 13px !important;
-  font-weight: var(--font-weight-regular) !important;
+  font-weight: 500 !important;
   box-shadow: none !important;
 }
 
@@ -1062,7 +1071,7 @@ svg.leaflet-zoom-animated path:focus {
 .panel-state-name {
   font-family: var(--font-copernicus);
   font-size: 26px;
-  font-weight: var(--font-weight-regular);
+  font-weight: 700;
   color: var(--color-carbon-ink);
   line-height: 1.1;
 }
@@ -1115,13 +1124,14 @@ svg.leaflet-zoom-animated path:focus {
 .panel-stat-value {
   font-family: var(--font-copernicus);
   font-size: 20px;
-  font-weight: var(--font-weight-regular);
+  font-weight: 700;
   color: var(--color-carbon-ink);
 }
 
 .panel-stat-unit {
   font-size: 12px;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 600;
   color: var(--color-signal-blue);
   margin-left: 4px;
 }
@@ -1136,7 +1146,7 @@ svg.leaflet-zoom-animated path:focus {
 .panel-projects-title {
   font-family: var(--font-copernicus);
   font-size: 14px;
-  font-weight: var(--font-weight-bold);
+  font-weight: 700;
   color: var(--color-carbon-ink);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1161,12 +1171,13 @@ svg.leaflet-zoom-animated path:focus {
 
 .panel-project-name {
   color: var(--color-carbon-ink);
-  font-weight: var(--font-weight-regular);
+  font-weight: 500;
 }
 
 .panel-project-status {
   font-size: 10px;
-  font-style: italic;
+  font-style: normal;
+  font-weight: 600;
   padding: 2px 6px;
   border: 1px solid var(--color-carbon-ink);
 }
@@ -1218,9 +1229,9 @@ svg.leaflet-zoom-animated path:focus {
 .statutory-wheel-title {
   font-family: var(--font-copernicus);
   font-size: 46px;
-  font-weight: var(--font-weight-regular);
+  font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -2px;
+  letter-spacing: -0.025em;
   color: var(--color-carbon-ink);
   margin: 0 auto;
   max-width: 740px;
@@ -1279,16 +1290,16 @@ svg.leaflet-zoom-animated path:focus {
 .node-title {
   font-family: var(--font-copernicus);
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-signal-blue);
   line-height: 1.25;
-  letter-spacing: -0.15px;
+  letter-spacing: -0.01em;
 }
 
 .node-subtitle {
   font-family: var(--font-copernicus);
   font-size: 11.5px;
-  font-style: italic;
+  font-style: normal;
   font-weight: var(--font-weight-regular);
   color: var(--color-carbon-ink);
   line-height: 1.35;
@@ -1367,7 +1378,7 @@ svg.leaflet-zoom-animated path:focus {
 .inquiry-title {
   font-family: var(--font-copernicus);
   font-size: var(--text-heading);
-  font-weight: var(--font-weight-regular);
+  font-weight: 700;
   line-height: var(--leading-heading);
   letter-spacing: var(--tracking-heading);
   color: var(--color-carbon-ink);
@@ -1394,9 +1405,10 @@ svg.leaflet-zoom-animated path:focus {
 
 .ghost-tab-btn {
   font-family: var(--font-copernicus);
-  font-size: 34px;
-  font-style: italic;
-  font-weight: var(--font-weight-regular);
+  font-size: 32px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--color-carbon-ink);
   background: none;
   border: none;
@@ -1446,7 +1458,7 @@ svg.leaflet-zoom-animated path:focus {
 .field-label {
   font-family: var(--font-copernicus);
   font-size: 14px;
-  font-weight: var(--font-weight-regular);
+  font-weight: 600;
   color: var(--color-carbon-ink);
   margin-bottom: var(--spacing-8);
 }
@@ -1467,7 +1479,7 @@ svg.leaflet-zoom-animated path:focus {
 
 .bottom-border-input::placeholder {
   color: var(--color-fossil-gray);
-  font-style: italic;
+  font-style: normal;
   font-size: 14px;
 }
 
@@ -1485,7 +1497,7 @@ svg.leaflet-zoom-animated path:focus {
 .radio-group-label {
   font-family: var(--font-copernicus);
   font-size: 15px;
-  font-weight: var(--font-weight-bold);
+  font-weight: 700;
   color: var(--color-carbon-ink);
 }
 
@@ -1523,7 +1535,7 @@ svg.leaflet-zoom-animated path:focus {
 .radio-label-text {
   font-family: var(--font-copernicus);
   font-size: 15px;
-  font-weight: var(--font-weight-regular);
+  font-weight: 500;
   color: var(--color-carbon-ink);
 }
 
@@ -1537,7 +1549,7 @@ svg.leaflet-zoom-animated path:focus {
 .form-helper-note {
   font-family: var(--font-copernicus);
   font-size: 13px;
-  font-style: italic;
+  font-style: normal;
   color: var(--color-fossil-gray);
 }
 
@@ -2234,7 +2246,7 @@ svg.leaflet-zoom-animated path:focus {
 @media (max-width: 1024px) {
   .hero-headline {
     font-size: 38px;
-    letter-spacing: -1.5px;
+    letter-spacing: -0.02em;
   }
 
   .overview-grid {
@@ -2250,7 +2262,7 @@ svg.leaflet-zoom-animated path:focus {
 
   .statutory-wheel-title {
     font-size: 38px;
-    letter-spacing: -1.5px;
+    letter-spacing: -0.02em;
   }
 
   .statutory-diagram-stage {
@@ -2295,7 +2307,7 @@ svg.leaflet-zoom-animated path:focus {
 
   .hero-headline {
     font-size: 32px;
-    letter-spacing: -1px;
+    letter-spacing: -0.02em;
   }
 
   .hero-subtext {
@@ -2327,7 +2339,7 @@ svg.leaflet-zoom-animated path:focus {
 
   .statutory-wheel-title {
     font-size: 30px;
-    letter-spacing: -1px;
+    letter-spacing: -0.02em;
   }
 
   .statutory-diagram-stage {
