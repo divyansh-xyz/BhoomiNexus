@@ -66,7 +66,20 @@ export async function processDocumentJob(documentId: string): Promise<void> {
     }).catch(() => {});
 
     // 3. Structured Gemini LLM Extraction
-    const extraction = await extractionService.extractStructuredData(fullOcrText);
+    let extraction = await extractionService.extractStructuredData(fullOcrText);
+
+    // If OCR text was minimal or extraction yielded empty fields, run direct Gemini multimodal file extraction
+    if (!extraction || Object.keys(extraction.extractedData || {}).length <= 1 || extraction.documentType === 'unknown') {
+      try {
+        console.log(`[JobProcessor] Running direct Gemini multimodal extraction for ${documentId}...`);
+        const directResult = await extractionService.extractStructuredFromFile(doc.storagePath, doc.mimeType);
+        if (directResult && Object.keys(directResult.extractedData || {}).length > 0) {
+          extraction = directResult;
+        }
+      } catch (directErr) {
+        console.warn(`[JobProcessor] Direct multimodal extraction error for ${documentId}:`, directErr);
+      }
+    }
     console.log("[JobProcessor] Gemini Extraction Result:", JSON.stringify(extraction).substring(0, 500));
 
     // 4. Validation logic

@@ -104,8 +104,13 @@ export class OcrService {
         const base64Data = fileBuffer.toString('base64');
         const effectiveMime = isPdf ? 'application/pdf' : mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
 
-        const model = this.genAI.getGenerativeModel({ model: config.llmModel });
-        const prompt = `Extract all written text from this document accurately. You must return the output STRICTLY as a JSON array of strings, where each string represents a line or paragraph of text from the document. Do not return plain text. Returning a JSON array prevents recitation filters from blocking the response.`;
+        const model = this.genAI.getGenerativeModel({
+          model: config.llmModel,
+          generationConfig: {
+            temperature: 0.1,
+          },
+        });
+        const prompt = `You are an expert optical character recognition (OCR) engine. Read and extract all visible written, printed, and numerical text from this document image accurately. Maintain the layout order and lines. Return all extracted text lines.`;
 
         const imagePart = {
           inlineData: {
@@ -115,12 +120,22 @@ export class OcrService {
         };
 
         const result = await model.generateContent([prompt, imagePart]);
-        let responseText = result.response.text() || '';
+        let responseText = '';
         try {
-          // Attempt to parse JSON array to bypass recitation
-          const parsed = JSON.parse(responseText.trim().replace(/^```json\s*/, '').replace(/```$/, ''));
-          if (Array.isArray(parsed)) {
-            responseText = parsed.join('\\n');
+          responseText = result.response.text() || '';
+        } catch (textErr) {
+          const candidateParts = result.response?.candidates?.[0]?.content?.parts || [];
+          responseText = candidateParts.map((p: any) => p.text || '').filter(Boolean).join('\n');
+        }
+
+        try {
+          // Attempt to parse if returned as JSON array or markdown code block
+          const cleanedJson = responseText.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
+          if (cleanedJson.startsWith('[') && cleanedJson.endsWith(']')) {
+            const parsed = JSON.parse(cleanedJson);
+            if (Array.isArray(parsed)) {
+              responseText = parsed.join('\n');
+            }
           }
         } catch (e) {
           // If not JSON, leave as is

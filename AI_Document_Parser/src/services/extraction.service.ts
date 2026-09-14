@@ -33,16 +33,23 @@ export class ExtractionService {
   }
 
   private loadPromptTemplate() {
-    const promptPath = path.join(process.cwd(), 'src', 'prompts', 'landDocumentExtraction.txt');
-    try {
-      if (fs.existsSync(promptPath)) {
-        this.promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-      } else {
-        console.warn(`Prompt template not found at ${promptPath}`);
-      }
-    } catch (e) {
-      console.warn('Failed to load prompt template:', e);
+    const candidatePaths = [
+      path.join(process.cwd(), 'src', 'prompts', 'landDocumentExtraction.txt'),
+      path.join(process.cwd(), 'AI_Document_Parser', 'src', 'prompts', 'landDocumentExtraction.txt'),
+      path.join(__dirname, '../prompts/landDocumentExtraction.txt'),
+      path.join(__dirname, '../../src/prompts/landDocumentExtraction.txt'),
+      path.join(__dirname, '../../../src/prompts/landDocumentExtraction.txt'),
+    ];
+    for (const promptPath of candidatePaths) {
+      try {
+        if (fs.existsSync(promptPath)) {
+          this.promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+          console.log(`[ExtractionService] Loaded prompt template from ${promptPath}`);
+          return;
+        }
+      } catch (e) {}
     }
+    console.warn('[ExtractionService] Prompt template not found in candidate paths');
   }
 
   public async extractStructuredData(ocrText: string): Promise<StructuredExtractionOutput> {
@@ -88,6 +95,93 @@ export class ExtractionService {
     } catch (err) {
       console.error('Gemini extraction failed, using fallback parser:', err);
       return this.fallbackExtraction(ocrText, piiResult.redactionCount, piiResult.piiDetected);
+    }
+  }
+
+  public async extractStructuredFromFile(filePath: string, mimeType: string): Promise<StructuredExtractionOutput> {
+    if (!this.genAI) {
+      return this.fallbackExtraction('', 0, []);
+    }
+    try {
+      const fileBuffer = await fs.promises.readFile(filePath);
+      const base64Data = fileBuffer.toString('base64');
+      const isPdf = mimeType.toLowerCase() === 'application/pdf' || filePath.endsWith('.pdf');
+      const effectiveMime = isPdf ? 'application/pdf' : mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+
+      const model = this.genAI.getGenerativeModel({
+        model: config.llmModel,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+        },
+      });
+
+      const prompt = `You are an expert land acquisition and statutory document intelligence AI.
+Analyze the provided document (scanned image or PDF) and extract all factual land parameters, entities, and values into structured JSON.
+Return JSON with the following schema:
+{
+  "document_type": string (e.g. "valuation_ledger", "gazette", "sale_deed", "land_record", "panchnama", etc.),
+  "extracted_data": {
+    "khasraNumber": string or null,
+    "khatauniNumber": string or null,
+    "villageName": string or null,
+    "district": string or null,
+    "state": string or null,
+    "totalLandAreaAcres": string or number or null,
+    "recordedOwner": string or null,
+    "statutoryTenure": string or null,
+    "valuationAmountInr": string or number or null,
+    "gazetteNotificationNumber": string or null,
+    "notificationDate": string or null,
+    "remarks": string or null
+  },
+  "field_confidence": {
+    "khasraNumber": "high" | "medium" | "low",
+    "villageName": "high" | "medium" | "low",
+    "recordedOwner": "high" | "medium" | "low"
+  },
+  "missing_fields": []
+}
+Extract only explicitly visible information. If any field is not found in the document, omit it or set it to null.`;
+
+      const imagePart = {
+        inlineData: {
+          data: base64Data,
+          mimeType: effectiveMime,
+        },
+      };
+
+      const result = await model.generateContent([prompt, imagePart]);
+      let responseText = '';
+      try {
+        responseText = result.response.text();
+      } catch (err) {
+        const candidateParts = result.response?.candidates?.[0]?.content?.parts || [];
+        responseText = candidateParts.map((p: any) => p.text || '').filter(Boolean).join('\n');
+      }
+
+      const parsedJson = JSON.parse(responseText.trim().replace(/^```json\s*/i, '').replace(/```$/, ''));
+      const documentType = parsedJson.document_type || parsedJson.documentType || 'statutory_document';
+      const extractedData = parsedJson.extracted_data || parsedJson.extractedData || parsedJson;
+      delete extractedData.document_type;
+      delete extractedData.documentType;
+
+      const fieldConfidence: FieldConfidenceMap = parsedJson.field_confidence || parsedJson.fieldConfidence || {};
+      for (const k of Object.keys(extractedData)) {
+        if (!fieldConfidence[k]) fieldConfidence[k] = 'high';
+      }
+
+      return {
+        documentType,
+        extractedData,
+        fieldConfidence,
+        missingFields: parsedJson.missing_fields || [],
+        piiRedactionCount: 0,
+        piiTypesDetected: [],
+      };
+    } catch (err) {
+      console.error('[ExtractionService] Direct multimodal extraction failed:', err);
+      return this.fallbackExtraction('', 0, []);
     }
   }
 
