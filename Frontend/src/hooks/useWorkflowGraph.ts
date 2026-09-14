@@ -704,9 +704,11 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setIsDirty(false);
         try {
           localStorage.setItem('bhoomi_demo_active_project_id', projectId);
+          localStorage.setItem(`bhoomi_workflow_activated_${projectId}`, 'true');
           const pCode = (graph as any)?.projectCode || (graph as any)?.code;
           if (pCode) {
             localStorage.setItem('bhoomi_demo_active_project_code', pCode);
+            localStorage.setItem(`bhoomi_workflow_activated_${pCode}`, 'true');
           }
           const pTitle = (graph as any)?.projectTitle || (graph as any)?.title;
           if (pTitle) {
@@ -727,9 +729,11 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setIsDirty(false);
         try {
           localStorage.setItem('bhoomi_demo_active_project_id', projectId);
+          localStorage.setItem(`bhoomi_workflow_activated_${projectId}`, 'true');
           const pCode = (graph as any)?.projectCode || (graph as any)?.code;
           if (pCode) {
             localStorage.setItem('bhoomi_demo_active_project_code', pCode);
+            localStorage.setItem(`bhoomi_workflow_activated_${pCode}`, 'true');
           }
           const pTitle = (graph as any)?.projectTitle || (graph as any)?.title;
           if (pTitle) {
@@ -777,12 +781,16 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
       setIsDirty(false);
       if (res.nodes.length > 0) {
         const rootId = res.nodes[0].id;
-        const acqNode = res.nodes.find((n) => n.branchKey === 'ACQUISITION' || n.id === 'node-acq-1') || res.nodes[0];
-        setSelectedNodeId(acqNode.id || rootId);
-        setNodeParcelsMap({
+        const acqNode = res.nodes.find((n) => n.branchKey === 'ACQUISITION' || n.id === 'node-acq-1');
+        const primaryNodeId = acqNode?.id || rootId;
+        setSelectedNodeId(primaryNodeId);
+        const pMap: Record<string, WorkflowNodeParcel[]> = {
           [rootId]: generateDemoCohortParcels(rootId),
-          [acqNode.id]: generateDemoCohortParcels(acqNode.id),
-        });
+        };
+        if (acqNode && acqNode.id !== rootId) {
+          pMap[acqNode.id] = generateDemoCohortParcels(acqNode.id);
+        }
+        setNodeParcelsMap(pMap);
       } else {
         setNodeParcelsMap({});
       }

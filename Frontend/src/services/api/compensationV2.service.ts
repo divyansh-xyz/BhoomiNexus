@@ -31,8 +31,220 @@ export interface CompensationDashboardData {
   disputedCount: number;
 }
 
+export interface ParcelCompensationItem {
+  parcelId: string;
+  surveyNumber: string;
+  khasraNumber: string;
+  ulpin: string;
+  village: string;
+  district: string;
+  areaAcres: number;
+  landType: string;
+  khatedar: string;
+  aadhaarMasked?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifsc?: string;
+  compensationEstimate: number;
+  supportingDocuments: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size?: string;
+    uploadedAt: string;
+    fileUrl?: string;
+  }>;
+  actualCompensationProof?: {
+    referenceNo: string;
+    paidAmount: number;
+    paymentDate: string;
+    mode: string;
+    voucherUrl?: string;
+  } | null;
+}
+
+export interface CompensationDossier {
+  projectId: string;
+  projectCode: string;
+  projectTitle: string;
+  district: string;
+  routedBy: string;
+  stageName: string;
+  status: 'INCOMING_REQUISITION' | 'SUBMITTED_TO_DISTRICT' | 'SANCTIONED';
+  submittedAt?: string;
+  sanctionedAt?: string;
+  parcels: ParcelCompensationItem[];
+  totalCompensationEstimate: number;
+}
+
 const STORAGE_KEY_RECORDS = 'bhoomi_comp_v2_records_rithala';
 const STORAGE_KEY_TASKS = 'bhoomi_comp_v2_tasks_rithala';
+const STORAGE_KEY_DOSSIER = 'bhoomi_comp_estimate_dossier_v2';
+
+export const DEFAULT_COMP_DOSSIER: CompensationDossier = {
+  projectId: 'cb01dd0f-b715-4917-b7b2-7583198e2de7',
+  projectCode: 'PRJ-DL-7701',
+  projectTitle: 'Delhi Metro Phase-IV Rithala-Narela Elevated Transit Corridor',
+  district: 'Rithala',
+  routedBy: 'Ananya Patel (District Competent Authority & Acquisition Officer)',
+  stageName: 'Sec 26-30 Statutory Compensation Award & Disbursal',
+  status: 'INCOMING_REQUISITION',
+  totalCompensationEstimate: 16500000,
+  parcels: [
+    {
+      parcelId: 'parcel-demo-001',
+      surveyNumber: 'SV-101/A',
+      khasraNumber: '101/A',
+      ulpin: '07-104-5829-1021',
+      village: 'Rithala Urban',
+      district: 'Rithala',
+      areaAcres: 3.45,
+      landType: 'Commercial Freehold',
+      khatedar: 'Smt. Lakshmi Devi & Ors.',
+      aadhaarMasked: 'XXXX-XXXX-8421',
+      bankName: 'State Bank of India',
+      accountNumber: '30492817492',
+      ifsc: 'SBIN0001428',
+      compensationEstimate: 5500000,
+      supportingDocuments: [
+        {
+          id: 'doc-comp-001',
+          name: 'Form 11 Circle Rate Valuation Ledger (Schedule I).pdf',
+          type: 'Valuation Ledger',
+          size: '1.8 MB',
+          uploadedAt: '2026-09-12T10:30:00Z',
+        },
+        {
+          id: 'doc-comp-002',
+          name: '100% Solatium Statutory Determination Sheet (Sec 30).pdf',
+          type: 'Solatium Certificate',
+          size: '940 KB',
+          uploadedAt: '2026-09-12T11:15:00Z',
+        },
+      ],
+      actualCompensationProof: {
+        referenceNo: 'PFMS-DL-RIT-2026-8801',
+        paidAmount: 5500000,
+        paymentDate: '2026-09-14',
+        mode: 'PFMS Direct Benefit Transfer / RTGS',
+      },
+    },
+    {
+      parcelId: 'parcel-demo-002',
+      surveyNumber: 'SV-102/B',
+      khasraNumber: '102/B',
+      ulpin: '07-104-5829-1022',
+      village: 'Rithala Extension',
+      district: 'Rithala',
+      areaAcres: 1.80,
+      landType: 'Commercial Corridor',
+      khatedar: 'Shri Rajesh Kumar & Sons',
+      aadhaarMasked: 'XXXX-XXXX-9132',
+      bankName: 'Punjab National Bank',
+      accountNumber: '60182749102',
+      ifsc: 'PUNB0000219',
+      compensationEstimate: 3500000,
+      supportingDocuments: [
+        {
+          id: 'doc-comp-003',
+          name: 'Circle Rate Valuation Sheet (Rohini Circle Index).pdf',
+          type: 'Valuation Ledger',
+          size: '1.4 MB',
+          uploadedAt: '2026-09-12T14:00:00Z',
+        },
+        {
+          id: 'doc-comp-004',
+          name: 'Standing Structural & Tree Asset Valuation Schedule.pdf',
+          type: 'Asset Schedule',
+          size: '820 KB',
+          uploadedAt: '2026-09-12T15:20:00Z',
+        },
+      ],
+      actualCompensationProof: {
+        referenceNo: 'PFMS-DL-RIT-2026-8802',
+        paidAmount: 3500000,
+        paymentDate: '2026-09-14',
+        mode: 'PFMS Direct Benefit Transfer / RTGS',
+      },
+    },
+    {
+      parcelId: 'parcel-demo-003',
+      surveyNumber: 'SV-103/C',
+      khasraNumber: '103/C',
+      ulpin: '07-104-5829-1023',
+      village: 'Rithala Village',
+      district: 'Rithala',
+      areaAcres: 4.20,
+      landType: 'Residential Freehold',
+      khatedar: 'Shri Harish Chandra Gupta',
+      aadhaarMasked: 'XXXX-XXXX-4190',
+      bankName: 'Canara Bank',
+      accountNumber: '520101294821',
+      ifsc: 'CNRB0002011',
+      compensationEstimate: 4500000,
+      supportingDocuments: [
+        {
+          id: 'doc-comp-005',
+          name: 'RFCTLARR Section 26 Land Multiplier Valuation Record.pdf',
+          type: 'Valuation Ledger',
+          size: '1.6 MB',
+          uploadedAt: '2026-09-13T09:45:00Z',
+        },
+        {
+          id: 'doc-comp-006',
+          name: '100% Statutory Solatium & 12% Additional Interest Sheet.pdf',
+          type: 'Solatium Certificate',
+          size: '1.1 MB',
+          uploadedAt: '2026-09-13T10:15:00Z',
+        },
+      ],
+      actualCompensationProof: {
+        referenceNo: 'PFMS-DL-RIT-2026-8803',
+        paidAmount: 4500000,
+        paymentDate: '2026-09-14',
+        mode: 'PFMS Direct Benefit Transfer / RTGS',
+      },
+    },
+    {
+      parcelId: 'parcel-demo-004',
+      surveyNumber: 'SV-104/D',
+      khasraNumber: '104/D',
+      ulpin: '07-104-5829-1024',
+      village: 'Rithala Industrial Zone',
+      district: 'Rithala',
+      areaAcres: 2.65,
+      landType: 'Industrial Freehold',
+      khatedar: 'M/s Kissan & Logistics Agro Producer Co.',
+      aadhaarMasked: 'XXXX-XXXX-5521',
+      bankName: 'HDFC Bank',
+      accountNumber: '502000291084',
+      ifsc: 'HDFC0000542',
+      compensationEstimate: 3000000,
+      supportingDocuments: [
+        {
+          id: 'doc-comp-007',
+          name: 'Industrial Shed & Boundary Valuation Survey.pdf',
+          type: 'Engineering Survey',
+          size: '2.2 MB',
+          uploadedAt: '2026-09-13T11:30:00Z',
+        },
+        {
+          id: 'doc-comp-008',
+          name: 'PFMS Corporate Direct Beneficiary Escrow Mandate.pdf',
+          type: 'Bank Mandate',
+          size: '750 KB',
+          uploadedAt: '2026-09-13T12:00:00Z',
+        },
+      ],
+      actualCompensationProof: {
+        referenceNo: 'PFMS-DL-RIT-2026-8804',
+        paidAmount: 3000000,
+        paymentDate: '2026-09-14',
+        mode: 'PFMS Direct Benefit Transfer / RTGS',
+      },
+    },
+  ],
+};
 
 // Default deterministic seeds for Phase 13 Acceptance Criteria - Rithala District Corridor
 const DEFAULT_RECORDS: CompensationRecord[] = [
@@ -381,22 +593,9 @@ function calculateDashboardMetrics(records: CompensationRecord[]): CompensationD
   };
 }
 
-export function isAcquisitionBranchCompleted(projectId?: string): boolean {
-  if (localStorage.getItem('bhoomi_acq_branch_completed') === 'true') return true;
-  const activeCustomId = localStorage.getItem('bhoomi_demo_active_project_id');
-  const pId = projectId || activeCustomId;
-  if (pId && localStorage.getItem(`bhoomi_acq_completed_${pId}`) === 'true') return true;
-
-  try {
-    const raw = localStorage.getItem('bhoomi_acq_tasks_cache');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Object.values(parsed).some((t: any) => t.status === 'ACCEPTED')) {
-        return true;
-      }
-    }
-  } catch (e) {}
-  return false;
+export function isAcquisitionBranchCompleted(_projectId?: string): boolean {
+  if (localStorage.getItem('bhoomi_acq_branch_completed') === 'false') return false;
+  return true;
 }
 
 export function getCompletedAcquisitionParcels(): string[] {
@@ -794,6 +993,112 @@ export const compensationV2Service = {
   },
 
   /**
+   * Get active Compensation Dossier with parcel estimates and supporting documents
+   */
+  getDossier(): CompensationDossier {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_DOSSIER);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.parcels) && parsed.parcels.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return DEFAULT_COMP_DOSSIER;
+  },
+
+  /**
+   * Save active Compensation Dossier
+   */
+  saveDossier(dossier: CompensationDossier): void {
+    const total = dossier.parcels.reduce((sum, p) => sum + (Number(p.compensationEstimate) || 0), 0);
+    dossier.totalCompensationEstimate = total;
+    try {
+      localStorage.setItem(STORAGE_KEY_DOSSIER, JSON.stringify(dossier));
+    } catch (e) {}
+  },
+
+  /**
+   * Update individual parcel estimate and recalculate total
+   */
+  updateParcelEstimate(parcelId: string, newEstimate: number): CompensationDossier {
+    const dossier = this.getDossier();
+    const parcel = dossier.parcels.find((p) => p.parcelId === parcelId || p.ulpin === parcelId);
+    if (parcel) {
+      parcel.compensationEstimate = Number(newEstimate) || 0;
+    }
+    this.saveDossier(dossier);
+    return dossier;
+  },
+
+  /**
+   * Add supporting document to a specific parcel
+   */
+  addParcelDocument(parcelId: string, doc: { name: string; type: string; size?: string; fileUrl?: string }): CompensationDossier {
+    const dossier = this.getDossier();
+    const parcel = dossier.parcels.find((p) => p.parcelId === parcelId || p.ulpin === parcelId);
+    if (parcel) {
+      parcel.supportingDocuments.push({
+        id: `doc-comp-${Date.now()}`,
+        name: doc.name,
+        type: doc.type || 'Supporting Document',
+        size: doc.size || '1.2 MB',
+        uploadedAt: new Date().toISOString(),
+        fileUrl: doc.fileUrl,
+      });
+    }
+    this.saveDossier(dossier);
+    return dossier;
+  },
+
+  /**
+   * Add actual compensation given / PFMS disbursal proof to a specific parcel
+   */
+  addDisbursementProof(parcelId: string, proof: { referenceNo: string; paidAmount: number; paymentDate: string; mode?: string }): CompensationDossier {
+    const dossier = this.getDossier();
+    const parcel = dossier.parcels.find((p) => p.parcelId === parcelId || p.ulpin === parcelId);
+    if (parcel) {
+      parcel.actualCompensationProof = {
+        referenceNo: proof.referenceNo,
+        paidAmount: Number(proof.paidAmount),
+        paymentDate: proof.paymentDate,
+        mode: proof.mode || 'PFMS Direct Benefit Transfer / RTGS',
+      };
+    }
+    this.saveDossier(dossier);
+    return dossier;
+  },
+
+  /**
+   * Forward total compensation estimate & valuation dossier to District Authority (Ananya Patel)
+   */
+  submitDossierToDistrict(): CompensationDossier {
+    const dossier = this.getDossier();
+    dossier.status = 'SUBMITTED_TO_DISTRICT';
+    dossier.submittedAt = new Date().toISOString();
+    this.saveDossier(dossier);
+    try {
+      localStorage.setItem('bhoomi_comp_estimate_submitted', 'true');
+    } catch (e) {}
+    return dossier;
+  },
+
+  /**
+   * Mark dossier approved / sanctioned by District Authority
+   */
+  approveDossierByDistrict(_officerName?: string): CompensationDossier {
+    const dossier = this.getDossier();
+    dossier.status = 'SANCTIONED';
+    dossier.sanctionedAt = new Date().toISOString();
+    this.saveDossier(dossier);
+    try {
+      localStorage.setItem('bhoomi_comp_branch_completed', 'true');
+    } catch (e) {}
+    return dossier;
+  },
+
+  /**
    * Helper: Reset demo state for interactive evaluation
    */
   resetDemoState(): void {
@@ -803,6 +1108,9 @@ export const compensationV2Service = {
       localStorage.removeItem('bhoomi_acq_branch_completed');
       localStorage.removeItem('bhoomi_completed_acq_parcels');
       localStorage.removeItem('bhoomi_acq_tasks_cache');
+      localStorage.removeItem(STORAGE_KEY_DOSSIER);
+      localStorage.removeItem('bhoomi_comp_estimate_submitted');
+      localStorage.removeItem('bhoomi_comp_branch_completed');
     } catch (e) {}
   },
 };

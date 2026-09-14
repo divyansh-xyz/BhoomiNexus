@@ -91,36 +91,31 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
     );
     const officerMap = new Map(officerUsersRes.rows.map((u: any) => [u.email, u.id]));
 
-    // 5. Create standard District Root node (Rithala)
+    // 5. Create standard District Root node (Rithala, led by Ananya Patel)
     const districtDistrictName = project.district && project.district.trim() ? project.district : 'Rithala';
     const districtNodeRes = await client.query(
       `INSERT INTO workflow_nodes
-       (workflow_instance_id, node_key, name, node_type, responsible_role, responsible_user_id, x_position, y_position)
-       VALUES ($1, 'district_root', $2, 'DISTRICT', 'DISTRICT_AUTHORITY', $3, 100, 200)
+       (workflow_instance_id, node_key, name, node_type, responsible_role, responsible_user_id, x_position, y_position, configuration)
+       VALUES ($1, 'district_root', $2, 'DISTRICT', 'DISTRICT_AUTHORITY', $3, 100, 200, $4)
        RETURNING *`,
-      [instance.id, districtDistrictName, officerMap.get('boss@bhoomi.gov.in') || userId]
+      [
+        instance.id,
+        districtDistrictName,
+        officerMap.get('officer@bhoomi.gov.in') || userId,
+        JSON.stringify({ description: 'District Statutory Acquisition Authority & Final Clearance Jurisdiction' })
+      ]
     );
     const districtNode = districtNodeRes.rows[0];
 
-    // 6. Create the 3 Standard Branches: Acquisition (Terminal Endpoint), Compensation, Possession
+    // 6. Create Sequential Pipeline Branches: Compensation -> Possession
     const branches = [
-      {
-        key: "branch_acquisition",
-        name: "Acquisition Verification & Final Clearance",
-        role: "PROCESSING_OFFICER",
-        userId: officerMap.get('officer@bhoomi.gov.in'),
-        type: "STAGE",
-        x: 450,
-        y: 100,
-        desc: "Final acquisition verification, statutory scrutiny, and clearance endpoint",
-      },
       {
         key: "branch_compensation",
         name: "Sec 26-30 Statutory Compensation Award & Disbursal",
         role: "COMPENSATION_OFFICER",
         userId: officerMap.get('comp.officer@bhoomi.gov.in'),
         type: "STAGE",
-        x: 450,
+        x: 480,
         y: 200,
         desc: "Statutory compensation assessment, 100% solatium calculation, and PFMS DBT award disbursal",
       },
@@ -130,8 +125,8 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
         role: "POSSESSION_OFFICER",
         userId: officerMap.get('possession.officer@bhoomi.gov.in'),
         type: "STAGE",
-        x: 450,
-        y: 300,
+        x: 840,
+        y: 200,
         desc: "Physical site takeover, spot panchnama with geotagged evidence, and Section 38 unencumbered handover",
       },
     ];
@@ -145,30 +140,36 @@ export const initializeProjectWorkflow = async (projectId: string, userId: strin
          RETURNING *`,
         [instance.id, b.key, b.name, b.type, b.role, b.userId, b.x, b.y, JSON.stringify({ description: b.desc })]
       );
-      const bNode = bRes.rows[0];
-      createdBranchNodes.push(bNode);
+      createdBranchNodes.push(bRes.rows[0]);
+    }
 
-      // Connect edge from District Root -> Branch
+    // Connect sequential pipeline: District Root (Acquisition) -> Compensation -> Possession
+    if (createdBranchNodes.length >= 2) {
       await client.query(
         `INSERT INTO workflow_edges
          (workflow_instance_id, source_node_id, target_node_id, edge_type)
          VALUES ($1, $2, $3, 'STANDARD')`,
-        [instance.id, districtNode.id, bNode.id]
+        [instance.id, districtNode.id, createdBranchNodes[0].id]
+      );
+      await client.query(
+        `INSERT INTO workflow_edges
+         (workflow_instance_id, source_node_id, target_node_id, edge_type)
+         VALUES ($1, $2, $3, 'STANDARD')`,
+        [instance.id, createdBranchNodes[0].id, createdBranchNodes[1].id]
       );
     }
 
-    // 6. Assign confirmed/candidate project parcels to Acquisition branch by default
+    // 7. Assign confirmed/candidate project parcels to District Root (Acquisition Stage) by default
     const parcelsRes = await client.query(
       `SELECT parcel_id FROM project_parcels WHERE project_id = $1`,
       [actualId]
     );
-    const acqNode = createdBranchNodes[0];
     for (const p of parcelsRes.rows) {
       await client.query(
         `INSERT INTO workflow_node_parcels (workflow_node_id, parcel_id, assigned_by)
          VALUES ($1, $2, $3)
          ON CONFLICT (workflow_node_id, parcel_id) DO NOTHING`,
-        [acqNode.id, p.parcel_id, userId]
+        [districtNode.id, p.parcel_id, userId]
       );
     }
 

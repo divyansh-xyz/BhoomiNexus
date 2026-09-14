@@ -128,15 +128,13 @@ export async function seedDemoProjects() {
           [28.8500, 77.0900]
         ],
         nodes: [
-          { key: "root", name: "Rithala", type: "DISTRICT", role: "DISTRICT_AUTHORITY", userId: bossId, x: 120, y: 300, sla: 15, desc: "District Acquisition Authority & Competent Authority (Rithala District, Delhi)" },
-          { key: "acq_terminal", name: "Acquisition Verification & Final Clearance", type: "STAGE", role: "PROCESSING_OFFICER", userId: officerId, x: 500, y: 160, sla: 10, desc: "Final acquisition verification, statutory scrutiny, and clearance endpoint", isBranchA: true },
+          { key: "root", name: "Rithala", type: "DISTRICT", role: "DISTRICT_AUTHORITY", userId: officerId, x: 120, y: 300, sla: 15, desc: "District Acquisition Authority & Competent Authority (Rithala District, Delhi)" },
           { key: "dl_comp", name: "Sec 26-30 Statutory Compensation Award & Disbursal", type: "STAGE", role: "COMPENSATION_OFFICER", userId: compOfficerId, x: 500, y: 300, sla: 15, desc: "Statutory compensation assessment, 100% solatium calculation, and PFMS DBT award disbursal" },
-          { key: "dl_poss", name: "Physical Possession, Spot Panchnama & Handover", type: "STAGE", role: "POSSESSION_OFFICER", userId: possOfficerId, x: 500, y: 440, sla: 14, desc: "Physical site takeover, spot panchnama with geotagged evidence, and Section 38 unencumbered handover" }
+          { key: "dl_poss", name: "Physical Possession, Spot Panchnama & Handover", type: "STAGE", role: "POSSESSION_OFFICER", userId: possOfficerId, x: 880, y: 300, sla: 14, desc: "Physical site takeover, spot panchnama with geotagged evidence, and Section 38 unencumbered handover" }
         ],
         edges: [
-          ["root", "acq_terminal"],
           ["root", "dl_comp"],
-          ["root", "dl_poss"]
+          ["dl_comp", "dl_poss"]
         ]
       },
       {

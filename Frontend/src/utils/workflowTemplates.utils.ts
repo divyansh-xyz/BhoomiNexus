@@ -320,21 +320,22 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
   const wfId = `wf-${projectId || 'default'}`;
   const now = new Date().toISOString();
 
-  // Root District Authority Node
+  // Root District Authority Node (Led by Ananya Patel)
   const rootNode: WorkflowNode = {
     id: 'node-district-root',
     workflowId: wfId,
     name: 'Rithala',
-    description: 'Competent statutory district authority jurisdiction coordinating acquisition, compensation, and possession branches.',
+    description: 'Statutory district acquisition authority and final clearance jurisdiction coordinating subsequent compensation and possession pipelines.',
     nodeType: 'DISTRICT_ACQUISITION',
     responsibility: 'REVENUE_BRANCH',
     responsibleRole: 'DISTRICT_AUTHORITY',
-    responsibleUserName: 'Dr. Vikramaditya Sen',
-    responsibleUserDesignation: 'Competent Authority (District Magistrate)',
+    responsibleUserId: 'usr-officer-01',
+    responsibleUserName: 'Ananya Patel',
+    responsibleUserDesignation: 'District Competent Authority & Acquisition Officer',
     unitName: 'District Collectorate, Rithala',
     branchKey: 'DISTRICT',
-    slaDays: 0,
-    requiredDocuments: ['Administrative Sanction Order', 'Project Alignment Cadastral Overlay'],
+    slaDays: 15,
+    requiredDocuments: ['Joint Measurement Survey (JMS)', 'Section 11/19 Gazette Extract', 'Ground Panchnama & Field Sheets'],
     positionX: 100,
     positionY: 200,
     parcelCount: 4,
@@ -342,30 +343,7 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
     createdAt: now,
   };
 
-  // 1. Acquisition Branch (One node only: terminal/final node of the acquisition workflow)
-  const acqNode: WorkflowNode = {
-    id: 'node-acq-1',
-    workflowId: wfId,
-    name: 'Acquisition Verification & Final Clearance',
-    description: 'Comprehensive field title verification, Section 11/19 scrutiny, ground affirmation, and final statutory acquisition clearance.',
-    nodeType: 'STAGE',
-    responsibility: 'REVENUE_BRANCH',
-    responsibleRole: 'PROCESSING_OFFICER',
-    responsibleUserId: 'usr-officer-01',
-    responsibleUserName: 'Ananya Patel',
-    responsibleUserDesignation: 'Processing & Field Officer',
-    unitName: 'Revenue & Land Records Branch',
-    branchKey: 'ACQUISITION',
-    slaDays: 21,
-    requiredDocuments: ['Joint Measurement Survey (JMS)', 'Section 11/19 Gazette Extract', 'Ground Panchnama & Field Sheets'],
-    positionX: 460,
-    positionY: 80,
-    parcelCount: 4,
-    status: 'DRAFT',
-    createdAt: now,
-  };
-
-  // 2. Compensation Branch (Default branch: Section 26-30 Solatium & Disbursal)
+  // 1. Compensation Branch (Section 26-30 Solatium & Disbursal)
   const compNode: WorkflowNode = {
     id: 'node-comp-1',
     workflowId: wfId,
@@ -381,14 +359,14 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
     branchKey: 'COMPENSATION',
     slaDays: 21,
     requiredDocuments: ['Circle Rate Valuation Sheet', '100% Solatium Certificate', 'PFMS Beneficiary Disbursal Mandate'],
-    positionX: 460,
-    positionY: 220,
-    parcelCount: 0,
+    positionX: 480,
+    positionY: 200,
+    parcelCount: 4,
     status: 'DRAFT',
     createdAt: now,
   };
 
-  // 3. Possession Branch (Default branch: Section 38 Physical Panchnama & Handover)
+  // 2. Possession Branch (Section 38 Physical Panchnama & Handover)
   const possNode: WorkflowNode = {
     id: 'node-poss-1',
     workflowId: wfId,
@@ -404,31 +382,21 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
     branchKey: 'POSSESSION',
     slaDays: 14,
     requiredDocuments: ['Section 38 Notice to Vacate', 'Spot Panchnama Signed by Witnesses', 'Form 16 Certificate of Vesting'],
-    positionX: 460,
-    positionY: 360,
-    parcelCount: 0,
+    positionX: 840,
+    positionY: 200,
+    parcelCount: 4,
     status: 'DRAFT',
     createdAt: now,
   };
 
   const nodes: WorkflowNode[] = [
     rootNode,
-    acqNode,
     compNode,
     possNode,
   ];
 
   const edges: WorkflowEdge[] = [
-    // Rithala -> Acquisition terminal node
-    {
-      id: 'edge-dist-to-acq-1',
-      workflowId: wfId,
-      sourceNodeId: 'node-district-root',
-      targetNodeId: 'node-acq-1',
-      edgeLabel: 'Acquisition',
-      createdAt: now,
-    },
-    // Rithala -> Compensation node
+    // Rithala (Acquisition) -> Compensation node
     {
       id: 'edge-dist-to-comp-1',
       workflowId: wfId,
@@ -437,11 +405,11 @@ export function createStandardDistrictStartingGraph(projectId: string): import('
       edgeLabel: 'Compensation',
       createdAt: now,
     },
-    // Rithala -> Possession node
+    // Compensation -> Possession node
     {
-      id: 'edge-dist-to-poss-1',
+      id: 'edge-comp-to-poss-1',
       workflowId: wfId,
-      sourceNodeId: 'node-district-root',
+      sourceNodeId: 'node-comp-1',
       targetNodeId: 'node-poss-1',
       edgeLabel: 'Possession',
       createdAt: now,

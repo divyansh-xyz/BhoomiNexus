@@ -106,7 +106,7 @@ export const getTaskById = async (req: Request, res: Response, next: NextFunctio
        FROM tasks t
        JOIN projects p ON p.id = t.project_id
        LEFT JOIN users u ON u.id = t.assigned_officer_id
-       WHERE t.id = $1`,
+       WHERE t.id::text = $1`,
       [id]
     );
 
@@ -174,7 +174,7 @@ export const startTask = async (req: Request, res: Response, next: NextFunction)
   try {
     const id = req.params.id as string;
 
-    const existing = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
+    const existing = await pool.query(`SELECT * FROM tasks WHERE id::text = $1`, [id]);
     if (existing.rows.length === 0) {
       const v2Started = await workflowExecutionService.startV2Task(id, req.user!.id);
       return res.json({ success: true, data: v2Started });
@@ -186,7 +186,7 @@ export const startTask = async (req: Request, res: Response, next: NextFunction)
     }
 
     const result = await pool.query(
-      `UPDATE tasks SET status = 'IN_PROGRESS', started_at = NOW() WHERE id = $1 RETURNING *`,
+      `UPDATE tasks SET status = 'IN_PROGRESS', started_at = NOW() WHERE id::text = $1 RETURNING *`,
       [id]
     );
 
@@ -208,7 +208,7 @@ export const startTask = async (req: Request, res: Response, next: NextFunction)
        FROM tasks t
        JOIN projects p ON p.id = t.project_id
        LEFT JOIN users u ON u.id = t.assigned_officer_id
-       WHERE t.id = $1`,
+       WHERE t.id::text = $1`,
       [id]
     );
 
@@ -222,7 +222,7 @@ export const acceptTask = async (req: Request, res: Response, next: NextFunction
   try {
     const id = req.params.id as string;
 
-    const existing = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
+    const existing = await pool.query(`SELECT * FROM tasks WHERE id::text = $1`, [id]);
     if (existing.rows.length === 0) {
       const v2Accepted = await workflowExecutionService.acceptV2Task(id, req.user!.id);
       return res.json(v2Accepted);
@@ -233,7 +233,7 @@ export const acceptTask = async (req: Request, res: Response, next: NextFunction
       return next(new ApiError(400, "Task cannot be accepted in current status"));
     }
 
-    await pool.query(`UPDATE tasks SET status = 'ACCEPTED', completed_at = NOW() WHERE id = $1`, [id]);
+    await pool.query(`UPDATE tasks SET status = 'ACCEPTED', completed_at = NOW() WHERE id::text = $1`, [id]);
     await pool.query(`UPDATE workflow_instance_stages SET status = 'COMPLETED' WHERE id = $1`, [task.stage_id]);
 
     await createAuditEvent({
@@ -307,7 +307,7 @@ export const acceptTask = async (req: Request, res: Response, next: NextFunction
               u.cadre AS officer_cadre, u.email AS officer_email,
               u.phone AS officer_phone, u.office_location AS officer_office
        FROM tasks t JOIN projects p ON p.id = t.project_id
-       LEFT JOIN users u ON u.id = t.assigned_officer_id WHERE t.id = $1`, [id]
+       LEFT JOIN users u ON u.id = t.assigned_officer_id WHERE t.id::text = $1`, [id]
     );
 
     // Phase 15: In-App Notifications for Stage Completion / Advance
@@ -394,7 +394,7 @@ export const rejectTask = async (req: Request, res: Response, next: NextFunction
     const id = req.params.id as string;
     const { reason } = req.body;
 
-    const existing = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
+    const existing = await pool.query(`SELECT * FROM tasks WHERE id::text = $1`, [id]);
     if (existing.rows.length === 0) {
       const v2Rejected = await workflowExecutionService.rejectV2Task(id, req.user!.id, reason);
       return res.json(v2Rejected);
@@ -405,7 +405,7 @@ export const rejectTask = async (req: Request, res: Response, next: NextFunction
       return next(new ApiError(400, "Task cannot be rejected in current status"));
     }
 
-    await pool.query(`UPDATE tasks SET status = 'REJECTED', rejection_reason = $1, completed_at = NOW() WHERE id = $2`, [reason, id]);
+    await pool.query(`UPDATE tasks SET status = 'REJECTED', rejection_reason = $1, completed_at = NOW() WHERE id::text = $2`, [reason, id]);
     await pool.query(`UPDATE workflow_instance_stages SET status = 'REJECTED' WHERE id = $1`, [task.stage_id]);
 
     await createAuditEvent({
@@ -425,7 +425,7 @@ export const rejectTask = async (req: Request, res: Response, next: NextFunction
               u.cadre AS officer_cadre, u.email AS officer_email,
               u.phone AS officer_phone, u.office_location AS officer_office
        FROM tasks t JOIN projects p ON p.id = t.project_id
-       LEFT JOIN users u ON u.id = t.assigned_officer_id WHERE t.id = $1`, [id]
+       LEFT JOIN users u ON u.id = t.assigned_officer_id WHERE t.id::text = $1`, [id]
     );
 
     // Phase 15: In-App Notifications for Stage Rejection

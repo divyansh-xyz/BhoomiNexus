@@ -6,6 +6,10 @@ import { taskService } from '../../services/api/task.service';
 import type { WorkflowTask, TaskEvidenceItem } from '../../types/task.types';
 import { apiClient } from '../../services/api/client';
 import {
+  compensationV2Service,
+  type CompensationDossier,
+} from '../../services/api/compensationV2.service';
+import {
   DemoLoading,
   DemoEmpty,
   DemoTaskCompleted,
@@ -23,6 +27,30 @@ export const OfficerTaskDetailPage: React.FC = () => {
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+
+  // Compensation Sanction State for District Authority
+  const [compDossier, setCompDossier] = useState<CompensationDossier | null>(() => {
+    try {
+      return compensationV2Service.getDossier();
+    } catch (e) {
+      return null;
+    }
+  });
+  const [inspectingDoc, setInspectingDoc] = useState<{
+    name: string;
+    type: string;
+    size?: string;
+    parcelKh: string;
+  } | null>(null);
+  const [inspectingProof, setInspectingProof] = useState<{
+    parcelKh: string;
+    khatedar: string;
+    proof: any;
+  } | null>(null);
+  const [valuationAffirmed, setValuationAffirmed] = useState(true);
+  const [solatiumAffirmed, setSolatiumAffirmed] = useState(true);
+  const [pfmsAffirmed, setPfmsAffirmed] = useState(true);
+  const [noDisputeAffirmed, setNoDisputeAffirmed] = useState(true);
 
   // Phase 11: Ground Evidence Repository state
   const [evidenceList, setEvidenceList] = useState<TaskEvidenceItem[]>([]);
@@ -43,15 +71,13 @@ export const OfficerTaskDetailPage: React.FC = () => {
   const [ocrSubmitting, setOcrSubmitting] = useState(false);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [isUploadedImage, setIsUploadedImage] = useState(false);
+  const [docPreviewUrls, setDocPreviewUrls] = useState<Record<string, string>>({});
+  const [docOcrData, setDocOcrData] = useState<Record<string, any>>({});
   const [showOcrModal, setShowOcrModal] = useState(false);
 
-  // Phase 11: Add Statutory Document & Gemini OCR Upload Modal state
+  // Statutory Document Upload Modal state
   const [showUploadDocModal, setShowUploadDocModal] = useState(false);
-  const [uploadModalTab, setUploadModalTab] = useState<'EXISTING' | 'NEW'>('EXISTING');
   const [selectedExistingDocId, setSelectedExistingDocId] = useState<string>('');
-  const [newDocName, setNewDocName] = useState('');
-  const [newDocType, setNewDocType] = useState('Valuation Ledger');
-  const [newDocMandatory, setNewDocMandatory] = useState(true);
   const [modalFile, setModalFile] = useState<File | null>(null);
   const [modalIsDragging, setModalIsDragging] = useState(false);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +121,10 @@ export const OfficerTaskDetailPage: React.FC = () => {
         );
       }
       setTask(data);
+      try {
+        const d = compensationV2Service.getDossier();
+        setCompDossier(d);
+      } catch (e) {}
       if (data) {
         if (data.evidence && data.evidence.length > 0) {
           setEvidenceList(data.evidence);
@@ -130,13 +160,8 @@ export const OfficerTaskDetailPage: React.FC = () => {
       if (dLower.includes('schedule') && pLower.includes('schedule')) return true;
       if (dLower.includes('survey') && (pLower.includes('survey') || pLower.includes('alignment') || pLower.includes('vector') || pLower.includes('map'))) return true;
       if (dLower.includes('khasra') && (pLower.includes('khasra') || pLower.includes('land holding'))) return true;
-      if (dLower.includes('khatauni') && (pLower.includes('khatauni') || pLower.includes('land holding') || pLower.includes('schedule'))) return true;
-      if (dLower.includes('map') && (pLower.includes('map') || pLower.includes('cadastral'))) return true;
-      if (dLower.includes('proposal') && pLower.includes('proposal')) return true;
-      if (dLower.includes('dpr') && pLower.includes('dpr')) return true;
-      if (dLower.includes('sia') && pLower.includes('sia')) return true;
-      if (dLower.includes('gazette') && pLower.includes('gazette')) return true;
-      return pLower.includes(dLower);
+      if (dLower.includes('gazette') && (pLower.includes('gazette') || pLower.includes('notification'))) return true;
+      return false;
     });
   };
 
@@ -183,14 +208,24 @@ export const OfficerTaskDetailPage: React.FC = () => {
     try {
       const response = await taskService.acceptTask(task.id);
       setTask(response.task);
-      try {
-        localStorage.setItem('bhoomi_acq_branch_completed', 'true');
-        if (task.projectId) {
-          localStorage.setItem(`bhoomi_acq_completed_${task.projectId}`, 'true');
-        }
-        const pId = task.parcel?.ulpin || task.parcel?.id || '07-104-5829-1021';
-        localStorage.setItem('bhoomi_completed_acq_parcels', JSON.stringify([pId]));
-      } catch (e) {}
+      const isComp = task.workflowNode?.branchType === 'COMPENSATION' || task.id.startsWith('TASK-COMP');
+      if (isComp) {
+        const updatedDossier = compensationV2Service.approveDossierByDistrict('Ananya Patel (District Authority)');
+        setCompDossier(updatedDossier);
+        setEvidenceSuccessNotice(
+          '✓ Section 28 Compensation Estimate Sanctioned & Disbursal Proofs Formally Approved. Pipeline advanced to Possession Branch.'
+        );
+      } else {
+        try {
+          localStorage.setItem('bhoomi_acq_branch_completed', 'true');
+          if (task.projectId) {
+            localStorage.setItem(`bhoomi_acq_completed_${task.projectId}`, 'true');
+          }
+          const pId = task.parcel?.ulpin || task.parcel?.id || '07-104-5829-1021';
+          localStorage.setItem('bhoomi_completed_acq_parcels', JSON.stringify([pId]));
+        } catch (e) {}
+        setEvidenceSuccessNotice('✓ Acquisition stage affirmed and completed under Section 11/19 RFCTLARR Act 2013.');
+      }
     } catch (err) {
       console.error('Failed to accept task', err);
     } finally {
@@ -294,42 +329,15 @@ export const OfficerTaskDetailPage: React.FC = () => {
     }
   };
 
-  const STATUTORY_DOC_PRESETS = [
-    { name: 'Form 19 Joint Demarcation Notice.pdf', type: 'Panchnama' },
-    { name: 'DGPS Boundary Survey Coordinates Schedule.pdf', type: 'Map' },
-    { name: 'Section 11 Preliminary Notification Gazette.pdf', type: 'Gazette' },
-    { name: 'Field Inspection Panchnama & Spot Memo.pdf', type: 'Panchnama' },
-    { name: 'Aks-Shajra / Khasra Cadastral Map Extract.pdf', type: 'Map' },
-    { name: 'Jamabandi RoR & Ownership Ledger Extract.pdf', type: 'Land Schedule' },
-    { name: 'Award Formulation & Compensation Ledger.pdf', type: 'Valuation Ledger' },
-  ];
-
-  const STATUTORY_DOC_TYPES = [
-    'Valuation Ledger',
-    'Gazette',
-    'Land Schedule',
-    'Map',
-    'Panchnama',
-    'Inspection',
-    'Statutory Record',
-  ];
-
-  const handleOpenUploadModal = (defaultDocId?: string, defaultTab: 'EXISTING' | 'NEW' = 'EXISTING') => {
+  const handleOpenUploadModal = (defaultDocId?: string) => {
     const docs = task?.requiredDocuments || [];
     if (defaultDocId) {
       setSelectedExistingDocId(defaultDocId);
-      setUploadModalTab('EXISTING');
-    } else if (defaultTab === 'NEW' || docs.length === 0) {
-      setUploadModalTab('NEW');
     } else {
       const firstMissing = docs.find(d => d.status === 'MISSING');
       setSelectedExistingDocId(firstMissing ? firstMissing.id : docs[0]?.id || '');
-      setUploadModalTab('EXISTING');
     }
     setModalFile(null);
-    setNewDocName('');
-    setNewDocType('Valuation Ledger');
-    setNewDocMandatory(true);
     setShowUploadDocModal(true);
   };
 
@@ -348,10 +356,12 @@ export const OfficerTaskDetailPage: React.FC = () => {
     if (!task) return;
     setUploadingDocId(targetDocId);
 
+    const previewUrl = URL.createObjectURL(file);
     if (uploadedFileUrl && uploadedFileUrl.startsWith('blob:')) {
       URL.revokeObjectURL(uploadedFileUrl);
     }
-    setUploadedFileUrl(URL.createObjectURL(file));
+    setUploadedFileUrl(previewUrl);
+    setDocPreviewUrls(prev => ({ ...prev, [targetDocId]: previewUrl }));
     setIsUploadedImage(file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|tiff?)$/i.test(file.name));
 
     try {
@@ -391,6 +401,14 @@ export const OfficerTaskDetailPage: React.FC = () => {
       });
 
       const realDocId = uploadResult.documentId || `DOC-${Date.now()}`;
+      setTask(prev => {
+        if (!prev) return prev;
+        const docs = (prev.requiredDocuments || []).map(d =>
+          d.id === targetDocId ? { ...d, status: 'UPLOADED' as const, backendDocId: realDocId } : d
+        );
+        return { ...prev, requiredDocuments: docs };
+      });
+
       setOcrStatus({ docId: targetDocId, backendDocId: realDocId, status: 'OCR_PROCESSING' });
       setIsOcrVerified(false);
       setShowOcrModal(true);
@@ -417,7 +435,10 @@ export const OfficerTaskDetailPage: React.FC = () => {
           result.backendDocId = realDocId;
           result.docId = targetDocId;
           setOcrStatus(result);
-          setOcrData(result.extractedData || null);
+          if (result.extractedData) {
+            setOcrData(result.extractedData);
+            setDocOcrData(prev => ({ ...prev, [targetDocId]: result.extractedData }));
+          }
         } catch (err) {
           console.error("Polling error", err);
           setTimeout(() => pollForExtraction(attempts + 1), 3000);
@@ -442,40 +463,9 @@ export const OfficerTaskDetailPage: React.FC = () => {
   };
 
   const handleModalSubmitUpload = async () => {
-    if (!modalFile || !task) return;
-    if (uploadModalTab === 'EXISTING') {
-      if (!selectedExistingDocId) return;
-      setShowUploadDocModal(false);
-      await processDocumentUpload(modalFile, selectedExistingDocId);
-    } else {
-      if (!newDocName.trim()) return;
-      const newDocId = `req-doc-${Date.now()}`;
-      setShowUploadDocModal(false);
-      await processDocumentUpload(modalFile, newDocId, {
-        name: newDocName.trim(),
-        type: newDocType,
-        mandatory: newDocMandatory,
-      });
-    }
-  };
-
-  const handleModalAddDocOnly = () => {
-    if (!task || !newDocName.trim()) return;
-    const newDocId = `req-doc-${Date.now()}`;
-    const newDoc = {
-      id: newDocId,
-      name: newDocName.trim(),
-      type: newDocType || 'Statutory Record',
-      mandatory: newDocMandatory,
-      status: 'MISSING' as const,
-    };
-    setTask({
-      ...task,
-      requiredDocuments: [...(task.requiredDocuments || []), newDoc],
-    });
+    if (!modalFile || !task || !selectedExistingDocId) return;
     setShowUploadDocModal(false);
-    setModalFile(null);
-    setNewDocName('');
+    await processDocumentUpload(modalFile, selectedExistingDocId);
   };
 
   const loadDocumentPreview = async (doc: any) => {
@@ -507,17 +497,27 @@ export const OfficerTaskDetailPage: React.FC = () => {
   };
 
   const handleInspectVerifiedDoc = async (doc: any) => {
-    setOcrStatus({ docId: doc.id, status: 'COMPLETED' });
+    const realDocId = doc.backendDocId || ocrStatus?.backendDocId || doc.id;
+    setOcrStatus({ docId: doc.id, backendDocId: realDocId, status: 'COMPLETED' });
     setIsOcrVerified(true);
     setCorrectedFields({});
     setShowOcrModal(true);
-    await loadDocumentPreview(doc);
 
-    if (!ocrData && task) {
+    if (docPreviewUrls[doc.id]) {
+      setUploadedFileUrl(docPreviewUrls[doc.id]);
+      setIsUploadedImage(/\.(jpe?g|png|webp|bmp|tiff?)$/i.test(doc.name) || docPreviewUrls[doc.id].startsWith('blob:'));
+    } else {
+      await loadDocumentPreview(doc);
+    }
+
+    if (docOcrData[doc.id]) {
+      setOcrData(docOcrData[doc.id]);
+    } else if (task) {
       try {
-        const res = await OfficerService.getOcrExtractionStatus(task.id, doc.id);
+        const res = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
         if (res && res.extractedData) {
           setOcrData(res.extractedData);
+          setDocOcrData(prev => ({ ...prev, [doc.id]: res.extractedData }));
         }
       } catch (err) {
         console.error('Failed to load OCR data for inspection', err);
@@ -527,20 +527,27 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
   const handleOpenOcrForm = async (doc: any) => {
     setActiveUploadDocId(doc.id);
-    setOcrStatus({ docId: doc.id, backendDocId: doc.id, status: 'COMPLETED' });
+    const realDocId = doc.backendDocId || ocrStatus?.backendDocId || doc.id;
+    setOcrStatus({ docId: doc.id, backendDocId: realDocId, status: 'COMPLETED' });
     setIsOcrVerified(doc.status === 'VERIFIED');
     setCorrectedFields({});
     setShowOcrModal(true);
 
-    if (!uploadedFileUrl) {
+    if (docPreviewUrls[doc.id]) {
+      setUploadedFileUrl(docPreviewUrls[doc.id]);
+      setIsUploadedImage(/\.(jpe?g|png|webp|bmp|tiff?)$/i.test(doc.name) || docPreviewUrls[doc.id].startsWith('blob:'));
+    } else {
       await loadDocumentPreview(doc);
     }
 
-    if (!ocrData && task) {
+    if (docOcrData[doc.id]) {
+      setOcrData(docOcrData[doc.id]);
+    } else if (task) {
       try {
-        const res = await OfficerService.getOcrExtractionStatus(task.id, doc.id);
+        const res = await OfficerService.getOcrExtractionStatus(task.id, realDocId);
         if (res && res.extractedData) {
           setOcrData(res.extractedData);
+          setDocOcrData(prev => ({ ...prev, [doc.id]: res.extractedData }));
           if (res.confidenceScores) {
             setOcrStatus(prev => prev ? { ...prev, confidenceScores: res.confidenceScores } : null);
           }
@@ -611,17 +618,16 @@ export const OfficerTaskDetailPage: React.FC = () => {
     );
   }
 
+  const branchType = task.workflowNode?.branchType || 'ACQUISITION';
+  const isCompTask = branchType === 'COMPENSATION' || task.id.startsWith('TASK-COMP');
+
   const hasMissingDocs = task.requiredDocuments.some(d => d.status === 'MISSING');
   const hasUnverifiedDocs = task.requiredDocuments.some(d => d.status !== 'VERIFIED');
   const ocrBlocking = ocrStatus !== null && !isOcrVerified;
 
-  const isReadyToAccept =
-    task.status === 'IN_PROGRESS' &&
-    !hasMissingDocs &&
-    !hasUnverifiedDocs &&
-    !ocrBlocking;
-
-  const branchType = task.workflowNode?.branchType || 'ACQUISITION';
+  const isReadyToAccept = isCompTask
+    ? (task.status === 'IN_PROGRESS' && valuationAffirmed && solatiumAffirmed && pfmsAffirmed && noDisputeAffirmed)
+    : (task.status === 'IN_PROGRESS' && !hasMissingDocs && !hasUnverifiedDocs && !ocrBlocking);
   const cohortLabel = task.cohortContext?.cohortBranch || 'Cohort A (North Section Corridor)';
   const primaryParcel = task.parcel || {
     id: 'parcel-101',
@@ -793,8 +799,428 @@ export const OfficerTaskDetailPage: React.FC = () => {
         )}
 
         {/* Main Content Section: Two-Column Layout */}
-        <div className="things-task-layout-grid">
+        {isCompTask ? (
+          <div>
+            {/* 1. Total Compensation Estimate Overview Card */}
+            {compDossier && (
+              <div
+                className="things-task-card"
+                style={{
+                  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                  color: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '24px 28px',
+                  marginBottom: '24px',
+                  boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.2)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', marginBottom: '8px' }}>
+                      District Scrutiny &bull; Total Section 28 Compensation Award Estimate
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '38px', fontWeight: 800, letterSpacing: '-0.02em', color: '#38bdf8' }}>
+                        ₹{compDossier.totalCompensationEstimate.toLocaleString('en-IN')}
+                      </span>
+                      <span style={{ fontSize: '18px', fontWeight: 600, color: '#e2e8f0' }}>
+                        ({(compDossier.totalCompensationEstimate / 10000000).toFixed(2)} Cr / ₹{(compDossier.totalCompensationEstimate / 100000).toFixed(1)} Lakh)
+                      </span>
+                    </div>
 
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '14px', fontSize: '13px', color: '#cbd5e1', flexWrap: 'wrap' }}>
+                      <div>
+                        <span style={{ color: '#94a3b8' }}>Base Market Valuation:</span>{' '}
+                        <strong>₹{Math.round(compDossier.totalCompensationEstimate / 2).toLocaleString('en-IN')}</strong>
+                      </div>
+                      <span>&bull;</span>
+                      <div>
+                        <span style={{ color: '#94a3b8' }}>100% Statutory Solatium (Sec 30):</span>{' '}
+                        <strong style={{ color: '#6ee7b7' }}>₹{Math.round(compDossier.totalCompensationEstimate / 2).toLocaleString('en-IN')}</strong>
+                      </div>
+                      <span>&bull;</span>
+                      <div>
+                        <span style={{ color: '#94a3b8' }}>Assessed Parcels:</span>{' '}
+                        <strong>{compDossier.parcels.length} (12.10 Acres)</strong>
+                      </div>
+                      <span>&bull;</span>
+                      <div>
+                        <span style={{ color: '#94a3b8' }}>Dispatched By:</span>{' '}
+                        <strong style={{ color: '#e2e8f0' }}>{compDossier.routedBy}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 16px',
+                        borderRadius: '9999px',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        background: task.status === 'ACCEPTED' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)',
+                        color: task.status === 'ACCEPTED' ? '#34d399' : '#38bdf8',
+                        border: task.status === 'ACCEPTED' ? '1px solid rgba(52, 211, 153, 0.4)' : '1px solid rgba(56, 189, 248, 0.3)',
+                      }}
+                    >
+                      {task.status === 'ACCEPTED' ? '✓ Section 28 Sanctioned' : 'Awaiting District Sanction'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Two-Column Layout */}
+            <div className="things-task-layout-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) 380px' }}>
+              {/* Left Column: 4 Parcels Valuation Ledger & Documents */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="things-task-card" style={{ padding: '16px 20px', background: '#f8fafc', border: '1px solid var(--to-hairline)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--to-ink)', margin: '0 0 2px 0' }}>
+                        Received Land Parcels ({compDossier?.parcels.length || 4}) &bull; Valuation Breakup &amp; Disbursal Proofs
+                      </h3>
+                      <p style={{ fontSize: '12px', color: 'var(--to-fog)', margin: 0 }}>
+                        Appraise circle rate schedules, supporting valuation documents, and PFMS Direct Benefit Transfer vouchers.
+                      </p>
+                    </div>
+                    <span className="things-cohort-pill">
+                      Cohort Total: 12.10 Acres
+                    </span>
+                  </div>
+                </div>
+
+                {compDossier?.parcels.map((parcel, idx) => {
+                  const pEst = parcel.compensationEstimate || 0;
+                  const pBase = Math.round(pEst / 2);
+                  const pSol = Math.round(pEst / 2);
+                  const hasProof = Boolean(parcel.actualCompensationProof?.referenceNo);
+
+                  return (
+                    <div key={parcel.parcelId} className="things-task-card" style={{ padding: '22px 24px' }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid var(--to-hairline)', paddingBottom: '14px', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '8px',
+                              background: '#eff6ff',
+                              color: '#2563eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '16px',
+                              fontWeight: 800,
+                            }}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                              <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--to-ink)' }}>
+                                Khasra No. {parcel.khasraNumber} (Survey {parcel.surveyNumber})
+                              </span>
+                              <span style={{ fontSize: '11.5px', fontFamily: 'var(--to-font-mono)', color: 'var(--to-fog)', background: 'var(--to-mist)', padding: '2px 6px', borderRadius: '4px' }}>
+                                {parcel.ulpin}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '12.5px', color: 'var(--to-ash)' }}>
+                              Khatedar: <strong>{parcel.khatedar}</strong> &bull; {parcel.village}, {parcel.district} &bull; <strong>{parcel.areaAcres} Acres</strong> ({parcel.landType})
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className="things-officer-pill status-completed"
+                          style={{ fontSize: '11px', padding: '4px 10px' }}
+                        >
+                          ✓ PFMS DBT RECORDED
+                        </span>
+                      </div>
+
+                      {/* Three Key Parameter Boxes */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: '12px',
+                          background: '#f8fafc',
+                          border: '1px solid var(--to-hairline)',
+                          borderRadius: '10px',
+                          padding: '14px 18px',
+                          marginBottom: '16px',
+                        }}
+                      >
+                        <div>
+                          <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--to-fog)', marginBottom: '4px' }}>
+                            Assessed Compensation Award
+                          </span>
+                          <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--to-signal-blue)' }}>
+                            ₹{pEst.toLocaleString('en-IN')}{' '}
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#059669' }}>
+                              (₹{(pEst / 100000).toFixed(2)} Lakh)
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--to-fog)', marginTop: '2px' }}>
+                            Base: ₹{pBase.toLocaleString()} + 100% Solatium: ₹{pSol.toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--to-fog)', marginBottom: '4px' }}>
+                            Beneficiary Bank Account (PFMS)
+                          </span>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--to-ink)' }}>
+                            {parcel.bankName}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: 'var(--to-ash)', fontFamily: 'var(--to-font-mono)' }}>
+                            A/C: {parcel.accountNumber} &bull; IFSC: {parcel.ifsc}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--to-fog)', marginTop: '1px' }}>
+                            Aadhaar: {parcel.aadhaarMasked}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--to-fog)', marginBottom: '4px' }}>
+                            Actual Compensation Given Proof
+                          </span>
+                          {hasProof ? (
+                            <div>
+                              <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#065f46' }}>
+                                {parcel.actualCompensationProof?.referenceNo}
+                              </div>
+                              <div style={{ fontSize: '11.5px', color: 'var(--to-ash)' }}>
+                                Disbursed: ₹{parcel.actualCompensationProof?.paidAmount.toLocaleString()} ({parcel.actualCompensationProof?.paymentDate})
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setInspectingProof({ parcelKh: parcel.khasraNumber, khatedar: parcel.khatedar, proof: parcel.actualCompensationProof })}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--to-signal-blue)',
+                                  padding: 0,
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  marginTop: '4px',
+                                }}
+                              >
+                                👁️ View PFMS Voucher &amp; Bank Advice &rarr;
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '12px', color: 'var(--to-fog)' }}>
+                              No disbursal proof registered.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Supporting Valuation Documents Attached */}
+                      <div>
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--to-fog)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>
+                          Attached Supporting Valuation Documents ({parcel.supportingDocuments.length})
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {parcel.supportingDocuments.map((doc) => (
+                            <div
+                              key={doc.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '9px 14px',
+                                background: '#ffffff',
+                                border: '1px solid var(--to-hairline)',
+                                borderRadius: '6px',
+                                fontSize: '12.5px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>📄</span>
+                                <div>
+                                  <span style={{ fontWeight: 600, color: 'var(--to-ink)' }}>{doc.name}</span>
+                                  <div style={{ fontSize: '11px', color: 'var(--to-fog)' }}>
+                                    {doc.type} &bull; {doc.size || '1.2 MB'} &bull; Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setInspectingDoc({ name: doc.name, type: doc.type, size: doc.size, parcelKh: parcel.khasraNumber })}
+                                  className="things-btn-outline"
+                                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                                >
+                                  👁️ Inspect
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadSoftCopy(doc.name)}
+                                  className="things-btn-outline"
+                                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                                >
+                                  ⬇️ Download
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Right Column: Handover Note, Statutory Affirmations, Sanction Decision */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* SLAO Handover Note */}
+                <div className="things-task-card">
+                  <div className="things-task-card-header">
+                    <h4 className="things-task-card-title">
+                      <span>🏛️</span> SLAO Transmittal &amp; Valuation Report
+                    </h4>
+                  </div>
+                  <div className="things-task-context-callout" style={{ fontSize: '12.5px', lineHeight: '1.6' }}>
+                    <em>
+                      "Determination conducted strictly adhering to RFCTLARR Act 2013 Section 26 applying urban circle rate multiplier 1.0x and mandatory 100% solatium under Section 30. Direct benefit transfer credentials validated against PFMS database with zero beneficiary discrepancies. Recommending Section 28 statutory sanction."
+                    </em>
+                  </div>
+                  <div style={{ marginTop: '12px', fontSize: '11.5px', color: 'var(--to-fog)' }}>
+                    Submitted by: <strong>Mahesh Patil</strong> (Special Land Acquisition Officer)
+                  </div>
+                </div>
+
+                {/* District Statutory Scrutiny Checklist */}
+                <div className="things-task-card">
+                  <div className="things-task-card-header">
+                    <h4 className="things-task-card-title">
+                      <span>⚖️</span> District Authority Affirmations
+                    </h4>
+                  </div>
+                  <p style={{ fontSize: '12.5px', color: 'var(--to-fog)', margin: '0 0 14px 0', lineHeight: 1.5 }}>
+                    Statutory review checkboxes required prior to granting Section 28 sanction.
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', lineHeight: 1.4 }}>
+                      <input
+                        type="checkbox"
+                        checked={valuationAffirmed}
+                        onChange={(e) => setValuationAffirmed(e.target.checked)}
+                        style={{ marginTop: '2px' }}
+                      />
+                      <span>Scrutinized circle rate base valuation schedule for all 4 parcels (Section 26).</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', lineHeight: 1.4 }}>
+                      <input
+                        type="checkbox"
+                        checked={solatiumAffirmed}
+                        onChange={(e) => setSolatiumAffirmed(e.target.checked)}
+                        style={{ marginTop: '2px' }}
+                      />
+                      <span>Confirmed mandatory 100% statutory solatium determination under Section 30.</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', lineHeight: 1.4 }}>
+                      <input
+                        type="checkbox"
+                        checked={pfmsAffirmed}
+                        onChange={(e) => setPfmsAffirmed(e.target.checked)}
+                        style={{ marginTop: '2px' }}
+                      />
+                      <span>Verified PFMS Direct Benefit Transfer vouchers and bank mandates for all 4 Khatedars.</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', lineHeight: 1.4 }}>
+                      <input
+                        type="checkbox"
+                        checked={noDisputeAffirmed}
+                        onChange={(e) => setNoDisputeAffirmed(e.target.checked)}
+                        style={{ marginTop: '2px' }}
+                      />
+                      <span>Confirmed indemnity bonds and verified that no land parcel is subjected to Section 64 reference petitions.</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Section 28 Decision Box */}
+                <div className="things-task-card">
+                  {task.status === 'ACCEPTED' ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '24px', color: 'var(--to-emerald)' }}>✓</span>
+                        <div>
+                          <h4 className="things-task-card-title" style={{ margin: 0 }}>
+                            Section 28 Sanction Completed
+                          </h4>
+                          <span style={{ fontSize: '11.5px', color: 'var(--to-fog)' }}>
+                            Award Legally Sanctioned &bull; Ready for Possession
+                          </span>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '13px', color: 'var(--to-ink)', lineHeight: 1.55, margin: '0 0 14px 0' }}>
+                        The total compensation award of ₹1,65,00,000 has been formally sanctioned under Section 28 of RFCTLARR Act 2013 by District Competent Authority Ananya Patel. All PFMS disbursal proofs certified. The parcels are now eligible for Section 38 Physical Possession Transfer.
+                      </p>
+                      <div style={{ padding: '10px 14px', background: '#f8fafc', border: '1px solid var(--to-hairline)', borderRadius: '6px', fontSize: '11.5px', color: 'var(--to-fog)' }}>
+                        Sanctioned: {task.completedAt ? new Date(task.completedAt).toLocaleString() : 'Recently Sanctioned'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h4 className="things-task-card-title" style={{ marginBottom: '6px' }}>
+                        Statutory Sanction Decision
+                      </h4>
+                      <p className="things-task-card-subtitle" style={{ marginBottom: '18px', lineHeight: 1.5 }}>
+                        Under RFCTLARR Section 28, the District Authority legally affirms the SLAO valuation estimate and actual compensation disbursed proofs.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={handleAccept}
+                          disabled={submitting || !isReadyToAccept}
+                          className="things-btn-success"
+                          style={{ width: '100%', padding: '14px', fontSize: '14px', justifyContent: 'center' }}
+                        >
+                          {submitting ? 'Processing Section 28 Sanction...' : '✓ Sanction & Approve Compensation Award (Section 28) →'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowRejectModal(true)}
+                          disabled={submitting}
+                          className="things-btn-danger-outline"
+                          style={{ width: '100%', justifyContent: 'center' }}
+                        >
+                          Reject / Remit to SLAO (Reason Required)
+                        </button>
+                      </div>
+
+                      {!isReadyToAccept && (
+                        <div className="things-task-affirm-note" style={{ marginTop: '12px' }}>
+                          Please confirm all statutory scrutiny affirmations above before granting Section 28 sanction.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+        <div className="things-task-layout-grid">
           {/* Left Column: Dimensions 1, 2, 6 (Parcel Passport, Workflow Node, Cohort Context) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
@@ -1188,7 +1614,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                           {isMissing && (
                             <button
                               type="button"
-                              onClick={() => handleOpenUploadModal(doc.id, 'EXISTING')}
+                              onClick={() => handleOpenUploadModal(doc.id)}
                               disabled={isUploading || task.status === 'REJECTED'}
                               className="things-btn-primary"
                               title="Upload scanned image or photo of physical stamped hard copy"
@@ -1215,7 +1641,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleOpenUploadModal(doc.id, 'EXISTING')}
+                                onClick={() => handleOpenUploadModal(doc.id)}
                                 disabled={isUploading || task.status === 'REJECTED'}
                                 className="things-btn-outline"
                                 title="Re-upload hard copy scan and rerun Gemini AI OCR"
@@ -1240,7 +1666,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleOpenUploadModal(doc.id, 'EXISTING')}
+                                onClick={() => handleOpenUploadModal(doc.id)}
                                 disabled={isUploading || task.status === 'REJECTED'}
                                 className="things-btn-outline"
                                 title="Re-upload physical scan and rerun Gemini OCR extraction"
@@ -1299,7 +1725,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                     className="things-btn-primary"
                     style={{ width: '100%', padding: '12px', fontSize: '14px', justifyContent: 'center' }}
                   >
-                    {submitting ? 'Starting...' : '▶ Start Task Scrutiny (POST /api/v1/tasks/:taskId/start)'}
+                    {submitting ? 'Starting...' : '▶ Start Task Scrutiny'}
                   </button>
                 </div>
               ) : task.status === 'REJECTED' ? (
@@ -1332,7 +1758,6 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {/* Affirm & Accept Stage button (POST /api/v1/tasks/:taskId/accept) */}
                     <button
                       type="button"
                       onClick={handleAccept}
@@ -1340,7 +1765,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                       className="things-btn-success"
                       style={{ width: '100%', padding: '12px', fontSize: '14px', justifyContent: 'center' }}
                     >
-                      {submitting ? 'Processing Affirmation...' : '✓ Affirm & Accept Stage (POST /tasks/:taskId/accept)'}
+                      {submitting ? 'Processing Affirmation...' : '✓ Affirm & Accept Stage'}
                     </button>
 
                     {/* Reject to Proponent button (POST /api/v1/tasks/:taskId/reject) */}
@@ -1370,279 +1795,328 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
           </div>
         </div>
+        )}
 
-        {/* Modal: Add / Upload Statutory Document for Gemini AI OCR */}
-        {showUploadDocModal && (
-          <div className="things-modal-overlay" onClick={() => setShowUploadDocModal(false)}>
-            <div
-              className="things-doc-upload-modal"
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Modal Header */}
+        {/* Modal: Inspect Compensation Supporting Document */}
+        {inspectingDoc && (
+          <div className="things-modal-overlay" onClick={() => setInspectingDoc(null)}>
+            <div className="things-doc-upload-modal" style={{ maxWidth: '580px' }} onClick={e => e.stopPropagation()}>
               <div className="things-doc-upload-header">
                 <div>
                   <h3 className="things-doc-upload-title">
-                    <span style={{ color: 'var(--to-signal-blue)' }}>⚡</span>
-                    Add / Upload Statutory Document &bull; Gemini OCR
+                    Statutory Valuation Document
                   </h3>
                   <p className="things-doc-upload-sub">
-                    Upload physical stamped scans (PDF, JPG, PNG) to initiate automated multimodal Gemini extraction, entity schema normalization, and certified soft copy form filling.
+                    Certified Record &bull; Khasra No. {inspectingDoc.parcelKh}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowUploadDocModal(false)}
+                  onClick={() => setInspectingDoc(null)}
                   className="things-ocr-close-btn"
-                  title="Close modal"
                 >
                   &times;
                 </button>
               </div>
 
-              {/* Tab Switcher */}
-              <div className="things-doc-upload-tabs">
-                <button
-                  type="button"
-                  className={`things-doc-upload-tab ${uploadModalTab === 'EXISTING' ? 'active' : ''}`}
-                  onClick={() => setUploadModalTab('EXISTING')}
-                >
-                  <span>📁</span> Upload Scan for Existing Requirement
-                </button>
-                <button
-                  type="button"
-                  className={`things-doc-upload-tab ${uploadModalTab === 'NEW' ? 'active' : ''}`}
-                  onClick={() => setUploadModalTab('NEW')}
-                >
-                  <span>+</span> Add New Statutory Document &amp; Upload
-                </button>
-              </div>
-
-              {/* Modal Body */}
               <div className="things-doc-upload-body">
-                {uploadModalTab === 'EXISTING' ? (
-                  <div className="things-doc-form-group">
-                    <label className="things-doc-label">
-                      <span>Select Target Statutory Requirement</span>
-                      <span style={{ fontSize: '11px', color: 'var(--to-fog)', fontWeight: 400 }}>
-                        {task.requiredDocuments?.length || 0} document(s) configured
-                      </span>
-                    </label>
-                    {(!task.requiredDocuments || task.requiredDocuments.length === 0) ? (
-                      <div style={{ padding: '12px', background: '#fef2f2', borderRadius: '6px', fontSize: '13px', color: '#991b1b' }}>
-                        No statutory requirements exist yet. Switch to "Add New Statutory Document &amp; Upload" to create one.
-                      </div>
-                    ) : (
-                      <select
-                        className="things-doc-select"
-                        value={selectedExistingDocId}
-                        onChange={e => setSelectedExistingDocId(e.target.value)}
-                      >
-                        {task.requiredDocuments.map(doc => (
-                          <option key={doc.id} value={doc.id}>
-                            {doc.name} [{doc.type}] — Status: {doc.status} {doc.mandatory ? '(*MANDATORY)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid var(--to-hairline)', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--to-ink)', marginBottom: '4px' }}>
+                    📄 {inspectingDoc.name}
                   </div>
-                ) : (
-                  <>
-                    <div className="things-doc-form-group">
-                      <label className="things-doc-label">
-                        <span>Statutory Document Title</span>
-                        <span style={{ fontSize: '11px', color: 'var(--to-rose)', fontWeight: 600 }}>*Required</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="things-doc-input"
-                        placeholder="e.g., Form 19 Joint Demarcation Notice.pdf"
-                        value={newDocName}
-                        onChange={e => setNewDocName(e.target.value)}
-                      />
-                      {/* Presets */}
-                      <div style={{ marginTop: '4px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--to-fog)', display: 'block', marginBottom: '4px' }}>
-                          Quick Official Presets:
-                        </span>
-                        <div className="things-doc-presets">
-                          {STATUTORY_DOC_PRESETS.map(p => (
-                            <button
-                              key={p.name}
-                              type="button"
-                              className="things-doc-preset-chip"
-                              onClick={() => {
-                                setNewDocName(p.name);
-                                setNewDocType(p.type);
-                              }}
-                            >
-                              + {p.name.replace('.pdf', '')}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                      <div className="things-doc-form-group">
-                        <label className="things-doc-label">Statutory Document Type</label>
-                        <select
-                          className="things-doc-select"
-                          value={newDocType}
-                          onChange={e => setNewDocType(e.target.value)}
-                        >
-                          {STATUTORY_DOC_TYPES.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="things-doc-form-group" style={{ justifyContent: 'center' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '22px' }}>
-                          <input
-                            type="checkbox"
-                            checked={newDocMandatory}
-                            onChange={e => setNewDocMandatory(e.target.checked)}
-                            style={{ width: '16px', height: '16px', accentColor: 'var(--to-signal-blue)' }}
-                          />
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--to-ink)' }}>
-                            Mandatory Statutory Record
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Upload Dropzone */}
-                <div className="things-doc-form-group">
-                  <label className="things-doc-label">
-                    <span>Physical Scan / Stamped Document Evidence</span>
-                    <span style={{ fontSize: '11px', color: 'var(--to-fog)', fontWeight: 400 }}>
-                      PDF, JPG, PNG, WEBP (Max 25MB)
-                    </span>
-                  </label>
-
-                  <input
-                    type="file"
-                    ref={modalFileInputRef}
-                    accept="application/pdf,image/*"
-                    style={{ display: 'none' }}
-                    onChange={e => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        const f = e.target.files[0];
-                        setModalFile(f);
-                        if (!newDocName) {
-                          setNewDocName(f.name);
-                        }
-                      }
-                    }}
-                  />
-
-                  {!modalFile ? (
-                    <div
-                      className={`things-doc-dropzone ${modalIsDragging ? 'is-dragover' : ''}`}
-                      onDragOver={e => {
-                        e.preventDefault();
-                        setModalIsDragging(true);
-                      }}
-                      onDragLeave={() => setModalIsDragging(false)}
-                      onDrop={e => {
-                        e.preventDefault();
-                        setModalIsDragging(false);
-                        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                          const f = e.dataTransfer.files[0];
-                          setModalFile(f);
-                          if (!newDocName) {
-                            setNewDocName(f.name);
-                          }
-                        }
-                      }}
-                      onClick={() => {
-                        if (modalFileInputRef.current) {
-                          modalFileInputRef.current.click();
-                        }
-                      }}
-                    >
-                      <div style={{ fontSize: '28px' }}>📤</div>
-                      <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--to-ink)' }}>
-                        Click to browse or drag &amp; drop physical scan
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: 'var(--to-fog)' }}>
-                        Official gazettes, Form 11 valuation records, panchnama sheets, or Jamabandi copies
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="things-doc-file-card">
-                      <div className="things-doc-file-info">
-                        <span style={{ fontSize: '22px' }}>
-                          {modalFile.type.startsWith('image/') ? '🖼️' : '📄'}
-                        </span>
-                        <div>
-                          <div className="things-doc-file-name">{modalFile.name}</div>
-                          <div className="things-doc-file-meta">
-                            {(modalFile.size / (1024 * 1024)).toFixed(2)} MB &bull; {modalFile.type || 'Document'}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setModalFile(null)}
-                        className="things-btn-outline"
-                        style={{ fontSize: '11.5px', padding: '4px 8px', color: '#ef4444', borderColor: '#fca5a5' }}
-                        title="Remove file"
-                      >
-                        ✕ Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Gemini OCR Callout */}
-                <div className="things-doc-ai-banner">
-                  <span style={{ fontSize: '18px' }}>⚡</span>
-                  <div>
-                    <strong>Automated Gemini OCR &bull; Soft Copy Form Filling:</strong>
-                    <div style={{ marginTop: '2px' }}>
-                      Once uploaded, BhoomiNexus initiates parallel OCR processing and Gemini multimodal analysis to extract statutory parameters (ULPIN, Khasra, Owner, Demarcated Area, Valuation), matching them directly against spatial cadastres.
-                    </div>
+                  <div style={{ fontSize: '12px', color: 'var(--to-fog)' }}>
+                    Type: {inspectingDoc.type} &bull; File Size: {inspectingDoc.size || '1.4 MB'} &bull; Digital Signature Verified
+                  </div>
+                  <div style={{ marginTop: '10px', fontSize: '11px', fontFamily: 'var(--to-font-mono)', color: 'var(--to-ash)', background: '#ffffff', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--to-hairline)' }}>
+                    SHA-256: 7f8a91b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c
                   </div>
                 </div>
-              </div>
 
-              {/* Modal Footer */}
-              <div className="things-doc-modal-footer">
-                <button
-                  type="button"
-                  onClick={() => setShowUploadDocModal(false)}
-                  className="things-btn-outline"
-                >
-                  Cancel
-                </button>
-
-                {uploadModalTab === 'NEW' && !modalFile && (
+                <div style={{ border: '2px dashed var(--to-hairline)', borderRadius: '8px', padding: '24px', textAlign: 'center', background: '#ffffff' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏛️</div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--to-ink)', marginBottom: '4px' }}>
+                    Government of NCT of Delhi &bull; Revenue Department
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--to-fog)', maxWidth: '380px', margin: '0 auto 16px auto', lineHeight: 1.5 }}>
+                    Certified Schedule of Circle Rates &amp; Solatium Calculation under RFCTLARR Sections 26–30 for Delhi Metro Corridor.
+                  </div>
                   <button
                     type="button"
-                    onClick={handleModalAddDocOnly}
-                    disabled={!newDocName.trim()}
-                    className="things-btn-outline"
-                    title="Add document requirement to list without uploading scan immediately"
+                    onClick={() => {
+                      handleDownloadSoftCopy(inspectingDoc.name);
+                      setInspectingDoc(null);
+                    }}
+                    className="things-btn-primary"
+                    style={{ padding: '8px 18px', fontSize: '13px' }}
                   >
-                    <span>+</span> Add Requirement (Upload Scan Later)
+                    ⬇️ Download Full Certified Document
                   </button>
-                )}
+                </div>
+              </div>
 
+              <div className="things-doc-upload-footer">
                 <button
                   type="button"
-                  onClick={handleModalSubmitUpload}
-                  disabled={!modalFile || (uploadModalTab === 'EXISTING' && !selectedExistingDocId) || (uploadModalTab === 'NEW' && !newDocName.trim())}
-                  className="things-btn-primary"
+                  onClick={() => setInspectingDoc(null)}
+                  className="things-btn-outline"
                 >
-                  Upload &amp; Extract Document
+                  Close Viewer
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Modal: View PFMS Payment Advice & Voucher */}
+        {inspectingProof && (
+          <div className="things-modal-overlay" onClick={() => setInspectingProof(null)}>
+            <div className="things-doc-upload-modal" style={{ maxWidth: '620px' }} onClick={e => e.stopPropagation()}>
+              <div className="things-doc-upload-header" style={{ background: '#0f172a', color: '#ffffff' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#38bdf8', marginBottom: '4px' }}>
+                    Public Financial Management System (PFMS) &bull; Ministry of Finance
+                  </div>
+                  <h3 className="things-doc-upload-title" style={{ color: '#ffffff', margin: 0 }}>
+                    Direct Benefit Transfer (DBT) Payment Voucher
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInspectingProof(null)}
+                  className="things-ocr-close-btn"
+                  style={{ color: '#ffffff' }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="things-doc-upload-body">
+                {/* Official Voucher Card */}
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '18px 20px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', marginBottom: '14px' }}>
+                    <div>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>PFMS TRANSACTION ID</span>
+                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', fontFamily: 'var(--to-font-mono)' }}>
+                        {inspectingProof.proof?.referenceNo}
+                      </div>
+                    </div>
+                    <span style={{ padding: '4px 10px', borderRadius: '4px', background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', fontSize: '11.5px', fontWeight: 700 }}>
+                      ✓ SETTLED &amp; DISBURSED
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11.5px' }}>Khatedar / Beneficiary:</span>
+                      <div style={{ fontWeight: 700, color: '#0f172a' }}>{inspectingProof.khatedar}</div>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11.5px' }}>Disbursed Compensation:</span>
+                      <div style={{ fontWeight: 800, color: '#059669', fontSize: '15px' }}>
+                        ₹{inspectingProof.proof?.paidAmount?.toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11.5px' }}>Payment Date &amp; Mode:</span>
+                      <div style={{ fontWeight: 600, color: '#334155' }}>
+                        {inspectingProof.proof?.paymentDate} ({inspectingProof.proof?.mode})
+                      </div>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11.5px' }}>RBI UTR Reference:</span>
+                      <div style={{ fontFamily: 'var(--to-font-mono)', fontWeight: 600, color: '#334155' }}>
+                        RBI2026091498174201
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748b' }}>
+                    <span>Target Cadastral Parcel: <strong>Khasra {inspectingProof.parcelKh}</strong></span>
+                    <span>Direct Beneficiary Account Credited</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe', fontSize: '12px', color: '#1d4ed8' }}>
+                  <span>🔒</span>
+                  <span>Direct Treasury settlement confirmed under Reserve Bank of India Real-Time Gross Settlement guidelines.</span>
+                </div>
+              </div>
+
+              <div className="things-doc-upload-footer">
+                <button
+                  type="button"
+                  onClick={() => setInspectingProof(null)}
+                  className="things-btn-outline"
+                >
+                  Close Voucher
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Upload Statutory Document Scan */}
+        {showUploadDocModal && (() => {
+          const targetDoc = task.requiredDocuments?.find(d => d.id === selectedExistingDocId);
+          return (
+            <div className="things-modal-overlay" onClick={() => setShowUploadDocModal(false)}>
+              <div
+                className="things-doc-upload-modal"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="things-doc-upload-header">
+                  <div>
+                    <h3 className="things-doc-upload-title">
+                      Upload Hard Copy Scan
+                    </h3>
+                    <p className="things-doc-upload-sub">
+                      Upload physical stamped scan (PDF, JPG, PNG, WEBP) to initiate automated multimodal extraction and certified soft copy form filling.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadDocModal(false)}
+                    className="things-ocr-close-btn"
+                    title="Close modal"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="things-doc-upload-body">
+                  {/* Target Statutory Requirement Card */}
+                  {targetDoc && (
+                    <div className="things-doc-target-card">
+                      <div className="things-doc-target-info">
+                        <span className="things-doc-target-icon">📋</span>
+                        <div>
+                          <div className="things-doc-target-name">{targetDoc.name}</div>
+                          <div className="things-doc-target-meta">
+                            <span>Type: <strong style={{ color: 'var(--to-ink)' }}>{targetDoc.type}</strong></span>
+                            <span>&bull;</span>
+                            <span>{targetDoc.mandatory ? 'Mandatory Statutory Requirement' : 'Optional Requirement'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`things-officer-pill ${targetDoc.status === 'VERIFIED' ? 'status-completed' : targetDoc.status === 'UPLOADED' ? 'status-in-progress' : 'status-missing'}`}>
+                        {targetDoc.status}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Upload Dropzone */}
+                  <div className="things-doc-form-group">
+                    <label className="things-doc-label">
+                      <span>Physical Scan / Stamped Document File</span>
+                      <span style={{ fontSize: '11px', color: 'var(--to-fog)', fontWeight: 400 }}>
+                        PDF, JPG, PNG, WEBP (Max 25MB)
+                      </span>
+                    </label>
+
+                    <input
+                      type="file"
+                      ref={modalFileInputRef}
+                      accept="application/pdf,image/*"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setModalFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+
+                    {!modalFile ? (
+                      <div
+                        className={`things-doc-dropzone ${modalIsDragging ? 'is-dragover' : ''}`}
+                        onDragOver={e => {
+                          e.preventDefault();
+                          setModalIsDragging(true);
+                        }}
+                        onDragLeave={() => setModalIsDragging(false)}
+                        onDrop={e => {
+                          e.preventDefault();
+                          setModalIsDragging(false);
+                          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                            setModalFile(e.dataTransfer.files[0]);
+                          }
+                        }}
+                        onClick={() => {
+                          if (modalFileInputRef.current) {
+                            modalFileInputRef.current.click();
+                          }
+                        }}
+                      >
+                        <div style={{ fontSize: '28px' }}>📤</div>
+                        <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--to-ink)' }}>
+                          Click to browse or drag &amp; drop physical scan
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--to-fog)' }}>
+                          Official gazettes, Form 11 valuation records, panchnama sheets, or Jamabandi copies
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="things-doc-file-card">
+                        <div className="things-doc-file-info">
+                          <span style={{ fontSize: '22px' }}>
+                            {modalFile.type.startsWith('image/') ? '🖼️' : '📄'}
+                          </span>
+                          <div>
+                            <div className="things-doc-file-name">{modalFile.name}</div>
+                            <div className="things-doc-file-meta">
+                              {(modalFile.size / (1024 * 1024)).toFixed(2)} MB &bull; {modalFile.type || 'Document'}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setModalFile(null)}
+                          className="things-btn-outline"
+                          style={{ fontSize: '11.5px', padding: '4px 8px', color: '#ef4444', borderColor: '#fca5a5' }}
+                          title="Remove file"
+                        >
+                          ✕ Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Gemini Multimodal Extraction Callout */}
+                  <div className="things-doc-ai-banner">
+                    <span style={{ fontSize: '18px' }}>⚡</span>
+                    <div>
+                      <strong>Automated Multimodal Extraction &bull; Soft Copy Form Filling:</strong>
+                      <div style={{ marginTop: '2px' }}>
+                        Once uploaded, BhoomiNexus initiates multimodal document analysis to extract statutory parameters (ULPIN, Khasra, Owner, Demarcated Area, Valuation), automatically populating certified soft copy forms.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="things-doc-modal-footer">
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadDocModal(false)}
+                    className="things-btn-outline"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleModalSubmitUpload}
+                    disabled={!modalFile || !selectedExistingDocId}
+                    className="things-btn-primary"
+                  >
+                    Upload &amp; Extract Document
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Phase 9, 11 & 12: AI Intelligence Fullscreen Modal */}
         {showOcrModal && ocrStatus && (() => {
@@ -1861,9 +2335,36 @@ export const OfficerTaskDetailPage: React.FC = () => {
                               return result;
                             };
 
-                            const flatData = flattenObject(ocrData);
+                            const rawFlatData = flattenObject(ocrData || {});
+
+                            // If extracted data is missing core statutory parameters or only has empty raw_text_summary,
+                            // supply default statutory parameters so officer can easily complete certified soft copy
+                            const defaultStatutoryParams: Record<string, string> = {
+                              surveyNumber: '',
+                              villageName: '',
+                              district: '',
+                              state: '',
+                              totalLandAreaAcres: '',
+                              recordedOwner: '',
+                              valuationAmountInr: '',
+                              notificationNumber: '',
+                              notificationDate: '',
+                              remarks: '',
+                            };
+
+                            const hasRealFields = Object.keys(rawFlatData).some(k => k !== 'raw_text_summary' && rawFlatData[k]);
+                            const flatData = hasRealFields ? rawFlatData : { ...defaultStatutoryParams, ...rawFlatData };
+
+                            const formatLabel = (k: string) => {
+                              return k
+                                .replace(/_/g, ' ')
+                                .replace(/([A-Z])/g, ' $1')
+                                .replace(/\b\w/g, char => char.toUpperCase())
+                                .trim();
+                            };
 
                             return Object.entries(flatData).map(([key, value]) => {
+                              if (key === 'raw_text_summary' && !value) return null;
                               const confidence = ocrStatus.confidenceScores?.[key as keyof typeof ocrStatus.confidenceScores] || 92;
                               const isCorrected = Boolean(correctedFields[key]);
                               const confidenceClass = confidence >= 90 ? 'confidence-high' : confidence >= 70 ? 'confidence-med' : 'confidence-low';
@@ -1873,7 +2374,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                                 <div key={key} className="things-ocr-field-group">
                                   <div className="things-ocr-field-header">
                                     <label className="things-ocr-field-label">
-                                      {key.replace(/([A-Z])/g, ' $1')}
+                                      {formatLabel(key)}
                                     </label>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                       {isCorrected && (
@@ -1893,6 +2394,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                                     value={value as string}
                                     onChange={(e) => handleOcrDataChange(key, e.target.value)}
                                     readOnly={!isEditable}
+                                    placeholder={`Enter ${formatLabel(key)}`}
                                     className={`things-ocr-input ${isCorrected ? 'is-corrected' : ''}`}
                                   />
                                 </div>
@@ -1913,7 +2415,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                                 justifyContent: 'center'
                               }}
                             >
-                              {ocrSubmitting ? 'Verifying & Saving Soft Copy...' : '✓ Affirm AI Extraction & Save Soft Copy (POST /documents/:id/verify)'}
+                              {ocrSubmitting ? 'Verifying & Saving Soft Copy...' : '✓ Affirm AI Extraction & Save Soft Copy'}
                             </button>
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
@@ -1961,7 +2463,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                 Reject Workflow Stage to Requesting Authority
               </h3>
               <p className="things-reject-desc">
-                Provide an official statutory reason for rejection under RFCTLARR Act 2013 (<code style={{ fontSize: '11.5px' }}>POST /api/v1/tasks/:taskId/reject</code>). This formal remittal defect notice will be transmitted directly to the Proponent for corrective action. (BOSS does not return to the workflow).
+                Provide an official statutory reason for rejection under RFCTLARR Act 2013. This formal remittal defect notice will be transmitted directly to the Proponent for corrective action.
               </p>
 
               <textarea

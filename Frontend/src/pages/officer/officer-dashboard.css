@@ -1547,6 +1547,40 @@
   font-size: 11.5px;
   color: #3b82f6;
 }
+.things-doc-target-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--to-radius-cards);
+}
+
+.things-doc-target-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.things-doc-target-icon {
+  font-size: 24px;
+}
+
+.things-doc-target-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin-bottom: 2px;
+}
+
+.things-doc-target-meta {
+  font-size: 12px;
+  color: var(--to-fog);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .things-doc-ai-banner {
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%);

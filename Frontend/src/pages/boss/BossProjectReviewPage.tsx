@@ -128,9 +128,11 @@ export const BossProjectReviewPage: React.FC = () => {
       await loadProject(projectId);
       try {
         localStorage.setItem('bhoomi_demo_active_project_id', projectId);
+        localStorage.setItem(`bhoomi_workflow_activated_${projectId}`, 'true');
         const pCode = project?.code || (project as any)?.projectCode;
         if (pCode) {
           localStorage.setItem('bhoomi_demo_active_project_code', pCode);
+          localStorage.setItem(`bhoomi_workflow_activated_${pCode}`, 'true');
         }
         if (project?.title) {
           localStorage.setItem('bhoomi_demo_active_project_title', project.title);

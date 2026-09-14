@@ -49,6 +49,7 @@ export const taskService = {
    */
   async getTasks(assignedTo?: string, projectId?: string): Promise<WorkflowTask[]> {
     await syncActiveProjectIfUnset();
+    const deterministicList = getDeterministicTasks(assignedTo, projectId);
     try {
       const params: Record<string, string> = {};
       if (assignedTo) params.assignedTo = assignedTo;
@@ -56,31 +57,27 @@ export const taskService = {
       const res = await apiClient.get<any>('/tasks', { params });
       const data = unwrapData<WorkflowTask[]>(res);
       if (data && Array.isArray(data) && data.length > 0) {
-        // Isolate strictly to the active demo project (only the single approved project)
-        const activeProjId = localStorage.getItem('bhoomi_demo_active_project_id');
-        const activeCode = localStorage.getItem('bhoomi_demo_active_project_code');
-        const activeTitle = localStorage.getItem('bhoomi_demo_active_project_title');
-
-        const filtered = data.filter((t: any) => {
-          if (activeProjId) {
-            return t.projectId === activeProjId || t.project_id === activeProjId;
+        const combined = [...data];
+        for (const dt of deterministicList) {
+          if (!combined.some((t: any) => t.id === dt.id)) {
+            combined.push(dt);
           }
-          if (activeCode) {
-            return t.projectCode === activeCode || t.project_code === activeCode;
-          }
-          if (activeTitle) {
-            return t.projectTitle?.toLowerCase().includes(activeTitle.toLowerCase());
-          }
-          return t.district === 'Rithala' || t.projectCode === 'PRJ-DL-7701';
-        });
+        }
+        const filtered = combined.filter(
+          (t: any) =>
+            t.id === 'TASK-ACQ-RITHALA-001' ||
+            t.id === 'TASK-COMP-APPROVAL-001' ||
+            t.projectCode === 'PRJ-DL-7701' ||
+            t.district === 'Rithala'
+        );
         if (filtered.length > 0) {
-          return filtered.slice(0, 1);
+          return filtered;
         }
       }
     } catch (e) {
       console.warn('[taskService] GET /api/v1/tasks pending backend:', e);
     }
-    return getDeterministicTasks(assignedTo, projectId);
+    return deterministicList;
   },
 
   /**
@@ -137,12 +134,24 @@ export const taskService = {
       t.completedAt = new Date().toISOString();
       updateCachedTask(t);
       try {
-        localStorage.setItem('bhoomi_acq_branch_completed', 'true');
-        if (t.projectId) {
-          localStorage.setItem(`bhoomi_acq_completed_${t.projectId}`, 'true');
+        if (t.workflowNode?.branchType === 'COMPENSATION' || t.id.startsWith('TASK-COMP')) {
+          localStorage.setItem('bhoomi_comp_branch_completed', 'true');
+          localStorage.setItem('bhoomi_comp_estimate_submitted', 'true');
+          const rawDossier = localStorage.getItem('bhoomi_comp_estimate_dossier_v2');
+          if (rawDossier) {
+            const parsed = JSON.parse(rawDossier);
+            parsed.status = 'SANCTIONED';
+            parsed.sanctionedAt = new Date().toISOString();
+            localStorage.setItem('bhoomi_comp_estimate_dossier_v2', JSON.stringify(parsed));
+          }
+        } else {
+          localStorage.setItem('bhoomi_acq_branch_completed', 'true');
+          if (t.projectId) {
+            localStorage.setItem(`bhoomi_acq_completed_${t.projectId}`, 'true');
+          }
+          const parcelUlpin = t.parcel?.ulpin || t.parcel?.id || '07-104-5829-1021';
+          localStorage.setItem('bhoomi_completed_acq_parcels', JSON.stringify([parcelUlpin]));
         }
-        const parcelUlpin = t.parcel?.ulpin || t.parcel?.id || '07-104-5829-1021';
-        localStorage.setItem('bhoomi_completed_acq_parcels', JSON.stringify([parcelUlpin]));
       } catch (e) {}
       return {
         success: true,
@@ -476,11 +485,24 @@ function initCache() {
       const parsed = JSON.parse(raw);
       if (parsed && (Object.values(parsed)[0] as any)?.projectId === proj.id) {
         runtimeTasksCache = parsed;
-        // Ensure third document (req-doc-3 / Jamabandi) is removed from cached tasks
+        // Ensure third document is removed and update officer role to District level
         for (const tId in runtimeTasksCache) {
+          if (runtimeTasksCache[tId].assignedOfficer) {
+            runtimeTasksCache[tId].assignedOfficer.designation = 'District Competent Authority & Acquisition Officer';
+            runtimeTasksCache[tId].assignedOfficer.role = 'DISTRICT_AUTHORITY';
+          }
+          if (runtimeTasksCache[tId].stageName === 'Acquisition Verification & Final Clearance') {
+            runtimeTasksCache[tId].stageName = 'District Statutory Acquisition & Final Clearance';
+          }
+          if (runtimeTasksCache[tId].workflowNode) {
+            runtimeTasksCache[tId].workflowNode.id = 'node-district-root';
+            runtimeTasksCache[tId].workflowNode.name = proj.district || 'Rithala';
+            runtimeTasksCache[tId].workflowNode.type = 'DISTRICT';
+            runtimeTasksCache[tId].workflowNode.branchType = 'ACQUISITION';
+          }
           if (runtimeTasksCache[tId].requiredDocuments) {
             runtimeTasksCache[tId].requiredDocuments = runtimeTasksCache[tId].requiredDocuments.filter(
-              (d) => d.id !== 'req-doc-3' && !d.name.toLowerCase().includes('khatauni') && !d.name.toLowerCase().includes('jamabandi')
+              (d: any) => d.id !== 'req-doc-3' && !d.name.toLowerCase().includes('khatauni') && !d.name.toLowerCase().includes('jamabandi')
             );
           }
         }
@@ -504,21 +526,21 @@ function initCache() {
     statutoryPurpose: 'Mass Rapid Transit & Urban Infrastructure',
     state: proj.state,
     district: proj.district,
-    stageId: 'node-acq-1',
+    stageId: 'node-district-root',
     stageOrder: 1,
-    stageName: 'Acquisition Verification & Final Clearance',
+    stageName: 'District Statutory Acquisition & Final Clearance',
     assignedOfficer: {
       id: 'usr-officer-01',
       name: 'Ananya Patel',
-      designation: 'Processing & Field Officer',
+      designation: 'District Competent Authority & Acquisition Officer',
       department: 'Revenue & Land Records Branch',
-      role: 'PROCESSING_OFFICER',
+      role: 'DISTRICT_AUTHORITY',
       district: proj.district || 'Rithala',
       state: 'Delhi',
       activeTasksCount: 1,
     },
     department: 'Revenue & Land Records Branch',
-    slaDays: 21,
+    slaDays: 15,
     dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
     status: 'IN_PROGRESS',
     startedAt: new Date(Date.now() - 43200000).toISOString(),
@@ -536,17 +558,17 @@ function initCache() {
       { id: 'parcel-demo-001', surveyNumber: 'SV-101/A', village: 'Rithala Urban', area: '3.45 Acres' },
     ],
     workflowNode: {
-      id: 'node-acq-1',
-      name: 'Acquisition Verification & Final Clearance',
-      type: 'STAGE',
+      id: 'node-district-root',
+      name: proj.district || 'Rithala',
+      type: 'DISTRICT',
       branchType: 'ACQUISITION',
       responsibility: 'REVENUE_BRANCH',
-      slaDays: 21,
+      slaDays: 15,
     },
     cohortContext: {
-      unitName: `${proj.district || 'Rithala'} Tehsil Sub-Division`,
-      cohortBranch: 'Acquisition Final Stage',
-      cohortParcelCount: 1,
+      unitName: 'District Collectorate, Rithala',
+      cohortBranch: 'District Statutory Acquisition',
+      cohortParcelCount: 4,
     },
     requiredDocuments: [
       { id: 'req-doc-1', name: 'Form 11 Statutory Valuation Schedule.pdf', type: 'Valuation Ledger', mandatory: true, status: 'UPLOADED' },
@@ -603,9 +625,103 @@ function initCache() {
     },
   };
 
-  runtimeTasksCache = {
-    [taskA.id]: taskA,
+  // 2. Second request for District Authority: Approval of Compensation Estimate & Proofs
+  const taskB: WorkflowTask = {
+    id: 'TASK-COMP-APPROVAL-001',
+    projectId: proj.id,
+    projectCode: proj.code,
+    projectTitle: proj.title,
+    ministry: 'Ministry of Housing and Urban Affairs',
+    statutoryPurpose: 'Mass Rapid Transit & Urban Infrastructure',
+    state: proj.state,
+    district: proj.district,
+    stageId: 'node-comp-1',
+    stageOrder: 2,
+    stageName: 'Sec 28 Compensation Estimate Sanction & Disbursal Proofs',
+    assignedOfficer: {
+      id: 'usr-officer-01',
+      name: 'Ananya Patel',
+      designation: 'District Competent Authority & Acquisition Officer',
+      department: 'Revenue & Statutory Sanctions Branch',
+      role: 'DISTRICT_AUTHORITY',
+      district: proj.district || 'Rithala',
+      state: 'Delhi',
+      activeTasksCount: 2,
+    },
+    department: 'Revenue & Statutory Sanctions Branch',
+    slaDays: 7,
+    dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+    status: 'IN_PROGRESS',
+    startedAt: new Date(Date.now() - 21600000).toISOString(),
+    createdAt: new Date(Date.now() - 43200000).toISOString(),
+    parcel: {
+      id: 'parcel-demo-all',
+      ulpin: '07-104-5829-1021 to 1024',
+      khasraNumber: '101/A, 102/B, 103/C, 104/D (Cohort)',
+      village: 'Rithala Urban & Extension',
+      areaAcres: 12.10,
+      tenureType: 'All Cohort Parcels (4 Demarcated)',
+      disputed: false,
+    },
+    relevantParcels: [
+      { id: 'parcel-demo-001', surveyNumber: 'SV-101/A', village: 'Rithala Urban', area: '3.45 Acres' },
+      { id: 'parcel-demo-002', surveyNumber: 'SV-102/B', village: 'Rithala Extension', area: '1.80 Acres' },
+      { id: 'parcel-demo-003', surveyNumber: 'SV-103/C', village: 'Rithala Village', area: '4.20 Acres' },
+      { id: 'parcel-demo-004', surveyNumber: 'SV-104/D', village: 'Rithala Industrial Zone', area: '2.65 Acres' },
+    ],
+    workflowNode: {
+      id: 'node-comp-1',
+      name: 'Sec 26-30 Statutory Compensation Award & Disbursal',
+      type: 'STAGE',
+      branchType: 'COMPENSATION',
+      responsibility: 'COMPENSATION_BRANCH',
+      slaDays: 21,
+    },
+    cohortContext: {
+      unitName: 'District Collectorate, Rithala',
+      cohortBranch: 'Section 28 Compensation Sanction',
+      cohortParcelCount: 4,
+    },
+    requiredDocuments: [
+      { id: 'req-comp-doc-1', name: 'Comprehensive Circle Rate Valuation Dossier.pdf', type: 'Valuation Dossier', mandatory: true, status: 'UPLOADED' },
+      { id: 'req-comp-doc-2', name: '100% Solatium Statutory Determination Schedule.pdf', type: 'Solatium Schedule', mandatory: true, status: 'UPLOADED' },
+      { id: 'req-comp-doc-3', name: 'PFMS Direct Beneficiary Bank Transfer Mandates & Proofs.pdf', type: 'Disbursal Proof', mandatory: true, status: 'UPLOADED' },
+    ],
+    evidence: [
+      {
+        id: 'ev-comp-proof-001',
+        taskId: 'TASK-COMP-APPROVAL-001',
+        fileName: 'PFMS_RTGS_Beneficiary_Disbursal_Advice_Batch_8801.pdf',
+        fileSize: '2.4 MB',
+        fileType: 'application/pdf',
+        uploadedAt: new Date(Date.now() - 3600000).toISOString(),
+        uploadedBy: 'Mahesh Patil (SLAO / Compensation Officer)',
+        evidenceType: 'PANCHNAMA',
+        hash: 'sha256-pfms-8801-delhi',
+        verified: true,
+      },
+    ],
+    verification: {
+      status: 'UNVERIFIED',
+      affirmations: {
+        boundaryAffirmed: true,
+        khasraSurveyAffirmed: true,
+        ownershipLedgerAffirmed: true,
+        noEncumbranceAffirmed: true,
+        officerRemarks: 'Valuations, solatium and PFMS proof submitted by SLAO verified.',
+      },
+    },
   };
+
+  if (!runtimeTasksCache) {
+    runtimeTasksCache = {
+      [taskA.id]: taskA,
+      [taskB.id]: taskB,
+    };
+  } else {
+    runtimeTasksCache[taskA.id] = runtimeTasksCache[taskA.id] || taskA;
+    runtimeTasksCache[taskB.id] = runtimeTasksCache[taskB.id] || taskB;
+  }
   try {
     localStorage.setItem('bhoomi_acq_tasks_cache', JSON.stringify(runtimeTasksCache));
   } catch (e) {}

@@ -237,7 +237,7 @@ export const OfficerService = {
     return { overall_status: 'completed' };
   },
 
-  getOcrExtractionStatus: async (taskId: string, docId: string): Promise<OcrExtractionResult> => {
+  getOcrExtractionStatus: async (_taskId: string, docId: string): Promise<OcrExtractionResult> => {
     // Primary: AI Parser (Line 88: GET /api/v1/documents/:id/extraction)
     try {
       const response = await fetch(`${API_BASE_URL}/documents/${docId}/extraction`);
@@ -294,50 +294,13 @@ export const OfficerService = {
     } catch (backendErr) {
       // Fallback for resilient offline execution
     }
-
-    // Deterministic fallback: Generate structured parameters so officer scrutiny is never blocked
-    const isSurveyTask = taskId.includes('SURVEY') || taskId.includes('101-2');
-    const mockExtracted = isSurveyTask ? {
-      khasraNumber: '101/2',
-      khatauniNumber: '00418',
-      surveyPillarCount: '4 Corner Monuments',
-      corridorWidthMeters: '68.5 Meters',
-      demarcatedAreaAcres: '3.12 Acres',
-      spatialBoundaryDiscrepancy: '1.5m offset on Northern edge against Gazette corridor',
-    } : {
-      khasraNumber: '101/1',
-      khatauniNumber: '00412',
-      recordedOwner: 'Ram Swaroop s/o Hariram',
-      totalLandAreaAcres: '2.45 Acres',
-      statutoryTenure: 'Private Agricultural Freehold',
-      villageName: 'Rampur Kalan',
-      encumbranceReport: 'Nil Encumbrance / Clear Title',
-    };
-
-    const mockConfidence: Record<string, number> = isSurveyTask ? {
-      khasraNumber: 96,
-      khatauniNumber: 94,
-      surveyPillarCount: 88,
-      corridorWidthMeters: 79,
-      demarcatedAreaAcres: 95,
-      spatialBoundaryDiscrepancy: 91,
-    } : {
-      khasraNumber: 99,
-      khatauniNumber: 98,
-      recordedOwner: 96,
-      totalLandAreaAcres: 99,
-      statutoryTenure: 95,
-      villageName: 99,
-      encumbranceReport: 94,
-    };
-
+    // No mock data fallback: Return authentic status directly from AI/backend
     return {
       docId,
       backendDocId: docId,
-      status: 'COMPLETED',
-      extractedData: mockExtracted,
-      confidenceScores: mockConfidence,
-      documentType: isSurveyTask ? 'CADASTRAL_SURVEY_MAP' : 'LAND_RECORD_SCHEDULE',
+      status: 'EMPTY',
+      extractedData: undefined,
+      documentType: 'unknown',
       missingFields: [],
     };
   },

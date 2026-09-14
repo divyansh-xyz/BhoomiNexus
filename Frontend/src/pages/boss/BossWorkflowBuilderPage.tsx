@@ -86,10 +86,11 @@ function getNodeOfficerInfo(node?: WorkflowNode | null): { name: string; designa
     };
   }
   if (branch === 'DISTRICT' || (node.nodeType as string) === 'DISTRICT' || node.nodeType === 'DISTRICT_ACQUISITION') {
+    const isBossPlaceholder = node.responsibleUserName === 'Dr. Vikramaditya Sen';
     return {
-      name: node.responsibleUserName || 'Dr. Vikramaditya Sen',
-      designation: node.responsibleUserDesignation || 'Competent Authority (District Magistrate)',
-      email: 'boss@bhoomi.gov.in',
+      name: (!isBossPlaceholder && node.responsibleUserName) || 'Ananya Patel',
+      designation: (!isBossPlaceholder && node.responsibleUserDesignation) || 'District Competent Authority & Acquisition Officer',
+      email: 'officer@bhoomi.gov.in',
       role: 'District Authority',
     };
   }
@@ -1722,9 +1723,11 @@ export const BossWorkflowBuilderPage: React.FC = () => {
           if (projectId) {
             try {
               localStorage.setItem('bhoomi_demo_active_project_id', projectId);
+              localStorage.setItem(`bhoomi_workflow_activated_${projectId}`, 'true');
               const pCode = project?.code || (project as any)?.projectCode;
               if (pCode) {
                 localStorage.setItem('bhoomi_demo_active_project_code', pCode);
+                localStorage.setItem(`bhoomi_workflow_activated_${pCode}`, 'true');
               }
               if (project?.title) {
                 localStorage.setItem('bhoomi_demo_active_project_title', project.title);
