@@ -1,12 +1,24 @@
 import { Router } from 'express';
 import { authenticate } from '../../middlewares/auth.middleware';
-import { getProjectGrievances, createGrievance, respondGrievance } from './grievances.controller';
+import {
+  getProjectGrievances,
+  createGrievance,
+  respondGrievance,
+  closeGrievance,
+  getAllGrievances,
+  getGrievanceById,
+} from './grievances.controller';
 
 const router = Router();
 
-// Allow authenticated users (Requesting Authority, BOSS, Officer) to view & record grievances
+// V2 API: Global grievance endpoints (Authority dashboard)
+router.get('/grievances', authenticate, getAllGrievances);
+router.get('/grievances/:grievanceId', authenticate, getGrievanceById);
+router.post('/grievances/:grievanceId/respond', authenticate, respondGrievance);
+router.post('/grievances/:grievanceId/close', authenticate, closeGrievance);
+
+// V2 API: Project-scoped grievance endpoints
 router.get('/projects/:projectId/grievances', authenticate, getProjectGrievances);
 router.post('/projects/:projectId/grievances', authenticate, createGrievance);
-router.post('/grievances/:grievanceId/respond', authenticate, respondGrievance);
 
 export default router;

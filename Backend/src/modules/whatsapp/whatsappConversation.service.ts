@@ -156,8 +156,18 @@ class WhatsAppConversationService {
         rows: [
           {
             id: 'ACTION_FILE_GRIEVANCE',
-            title: 'File a Grievance',
+            title: '📝 File a Grievance',
             description: 'Submit a statutory objection or complaint'
+          },
+          {
+            id: 'ACTION_CHECK_STATUS',
+            title: '🔍 Check Status',
+            description: 'Look up parcel or project acquisition status'
+          },
+          {
+            id: 'ACTION_TRACK_GRIEVANCE',
+            title: '📋 Track Grievance',
+            description: 'Track an existing grievance by reference number'
           }
         ]
       }
@@ -222,9 +232,42 @@ class WhatsAppConversationService {
         'Select a Project',
         sections
       );
+    } else if (inputId === 'ACTION_CHECK_STATUS') {
+      // Phase 15: Prompt citizen for their Parcel ID / ULPIN / Project Code
+      await whatsappService.sendMessage(
+        phone,
+        `🔍 *Check Parcel / Project Status*\n\n` +
+        `Please type your *Parcel ID*, *Survey Number*, *ULPIN*, or *Project Code*.\n\n` +
+        `*Example formats:*\n` +
+        `• SV-142\n` +
+        `• PRJ-MH-4421\n` +
+        `• ULPIN-482913\n\n` +
+        `Or type \`CANCEL\` to return to the main menu.`
+      );
+      // Keep state as AWAITING_ACTION — the global STATUS/TRACK handler at the top
+      // of handleMessage() will catch the next text input if it matches a parcel/project.
+      // If it doesn't match, the fallback will re-show the menu.
+    } else if (inputId === 'ACTION_TRACK_GRIEVANCE') {
+      // Phase 16: Prompt citizen for their grievance reference number
+      await whatsappService.sendMessage(
+        phone,
+        `📋 *Track Existing Grievance*\n\n` +
+        `Please type your grievance reference number.\n\n` +
+        `*Format:* GRV-2026-PRJMH4421-01\n\n` +
+        `Or type \`CANCEL\` to return to the main menu.`
+      );
     } else {
-      // Any other text, send the greeting & action list
-      await this.sendGreetingAndActionList(phone, session.contactName);
+      // Check if the text input looks like a parcel/project ID or grievance ref
+      const trimmed = textInput.trim();
+      if (trimmed.startsWith('GRV-')) {
+        await orchestrationService.handleGrievanceTracking(trimmed, phone);
+      } else if (trimmed.length >= 3 && !trimmed.includes(' ')) {
+        // Could be a parcel ID, survey number, ULPIN, or project code
+        await orchestrationService.handleParcelStatusQuery(trimmed, phone);
+      } else {
+        // Any other text, send the greeting & action list
+        await this.sendGreetingAndActionList(phone, session.contactName);
+      }
     }
   }
 

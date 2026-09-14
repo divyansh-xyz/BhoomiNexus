@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../../config/db';
 import { logger } from '../../utils/logger';
+import { whatsappService } from '../whatsapp/whatsapp.service';
 
 export const getProjectGrievances = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -187,7 +188,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
 export const respondGrievance = async (req: Request, res: Response): Promise<void> => {
   try {
     const { grievanceId } = req.params;
-    const { resolutionNotes, status = 'RESOLVED' } = req.body;
+    const { resolutionNotes, status = 'UNDER_REVIEW' } = req.body;
 
     if (!resolutionNotes) {
       res.status(400).json({
@@ -199,22 +200,16 @@ export const respondGrievance = async (req: Request, res: Response): Promise<voi
 
     const resolvedAt = (status === 'RESOLVED' || status === 'CLOSED') ? new Date() : null;
 
+    // Try by UUID first, fallback to reference_number
+    const grievanceIdStr = grievanceId as string;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(grievanceIdStr);
     const result = await pool.query(
       `UPDATE grievances
        SET resolution_notes = $1, status = $2, resolved_at = $3, updated_at = NOW()
-       WHERE id = $1::uuid OR reference_number = $4
+       WHERE ${isUuid ? 'id = $4::uuid' : 'reference_number = $4'}
        RETURNING *`,
       [resolutionNotes, status, resolvedAt, grievanceId]
-    ).catch(async () => {
-      // Fallback if grievanceId is not UUID
-      return await pool.query(
-        `UPDATE grievances
-         SET resolution_notes = $1, status = $2, resolved_at = $3, updated_at = NOW()
-         WHERE reference_number = $4
-         RETURNING *`,
-        [resolutionNotes, status, resolvedAt, grievanceId]
-      );
-    });
+    );
 
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, error: { message: 'Grievance record not found' } });
@@ -222,6 +217,23 @@ export const respondGrievance = async (req: Request, res: Response): Promise<voi
     }
 
     const row = result.rows[0];
+
+    // Send WhatsApp notification back to the citizen if their phone is on record
+    if (row.citizen_phone && row.source === 'WHATSAPP') {
+      try {
+        const notificationText =
+          `\u{1F3DB}\uFE0F *BhoomiNexus \u2014 Grievance Update*\n` +
+          `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n` +
+          `\u{1F4CC} *Reference:* ${row.reference_number}\n` +
+          `\u{1F4CA} *Status:* ${status}\n\n` +
+          `*Authority Response:*\n${resolutionNotes}\n\n` +
+          `To check full details, reply: STATUS ${row.reference_number}\n\n` +
+          `Thank you for using the BhoomiNexus Statutory Portal.`;
+        await whatsappService.sendMessage(row.citizen_phone, notificationText);
+      } catch (waErr: any) {
+        logger.warn(`Failed to send WhatsApp notification to citizen: ${waErr?.message || waErr}`);
+      }
+    }
 
     // Log to audit
     const user = (req as any).user;
@@ -248,5 +260,181 @@ export const respondGrievance = async (req: Request, res: Response): Promise<voi
   } catch (error: any) {
     logger.error('Error in respondGrievance', error);
     res.status(500).json({ success: false, error: { message: 'Failed to update grievance record' } });
+  }
+};
+
+/**
+ * POST /api/v1/grievances/:grievanceId/close
+ * Closes an authorized grievance and records the lifecycle change.
+ */
+export const closeGrievance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { grievanceId } = req.params;
+
+    const grievanceIdStr = grievanceId as string;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(grievanceIdStr);
+    const result = await pool.query(
+      `UPDATE grievances
+       SET status = 'CLOSED', resolved_at = NOW(), updated_at = NOW()
+       WHERE ${isUuid ? 'id = $1::uuid' : 'reference_number = $1'}
+       RETURNING *`,
+      [grievanceId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, error: { message: 'Grievance record not found' } });
+      return;
+    }
+
+    const row = result.rows[0];
+
+    // Notify citizen via WhatsApp
+    if (row.citizen_phone && row.source === 'WHATSAPP') {
+      try {
+        await whatsappService.sendMessage(
+          row.citizen_phone,
+          `\u{1F3DB}\uFE0F *BhoomiNexus \u2014 Grievance Closed*\n\n` +
+          `\u{1F4CC} *Reference:* ${row.reference_number}\n` +
+          `\u{1F4CA} *Status:* CLOSED\n\n` +
+          `Your grievance has been reviewed and closed by the competent authority.\n\n` +
+          `Thank you for using the BhoomiNexus Statutory Portal.`
+        );
+      } catch (waErr: any) {
+        logger.warn(`Failed to send WhatsApp close notification: ${waErr?.message || waErr}`);
+      }
+    }
+
+    // Audit
+    const user = (req as any).user;
+    await pool.query(
+      `INSERT INTO audit_logs (project_id, action, entity_type, entity_id, user_id, user_role, metadata)
+       VALUES ($1, 'GRIEVANCE_CLOSED', 'GRIEVANCE', $2, $3, $4, $5)`,
+      [
+        row.project_id,
+        row.id,
+        user?.id || null,
+        user?.role || 'PROCESSING_OFFICER',
+        JSON.stringify({ referenceNumber: row.reference_number }),
+      ]
+    );
+
+    res.json({ success: true, data: row });
+  } catch (error: any) {
+    logger.error('Error in closeGrievance', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to close grievance record' } });
+  }
+};
+
+/**
+ * GET /api/v1/grievances
+ * Returns all grievances visible to the authenticated user (global view for authority dashboard).
+ */
+export const getAllGrievances = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `SELECT g.id, g.reference_number, g.project_id, g.parcel_id, g.citizen_name,
+              g.citizen_reference, g.survey_number, g.grievance_type, g.subject,
+              g.description, g.status, g.resolution_notes, g.sla_days, g.source, g.citizen_phone, g.metadata,
+              g.created_at, g.updated_at, g.resolved_at,
+              p.code as project_code, p.title as project_name
+       FROM grievances g
+       LEFT JOIN projects p ON g.project_id = p.id
+       ORDER BY g.created_at DESC`
+    );
+
+    const grievances = result.rows.map(row => ({
+      id: row.id,
+      referenceNumber: row.reference_number,
+      projectId: row.project_id,
+      projectCode: row.project_code,
+      projectName: row.project_name,
+      parcelId: row.parcel_id,
+      citizenName: row.citizen_name || 'Anonymous Landowner',
+      citizenReference: row.citizen_reference || '',
+      surveyNumber: row.survey_number || '',
+      grievanceType: row.grievance_type,
+      subject: row.subject,
+      description: row.description,
+      status: row.status,
+      resolutionNotes: row.resolution_notes,
+      slaDays: row.sla_days || 15,
+      source: row.source || 'PORTAL',
+      citizenPhone: row.citizen_phone || null,
+      metadata: row.metadata || {},
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      resolvedAt: row.resolved_at,
+    }));
+
+    const total = grievances.length;
+    const open = grievances.filter(g => g.status === 'OPEN').length;
+    const underReview = grievances.filter(g => g.status === 'UNDER_REVIEW').length;
+    const resolved = grievances.filter(g => g.status === 'RESOLVED' || g.status === 'CLOSED').length;
+
+    res.json({
+      success: true,
+      data: {
+        grievances,
+        summary: { total, open, underReview, resolved },
+      },
+    });
+  } catch (error: any) {
+    logger.error('Error in getAllGrievances', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to retrieve grievances' } });
+  }
+};
+
+/**
+ * GET /api/v1/grievances/:grievanceId
+ * Returns one authorized grievance with project/parcel context.
+ */
+export const getGrievanceById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { grievanceId } = req.params;
+    const grievanceIdStr = grievanceId as string;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(grievanceIdStr);
+
+    const result = await pool.query(
+      `SELECT g.*, p.code as project_code, p.title as project_name
+       FROM grievances g
+       LEFT JOIN projects p ON g.project_id = p.id
+       WHERE ${isUuid ? 'g.id = $1::uuid' : 'g.reference_number = $1'}`,
+      [grievanceId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, error: { message: 'Grievance not found' } });
+      return;
+    }
+
+    const row = result.rows[0];
+    res.json({
+      success: true,
+      data: {
+        id: row.id,
+        referenceNumber: row.reference_number,
+        projectId: row.project_id,
+        projectCode: row.project_code,
+        projectName: row.project_name,
+        parcelId: row.parcel_id,
+        citizenName: row.citizen_name || 'Anonymous Landowner',
+        surveyNumber: row.survey_number || '',
+        grievanceType: row.grievance_type,
+        subject: row.subject,
+        description: row.description,
+        status: row.status,
+        resolutionNotes: row.resolution_notes,
+        slaDays: row.sla_days || 15,
+        source: row.source || 'PORTAL',
+        citizenPhone: row.citizen_phone || null,
+        metadata: row.metadata || {},
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        resolvedAt: row.resolved_at,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Error in getGrievanceById', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to retrieve grievance' } });
   }
 };
