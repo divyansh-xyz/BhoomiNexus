@@ -28,6 +28,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
   const [evidenceList, setEvidenceList] = useState<TaskEvidenceItem[]>([]);
   const [uploadingEvidence, setUploadingEvidence] = useState(false);
   const [customEvidenceName, setCustomEvidenceName] = useState('');
+  const [attachedEvidenceFile, setAttachedEvidenceFile] = useState<File | null>(null);
   const [evidenceSuccessNotice, setEvidenceSuccessNotice] = useState<string | null>(null);
   const [resubmittingDefect, setResubmittingDefect] = useState(false);
 
@@ -156,24 +157,6 @@ export const OfficerTaskDetailPage: React.FC = () => {
     }
   };
 
-  const handleDownloadFullDossier = async () => {
-    if (!task) return;
-    setDownloadingDoc('DOSSIER');
-    try {
-      if (projectDocuments.length > 0) {
-        for (const doc of projectDocuments.slice(0, 3)) {
-          await DocumentService.downloadDocument(doc.id, `${doc.title || 'Dossier_Record'}.pdf`);
-        }
-      } else {
-        await OfficerService.downloadSoftCopyTemplate(task.id, 'Statutory_Requisition_Dossier');
-      }
-    } catch (err) {
-      console.error('Failed to download dossier', err);
-    } finally {
-      setDownloadingDoc(null);
-    }
-  };
-
   // Phase 11: Start Task (POST /api/v1/tasks/:taskId/start)
   const handleStartTask = async () => {
     if (!task) return;
@@ -224,44 +207,41 @@ export const OfficerTaskDetailPage: React.FC = () => {
     }
   };
 
-  const handleEvidenceFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !task) return;
+  const handleEvidenceFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    setUploadingEvidence(true);
-    try {
-      const newItem = await taskService.uploadTaskEvidence(task.id, file, 'OTHER');
-      setEvidenceList(prev => [...prev, newItem]);
-      setTask(prev => prev ? { ...prev, evidence: [...(prev.evidence || []), newItem] } : null);
-      setEvidenceSuccessNotice(`Evidence "${file.name}" successfully authenticated and registered.`);
-      setTimeout(() => setEvidenceSuccessNotice(null), 4000);
-    } catch (err) {
-      console.error('Failed to upload ground evidence', err);
-    } finally {
-      setUploadingEvidence(false);
-      if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = '';
+    setAttachedEvidenceFile(file);
+    if (!customEvidenceName.trim()) {
+      setCustomEvidenceName(file.name.replace(/\.[^/.]+$/, ''));
     }
   };
 
   const handleAddCustomEvidence = async () => {
-    if (!task) return;
-    const name = customEvidenceName.trim();
-    if (!name) return;
+    if (!task || !attachedEvidenceFile) return;
 
     setUploadingEvidence(true);
     try {
-      const formattedName = name.includes('.') ? name : `${name}.pdf`;
+      const name = customEvidenceName.trim() || attachedEvidenceFile.name;
+      const fileExt = attachedEvidenceFile.name.includes('.')
+        ? attachedEvidenceFile.name.slice(attachedEvidenceFile.name.lastIndexOf('.'))
+        : '';
+      const formattedName = (fileExt && !name.endsWith(fileExt)) ? `${name}${fileExt}` : name;
+
+      let fileToUpload = attachedEvidenceFile;
+      if (formattedName !== attachedEvidenceFile.name) {
+        fileToUpload = new File([attachedEvidenceFile], formattedName, { type: attachedEvidenceFile.type });
+      }
+
       let newItem: TaskEvidenceItem;
       try {
-        const dummyBlob = new Blob([name], { type: 'application/pdf' });
-        const dummyFile = new File([dummyBlob], formattedName, { type: 'application/pdf' });
-        newItem = await taskService.uploadTaskEvidence(task.id, dummyFile, 'OTHER');
+        newItem = await taskService.uploadTaskEvidence(task.id, fileToUpload, 'OTHER');
       } catch (e) {
         newItem = {
           id: `ev-${Date.now()}`,
           taskId: task.id,
           fileName: formattedName,
-          fileSize: '1.5 MB',
-          fileType: 'application/pdf',
+          fileSize: `${(attachedEvidenceFile.size / (1024 * 1024)).toFixed(2)} MB`,
+          fileType: attachedEvidenceFile.type || 'application/pdf',
           uploadedAt: new Date().toISOString(),
           uploadedBy: `${task.assignedOfficer?.name || 'Field Officer'}`,
           evidenceType: 'OTHER',
@@ -272,6 +252,8 @@ export const OfficerTaskDetailPage: React.FC = () => {
       setEvidenceList(prev => [...prev, newItem]);
       setTask(prev => prev ? { ...prev, evidence: [...(prev.evidence || []), newItem] } : null);
       setCustomEvidenceName('');
+      setAttachedEvidenceFile(null);
+      if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = '';
       setEvidenceSuccessNotice(`Evidence "${formattedName}" added successfully.`);
       setTimeout(() => setEvidenceSuccessNotice(null), 4000);
     } catch (err) {
@@ -991,41 +973,90 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
                 {/* Evidence Simple Add & Attach Controls */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleUploadEvidenceClick}
+                    disabled={uploadingEvidence || task.status === 'REJECTED'}
+                    className="things-btn-outline"
+                    style={{
+                      padding: '7px 12px',
+                      fontSize: '13px',
+                      backgroundColor: attachedEvidenceFile ? 'var(--to-signal-blue-tint)' : undefined,
+                      borderColor: attachedEvidenceFile ? 'var(--to-signal-blue)' : undefined,
+                    }}
+                    title="Attach a file from your computer"
+                  >
+                    <span>📎</span> {attachedEvidenceFile ? 'Change Attached File' : 'Attach File'}
+                  </button>
+
+                  {attachedEvidenceFile && (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '5px 10px',
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#1d4ed8',
+                      maxWidth: '220px',
+                    }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={attachedEvidenceFile.name}>
+                        📄 {attachedEvidenceFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachedEvidenceFile(null);
+                          if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = '';
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#64748b',
+                          fontSize: '14px',
+                          lineHeight: 1,
+                          padding: '0 2px',
+                        }}
+                        title="Remove attached file"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
                   <input
                     type="text"
                     value={customEvidenceName}
                     onChange={(e) => setCustomEvidenceName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === 'Enter' && attachedEvidenceFile) {
                         e.preventDefault();
                         handleAddCustomEvidence();
                       }
                     }}
-                    placeholder="Name what this evidence is..."
+                    placeholder={attachedEvidenceFile ? "Name what this evidence is..." : "Attach a file first to add evidence"}
                     className="things-doc-input"
-                    style={{ minWidth: '240px', padding: '7px 12px', fontSize: '13px' }}
+                    style={{ minWidth: '220px', padding: '7px 12px', fontSize: '13px' }}
                     disabled={uploadingEvidence || task.status === 'REJECTED'}
                   />
 
                   <button
                     type="button"
                     onClick={handleAddCustomEvidence}
-                    disabled={!customEvidenceName.trim() || uploadingEvidence || task.status === 'REJECTED'}
+                    disabled={!attachedEvidenceFile || uploadingEvidence || task.status === 'REJECTED'}
                     className="things-btn-primary"
-                    style={{ padding: '7px 14px', fontSize: '13px' }}
+                    style={{
+                      padding: '7px 14px',
+                      fontSize: '13px',
+                      cursor: !attachedEvidenceFile ? 'not-allowed' : 'pointer',
+                      opacity: !attachedEvidenceFile ? 0.5 : 1,
+                    }}
+                    title={!attachedEvidenceFile ? "Please attach a file first to add evidence" : "Register attached evidence"}
                   >
-                    <span>+</span> Add Evidence
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleUploadEvidenceClick}
-                    disabled={uploadingEvidence || task.status === 'REJECTED'}
-                    className="things-btn-outline"
-                    style={{ padding: '7px 12px', fontSize: '13px' }}
-                    title="Or attach a file from your computer"
-                  >
-                    <span>📎</span> Attach File
+                    <span>+</span> {uploadingEvidence ? 'Adding...' : 'Add Evidence'}
                   </button>
                 </div>
               </div>
@@ -1083,70 +1114,15 @@ export const OfficerTaskDetailPage: React.FC = () => {
                     Official soft copy templates, uploaded scans, and certified digital records
                   </p>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenUploadModal(undefined, 'NEW')}
-                    className="things-btn-outline"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    title="Add a new statutory document requirement or record"
-                  >
-                    <span style={{ fontSize: '14px', fontWeight: 700 }}>+</span> Add Statutory Document
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleOpenUploadModal(undefined, 'EXISTING')}
-                    className="things-btn-primary"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
-                      borderColor: '#1d4ed8',
-                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
-                    }}
-                    title="Upload hard-copy physical records or scans for statutory verification and soft copy form filling"
-                  >
-                    <span style={{ color: '#fde047' }}>⚡</span> Upload Hard Copy
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleDownloadFullDossier}
-                    disabled={downloadingDoc === 'DOSSIER'}
-                    className="things-btn-outline"
-                    title="Download all submitted requisition documents and schedules for this project"
-                  >
-                    <span>⬇️</span> {downloadingDoc === 'DOSSIER' ? 'Downloading...' : 'Download Full Requisition Dossier'}
-                  </button>
-                </div>
               </div>
 
               {(!task.requiredDocuments || task.requiredDocuments.length === 0) ? (
                 <div style={{ padding: '32px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px dashed var(--to-hairline)' }}>
                   <div style={{ fontSize: '32px', marginBottom: '8px' }}>📑</div>
                   <div style={{ fontWeight: 600, color: 'var(--to-ink)', marginBottom: '4px' }}>No Statutory Documents Attached Yet</div>
-                  <p style={{ fontSize: '13px', color: 'var(--to-fog)', maxWidth: '420px', margin: '0 auto 16px', lineHeight: 1.5 }}>
-                    Upload hard-copy physical records or declare statutory document requirements to run automated Gemini AI OCR extraction.
+                  <p style={{ fontSize: '13px', color: 'var(--to-fog)', maxWidth: '420px', margin: '0 auto', lineHeight: 1.5 }}>
+                    No statutory documents configured for this workflow stage.
                   </p>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenUploadModal(undefined, 'NEW')}
-                      className="things-btn-outline"
-                    >
-                      <span>+</span> Add Statutory Document
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenUploadModal(undefined, 'NEW')}
-                      className="things-btn-primary"
-                    >
-                      <span>⚡</span> Upload Hard Copy
-                    </button>
-                  </div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1191,9 +1167,9 @@ export const OfficerTaskDetailPage: React.FC = () => {
                             onClick={() => handleDownloadSoftCopy(doc.name)}
                             disabled={isDownloading}
                             className="things-btn-outline"
-                            title="Download official soft copy or template to inspect or print physical record"
+                            title="Download official document to inspect or print physical record"
                           >
-                            <span>⬇️</span> {isDownloading ? 'Downloading...' : 'Download Soft Copy'}
+                            <span>⬇️</span> {isDownloading ? 'Downloading...' : 'Download Document'}
                           </button>
 
                           {isMissing && (
@@ -1202,23 +1178,15 @@ export const OfficerTaskDetailPage: React.FC = () => {
                               onClick={() => handleOpenUploadModal(doc.id, 'EXISTING')}
                               disabled={isUploading || task.status === 'REJECTED'}
                               className="things-btn-primary"
-                              style={{
-                                background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
-                                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                              }}
                               title="Upload scanned image or photo of physical stamped hard copy"
                             >
-                              <span style={{ color: '#fde047' }}>⚡</span>
                               {isUploading ? 'Uploading...' : 'Upload Hard Copy'}
                             </button>
                           )}
 
                           {isCurrentlyProcessingOcr && !isOcrVerified && (
                             <span className="things-ocr-running-badge">
-                              ⚡ AI OCR RUNNING...
+                              AI OCR RUNNING...
                             </span>
                           )}
 
@@ -1230,7 +1198,7 @@ export const OfficerTaskDetailPage: React.FC = () => {
                                 className="things-btn-primary"
                                 title="Click to open side-by-side viewer with AI OCR soft copy form filling suggestions"
                               >
-                                <span>⚡</span> Review Soft Copy Form
+                                Review Soft Copy Form
                               </button>
                               <button
                                 type="button"
@@ -1655,16 +1623,8 @@ export const OfficerTaskDetailPage: React.FC = () => {
                   onClick={handleModalSubmitUpload}
                   disabled={!modalFile || (uploadModalTab === 'EXISTING' && !selectedExistingDocId) || (uploadModalTab === 'NEW' && !newDocName.trim())}
                   className="things-btn-primary"
-                  style={{
-                    background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
-                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
                 >
-                  <span style={{ color: '#fde047' }}>⚡</span>
-                  Upload &amp; Start Gemini AI OCR
+                  Upload &amp; Extract Document
                 </button>
               </div>
             </div>
