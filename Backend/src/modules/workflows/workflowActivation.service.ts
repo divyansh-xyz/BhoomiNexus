@@ -67,7 +67,6 @@ export const activateWorkflow = async (projectId: string, userId: string) => {
        FROM workflow_nodes wn
        LEFT JOIN workflow_edges we ON we.target_node_id = wn.id
        WHERE wn.workflow_instance_id = $1
-         AND wn.node_type NOT IN ('DISTRICT', 'DISTRICT_ACQUISITION')
          AND (we.id IS NULL OR we.source_node_id = ANY($2::uuid[]))`,
       [instance.id, rootNodeIds.length > 0 ? rootNodeIds : ['00000000-0000-0000-0000-000000000000']]
     );
@@ -84,10 +83,36 @@ export const activateWorkflow = async (projectId: string, userId: string) => {
 
     // 5. Generate Runtime Executions & Initial Tasks for Assigned Parcels
     for (const node of actionableNodes) {
-      const parcelsRes = await client.query(
+      let parcelsRes = await client.query(
         `SELECT parcel_id FROM workflow_node_parcels WHERE workflow_node_id = $1`,
         [node.id]
       );
+
+      // 5a. Parcel Propagation: If this actionable node has 0 parcels,
+      // inherit parcels from its parent nodes (typically the DISTRICT root).
+      // This handles the common case where parcels are attached to the root
+      // and child branch nodes (compensation, possession, acquisition) need them.
+      if (parcelsRes.rows.length === 0) {
+        const parentParcelsRes = await client.query(
+          `SELECT DISTINCT wnp.parcel_id
+           FROM workflow_edges we
+           JOIN workflow_node_parcels wnp ON wnp.workflow_node_id = we.source_node_id
+           WHERE we.target_node_id = $1 AND we.workflow_instance_id = $2`,
+          [node.id, instance.id]
+        );
+
+        if (parentParcelsRes.rows.length > 0) {
+          // Persist the inherited parcels to this node for consistency
+          for (const pp of parentParcelsRes.rows) {
+            await client.query(
+              `INSERT INTO workflow_node_parcels (workflow_node_id, parcel_id, assigned_by)
+               VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+              [node.id, pp.parcel_id, userId]
+            );
+          }
+          parcelsRes = parentParcelsRes;
+        }
+      }
 
       const assignedOfficerId = node.responsible_user_id || defaultOfficerId;
 
