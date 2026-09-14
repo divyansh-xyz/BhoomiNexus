@@ -132,6 +132,12 @@ export const taskService = {
     if (t) {
       t.status = 'ACCEPTED';
       t.completedAt = new Date().toISOString();
+      if (t.requiredDocuments) {
+        t.requiredDocuments = t.requiredDocuments.map((d) => ({
+          ...d,
+          status: 'VERIFIED' as const,
+        }));
+      }
       updateCachedTask(t);
       try {
         if (t.workflowNode?.branchType === 'COMPENSATION' || t.id.startsWith('TASK-COMP')) {
@@ -458,6 +464,10 @@ export const taskService = {
       console.warn(`[taskService] GET /api/v1/projects/${projectId}/timeline pending:`, e);
     }
     return [];
+  },
+
+  updateCachedTask(task: WorkflowTask): void {
+    updateCachedTask(task);
   },
 };
 

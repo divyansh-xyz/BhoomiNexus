@@ -1812,7 +1812,427 @@
   margin: 0;
 }
 
-/* 4-Stage Lifecycle Stepper */
+/* ============================================================
+   Statutory 6-Milestone Lifecycle Stepper (Things 3 / Apple Keynote)
+   ============================================================ */
+.things-statutory-stepper-card {
+  background-color: var(--tp-paper);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-cards);
+  box-shadow: var(--tp-shadow-card);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.things-statutory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.things-statutory-header-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tp-ink);
+  letter-spacing: -0.015em;
+  margin: 0 0 2px 0;
+}
+
+.things-statutory-header-sub {
+  font-size: 13px;
+  color: var(--tp-fog);
+  margin: 0;
+}
+
+.things-statutory-stepper {
+  display: grid;
+  grid-template-columns: 1fr 20px 1fr 20px 1fr 20px 1fr 20px 1fr 20px 1fr;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+@media (max-width: 1180px) {
+  .things-statutory-stepper {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+.things-statutory-node {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 12px;
+  transition: all 0.18s ease;
+  background-color: transparent;
+  border: 1px solid transparent;
+}
+
+.things-statutory-node:hover {
+  background-color: var(--tp-mist);
+  border-color: var(--tp-hairline);
+}
+
+.things-statutory-node.is-selected {
+  background-color: #eff6ff;
+  border-color: rgba(37, 118, 235, 0.3);
+  box-shadow: 0 1px 3px rgba(37, 118, 235, 0.08);
+}
+
+.things-statutory-top-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.things-statutory-disc {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  background-color: var(--tp-mist);
+  color: var(--tp-silver);
+  border: 1.5px solid var(--tp-hairline);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.things-statutory-node.completed .things-statutory-disc {
+  background-color: var(--tp-emerald-soft);
+  color: var(--tp-emerald);
+  border-color: var(--tp-emerald);
+}
+
+.things-statutory-node.active .things-statutory-disc {
+  background-color: #eff6ff;
+  color: var(--tp-signal-blue);
+  border-color: var(--tp-signal-blue);
+  box-shadow: 0 0 0 3px rgba(37, 118, 235, 0.18);
+}
+
+.things-statutory-node.action-needed .things-statutory-disc {
+  background-color: var(--tp-amber-soft);
+  color: var(--tp-amber);
+  border-color: var(--tp-amber);
+}
+
+.things-statutory-section-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tp-fog);
+  font-family: ui-monospace, monospace;
+}
+
+.things-statutory-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.things-statutory-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--tp-ink);
+  line-height: 1.25;
+}
+
+.things-statutory-desc {
+  font-size: 11.5px;
+  color: var(--tp-fog);
+  line-height: 1.35;
+}
+
+.things-statutory-authority {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tp-ash);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.things-statutory-connector {
+  height: 2px;
+  background-color: var(--tp-hairline);
+  border-radius: 2px;
+  margin-top: 17px;
+}
+
+.things-statutory-connector.completed {
+  background-color: var(--tp-emerald);
+}
+
+@media (max-width: 1180px) {
+  .things-statutory-connector {
+    display: none;
+  }
+}
+
+/* ============================================================
+   3-Branch Federal Execution Matrix
+   ============================================================ */
+.things-branch-matrix-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.things-branch-matrix-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.things-branch-matrix-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--tp-ink);
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.things-branch-matrix-sub {
+  font-size: 13px;
+  color: var(--tp-fog);
+  margin: 2px 0 0 0;
+}
+
+.things-branch-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .things-branch-matrix-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.things-branch-card {
+  background-color: var(--tp-paper);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-cards);
+  box-shadow: var(--tp-shadow-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
+}
+
+.things-branch-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--tp-shadow-hover);
+  border-color: rgba(37, 118, 235, 0.4);
+}
+
+.things-branch-card.is-active {
+  border-color: rgba(37, 118, 235, 0.5);
+  box-shadow: 0 0 0 2px rgba(37, 118, 235, 0.15), var(--tp-shadow-card);
+}
+
+.things-branch-card.is-completed {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.things-branch-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.things-branch-tag {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tp-signal-blue);
+  background-color: rgba(37, 118, 235, 0.08);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(37, 118, 235, 0.2);
+}
+
+.things-branch-title {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--tp-ink);
+  margin: 10px 0 4px 0;
+  line-height: 1.3;
+}
+
+.things-branch-statute {
+  font-size: 11.5px;
+  color: var(--tp-fog);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.things-branch-officer-box {
+  background-color: var(--tp-mist);
+  border: 1px solid var(--tp-hairline);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.things-branch-officer-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tp-fog);
+}
+
+.things-branch-officer-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--tp-ink);
+}
+
+.things-branch-officer-role {
+  font-size: 11.5px;
+  color: var(--tp-ash);
+}
+
+.things-branch-deliverables {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.things-branch-deliverable-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: #fafbfc;
+  border: 1px solid var(--tp-hairline);
+}
+
+.things-branch-deliverable-name {
+  font-weight: 600;
+  color: var(--tp-ink);
+}
+
+.things-branch-deliverable-status {
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.things-branch-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--tp-hairline);
+  padding-top: 14px;
+  font-size: 12px;
+  color: var(--tp-fog);
+}
+
+.things-branch-sla {
+  font-weight: 600;
+  color: var(--tp-ash);
+}
+
+/* Interactive Milestone Deep-Dive Inspection Card */
+.things-milestone-inspector-card {
+  background-color: var(--tp-paper);
+  border: 1px solid rgba(37, 118, 235, 0.3);
+  border-radius: var(--tp-radius-cards);
+  box-shadow: var(--tp-shadow-card);
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeInMilestone 0.2s ease-out;
+}
+
+@keyframes fadeInMilestone {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.things-inspector-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.things-inspector-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tp-ink);
+  margin: 0 0 4px 0;
+}
+
+.things-inspector-desc {
+  font-size: 13.5px;
+  color: var(--tp-fog);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.things-inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.things-inspector-cell {
+  background-color: var(--tp-mist);
+  border: 1px solid var(--tp-hairline);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.things-inspector-cell-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tp-fog);
+}
+
+.things-inspector-cell-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tp-ink);
+}
+
+/* 4-Stage Lifecycle Stepper (Legacy shim retained) */
 .things-stepper-container {
   background-color: var(--tp-paper);
   border: 1px solid var(--tp-hairline);

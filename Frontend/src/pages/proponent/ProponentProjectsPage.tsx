@@ -72,6 +72,58 @@ export const ProponentProjectsPage: React.FC = () => {
 
   const actionRequiredCount = projects.filter(p => p.hasPendingAction).length;
 
+  const getStatutoryMilestoneLabel = (p: ProjectRequest) => {
+    const projId = p.id || '';
+    const projCode = p.code || '';
+    const isWorkflowActivated =
+      localStorage.getItem(`bhoomi_workflow_activated_${projId}`) === 'true' ||
+      localStorage.getItem(`bhoomi_workflow_activated_${projCode}`) === 'true' ||
+      p.status === 'WORKFLOW_ACTIVE' ||
+      p.status === 'PROJECT_APPROVED' ||
+      p.status === 'PARCELS_CONFIRMED' ||
+      p.status === 'WORKFLOW_CONFIGURED';
+
+    const isAcquisitionCompleted =
+      localStorage.getItem('bhoomi_acq_branch_completed') === 'true' ||
+      p.status === 'PROJECT_APPROVED';
+
+    const isCompensationCompleted =
+      localStorage.getItem(`bhoomi_comp_status_${projId}`) === 'SANCTIONED' ||
+      localStorage.getItem(`bhoomi_comp_status_${projCode}`) === 'SANCTIONED' ||
+      localStorage.getItem(`bhoomi_comp_approved_${projId}`) === 'true' ||
+      localStorage.getItem(`bhoomi_comp_approved_${projCode}`) === 'true' ||
+      localStorage.getItem('bhoomi_comp_branch_completed') === 'true' ||
+      p.status === 'PROJECT_APPROVED';
+
+    const isPossessionCompleted =
+      localStorage.getItem(`bhoomi_poss_status_${projId}`) === 'COMPLETED' ||
+      localStorage.getItem(`bhoomi_poss_status_${projCode}`) === 'COMPLETED' ||
+      p.status === 'PROJECT_APPROVED';
+
+    if (isAcquisitionCompleted && isCompensationCompleted && isPossessionCompleted) {
+      return 'M06: Sovereign Vesting & Clear Title Handover';
+    }
+    if (isPossessionCompleted) {
+      return 'M06: Sovereign Vesting & Clear Title Handover';
+    }
+    if (isCompensationCompleted) {
+      return 'M05: Physical Possession & Mutation (Sec 38)';
+    }
+    if (isAcquisitionCompleted) {
+      return 'M04: Compensation Award & Solatium (Sec 26–30)';
+    }
+    if (isWorkflowActivated) {
+      return 'M03: Field Acquisition & JMS (Sec 11/19)';
+    }
+    if (p.status === 'PARCELS_CONFIRMED') {
+      return 'M03: Field Acquisition & JMS (Sec 11/19)';
+    }
+    if (p.status === 'NEW_REQUEST' || p.status === 'UNDER_REVIEW') {
+      return 'M02: BOSS Cadastral Determination';
+    }
+    return p.currentStage || 'M01: Requisition & Spatial Ingestion';
+  };
+
   return (
     <div className="things-proponent-dashboard">
       <div className="things-dashboard-inner">
@@ -473,9 +525,9 @@ export const ProponentProjectsPage: React.FC = () => {
                               style={{ width: `${project.workflowProgress.percentage}%` }}
                             />
                           </div>
-                          {project.currentStage && (
-                            <span className="things-current-stage-text">Current: {project.currentStage}</span>
-                          )}
+                          <span className="things-current-stage-text">
+                            Milestone: {getStatutoryMilestoneLabel(project)}
+                          </span>
                         </div>
                       )}
 
@@ -565,7 +617,7 @@ export const ProponentProjectsPage: React.FC = () => {
                       </td>
                       <td>
                         <span className="things-table-stage-name">
-                          {project.currentStage || '—'}
+                          {getStatutoryMilestoneLabel(project)}
                         </span>
                       </td>
                       <td>

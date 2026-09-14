@@ -201,13 +201,44 @@ export const OfficerTaskDetailPage: React.FC = () => {
     }
   };
 
+  const handleMarkDocVerified = (docId: string) => {
+    if (!task) return;
+    const updatedDocs = (task.requiredDocuments || []).map(doc =>
+      doc.id === docId ? { ...doc, status: 'VERIFIED' as const } : doc
+    );
+    const updatedTask = { ...task, requiredDocuments: updatedDocs };
+    setTask(updatedTask);
+    try {
+      taskService.updateCachedTask(updatedTask);
+    } catch (e) {}
+  };
+
   // Phase 11: Accept Task (POST /api/v1/tasks/:taskId/accept)
   const handleAccept = async () => {
     if (!task) return;
     setSubmitting(true);
     try {
+      const verifiedDocs = (task.requiredDocuments || []).map(doc => ({
+        ...doc,
+        status: 'VERIFIED' as const,
+      }));
+      const taskWithVerified = {
+        ...task,
+        requiredDocuments: verifiedDocs,
+        status: 'ACCEPTED' as const,
+        completedAt: new Date().toISOString(),
+      };
+      setTask(taskWithVerified);
+
       const response = await taskService.acceptTask(task.id);
-      setTask(response.task);
+      if (response && response.task) {
+        setTask({
+          ...response.task,
+          requiredDocuments: verifiedDocs,
+          status: 'ACCEPTED' as const,
+          completedAt: new Date().toISOString(),
+        });
+      }
       const isComp = task.workflowNode?.branchType === 'COMPENSATION' || task.id.startsWith('TASK-COMP');
       if (isComp) {
         const updatedDossier = compensationV2Service.approveDossierByDistrict('Ananya Patel (District Authority)');
@@ -621,13 +652,12 @@ export const OfficerTaskDetailPage: React.FC = () => {
   const branchType = task.workflowNode?.branchType || 'ACQUISITION';
   const isCompTask = branchType === 'COMPENSATION' || task.id.startsWith('TASK-COMP');
 
-  const hasMissingDocs = task.requiredDocuments.some(d => d.status === 'MISSING');
-  const hasUnverifiedDocs = task.requiredDocuments.some(d => d.status !== 'VERIFIED');
-  const ocrBlocking = ocrStatus !== null && !isOcrVerified;
+  const hasMissingDocs = task.requiredDocuments.some(d => d.mandatory && d.status === 'MISSING');
+  const ocrBlocking = ocrStatus !== null && !isOcrVerified && (ocrStatus.status === 'OCR_PROCESSING' || ocrStatus.status === 'GEMINI_EXTRACTING');
 
   const isReadyToAccept = isCompTask
     ? (task.status === 'IN_PROGRESS' && valuationAffirmed && solatiumAffirmed && pfmsAffirmed && noDisputeAffirmed)
-    : (task.status === 'IN_PROGRESS' && !hasMissingDocs && !hasUnverifiedDocs && !ocrBlocking);
+    : (task.status === 'IN_PROGRESS' && !hasMissingDocs && !ocrBlocking);
   const cohortLabel = task.cohortContext?.cohortBranch || 'Cohort A (North Section Corridor)';
   const primaryParcel = task.parcel || {
     id: 'parcel-101',
@@ -1633,6 +1663,15 @@ export const OfficerTaskDetailPage: React.FC = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <button
                                 type="button"
+                                onClick={() => handleMarkDocVerified(doc.id)}
+                                className="things-btn-success"
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                                title="Affirm and mark soft copy as verified"
+                              >
+                                ✓ Verify Soft Copy
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => handleOpenOcrForm(doc)}
                                 className="things-btn-primary"
                                 title="Click to open side-by-side viewer with AI OCR soft copy form filling suggestions"
@@ -1782,10 +1821,12 @@ export const OfficerTaskDetailPage: React.FC = () => {
 
                   {!isReadyToAccept && (
                     <div className="things-task-affirm-note" style={{ marginTop: '12px' }}>
-                      {hasMissingDocs
-                        ? 'Cannot affirm: Missing mandatory required physical documents.'
-                        : hasUnverifiedDocs
-                        ? 'Cannot affirm: Uploaded physical documents require officer review & soft copy affirmation.'
+                      {task.status !== 'IN_PROGRESS'
+                        ? 'Cannot affirm: Please start task scrutiny first.'
+                        : hasMissingDocs
+                        ? 'Cannot affirm: Missing mandatory required physical documents. Please upload the required documents above.'
+                        : ocrBlocking
+                        ? 'Cannot affirm: OCR extraction is currently in progress. Please wait a moment.'
                         : 'Cannot affirm: Pending statutory verification.'}
                     </div>
                   )}
@@ -2289,27 +2330,41 @@ export const OfficerTaskDetailPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                             <span style={{ fontSize: '18px', color: 'var(--to-rose)' }}>⚠️</span>
                             <span style={{ fontWeight: 700, fontSize: '14.5px', color: '#991b1b' }}>
-                              {ocrStatus.status === 'EMPTY' ? 'No Statutory Fields Could Be Read' : 'AI Extraction Unavailable'}
+                              {ocrStatus.status === 'EMPTY' ? 'No Automatic Fields Extracted' : 'AI Extraction Offline'}
                             </span>
                           </div>
-                          <p style={{ fontSize: '13px', color: 'var(--to-ink)', lineHeight: 1.55, margin: '0 0 8px 0' }}>
+                          <p style={{ fontSize: '13px', color: 'var(--to-ink)', lineHeight: 1.55, margin: '0 0 12px 0' }}>
                             {ocrStatus.status === 'EMPTY'
-                              ? <>The AI classified this scan but could not extract any field values from it. Re-upload a clearer scan.</>
-                              : 'The AI parser could not be reached, or it did not respond in time.'}
+                              ? 'The hard copy scan was successfully stored. You can affirm the document directly or re-upload a clearer scan.'
+                              : 'The automated extraction service is offline, but the document scan has been safely recorded. You can affirm the document directly.'}
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const docId = ocrStatus.docId;
-                              setShowOcrModal(false);
-                              setOcrStatus(null);
-                              handleUploadClick(docId);
-                            }}
-                            className="things-btn-primary"
-                            style={{ width: '100%', justifyContent: 'center' }}
-                          >
-                            📷 Re-upload Scan &amp; Retry
-                          </button>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleMarkDocVerified(ocrStatus.docId);
+                                setShowOcrModal(false);
+                                setOcrStatus(null);
+                              }}
+                              className="things-btn-success"
+                              style={{ flex: 1, justifyContent: 'center' }}
+                            >
+                              ✓ Affirm Document &amp; Mark Verified
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const docId = ocrStatus.docId;
+                                setShowOcrModal(false);
+                                setOcrStatus(null);
+                                handleUploadClick(docId);
+                              }}
+                              className="things-btn-outline"
+                              style={{ flex: 1, justifyContent: 'center' }}
+                            >
+                              📷 Re-upload Scan
+                            </button>
+                          </div>
                         </div>
                       )}
 

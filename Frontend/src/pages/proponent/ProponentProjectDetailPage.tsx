@@ -64,6 +64,7 @@ export const ProponentProjectDetailPage: React.FC = () => {
     description: '',
   });
   const [submittingGrievance, setSubmittingGrievance] = useState(false);
+  const [selectedMilestone, setSelectedMilestone] = useState<number | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -364,27 +365,238 @@ export const ProponentProjectDetailPage: React.FC = () => {
   const pendingActions = project.pendingActions || [];
 
   // ============================================================
-  // Lifecycle Workflow Stepper State Logic
-  // Process: 01 Requisition Submitted -> 02 BOSS Scrutiny -> 03 Officer Confirmation -> 04 Process Complete
+  // Statutory 6-Milestone Lifecycle & 3-Branch Federal Architecture State
+  // Strictly adheres to RFCTLARR Act 2013 and BhoomiNexus statutory pipeline:
+  // M1: Requisition & Spatial Ingestion
+  // M2: BOSS Cadastral Determination (Bhu-Aadhaar Spatial Overlay)
+  // M3: Field Acquisition & Joint Measurement Survey (JMS)
+  // M4: Compensation Award & 100% Solatium (Sec 26-30 RFCTLARR)
+  // M5: Physical Possession & Sovereign Revenue Mutation (Sec 38)
+  // M6: Sovereign Vesting & Clear Title Handover
   // ============================================================
-  const totalOfficerStages = stages.length;
-  const completedOfficerStages = stages.filter((s) => s.status === 'COMPLETED').length;
-  const isBossApproved = project.status !== 'DRAFT' && project.status !== 'NEW_REQUEST';
-  const hasOfficerRejections = stages.some((s) => s.status === 'REJECTED');
+  const projId = project.id || '';
+  const projCode = project.code || '';
 
-  // Step 2: BOSS Scrutiny
-  const step2Completed = isBossApproved;
-  const step2Active = project.status === 'NEW_REQUEST';
+  const isWorkflowActivated =
+    localStorage.getItem(`bhoomi_workflow_activated_${projId}`) === 'true' ||
+    localStorage.getItem(`bhoomi_workflow_activated_${projCode}`) === 'true' ||
+    project.status === 'WORKFLOW_ACTIVE' ||
+    project.status === 'PROJECT_APPROVED' ||
+    project.status === 'PARCELS_CONFIRMED' ||
+    project.status === 'WORKFLOW_CONFIGURED';
 
-  // Step 3: Officer Confirmation (turns GREEN when all officers in the workflow approve)
-  const step3Completed =
-    (totalOfficerStages > 0 && completedOfficerStages === totalOfficerStages) ||
+  const isAcquisitionCompleted =
+    localStorage.getItem('bhoomi_acq_branch_completed') === 'true' ||
     project.status === 'PROJECT_APPROVED';
 
-  const step3Active = !step3Completed && (isBossApproved || stages.some((s) => s.status === 'ACTIVE' || s.status === 'COMPLETED'));
+  const isCompensationCompleted =
+    localStorage.getItem(`bhoomi_comp_status_${projId}`) === 'SANCTIONED' ||
+    localStorage.getItem(`bhoomi_comp_status_${projCode}`) === 'SANCTIONED' ||
+    localStorage.getItem(`bhoomi_comp_approved_${projId}`) === 'true' ||
+    localStorage.getItem(`bhoomi_comp_approved_${projCode}`) === 'true' ||
+    localStorage.getItem('bhoomi_comp_branch_completed') === 'true' ||
+    project.status === 'PROJECT_APPROVED';
 
-  // Step 4: Process Complete (turns GREEN when all officers approve and lifecycle is completed)
-  const step4Completed = step3Completed && (project.status === 'PROJECT_APPROVED' || project.status === 'PARCELS_CONFIRMED' || project.status === 'WORKFLOW_ACTIVE');
+  const isPossessionCompleted =
+    localStorage.getItem(`bhoomi_poss_status_${projId}`) === 'COMPLETED' ||
+    localStorage.getItem(`bhoomi_poss_status_${projCode}`) === 'COMPLETED' ||
+    project.status === 'PROJECT_APPROVED';
+
+  const isFullyVested = isAcquisitionCompleted && isCompensationCompleted && isPossessionCompleted;
+
+  interface StatutoryMilestone {
+    index: number;
+    num: string;
+    title: string;
+    shortTitle: string;
+    sectionTag: string;
+    authority: string;
+    status: 'COMPLETED' | 'ACTIVE' | 'ACTION_REQUIRED' | 'PENDING';
+    statusLabel: string;
+    description: string;
+    slaDays: number;
+    leadOfficer: string;
+    leadDesignation: string;
+    deliverables: { name: string; status: 'VERIFIED' | 'IN_PROGRESS' | 'PENDING' }[];
+  }
+
+  const statutoryMilestones: StatutoryMilestone[] = [
+    {
+      index: 1,
+      num: '01',
+      title: 'Requisition & Spatial Ingestion',
+      shortTitle: 'Requisition Ingestion',
+      sectionTag: 'PORTAL INGESTION',
+      authority: project.proponentAuthority || 'Requesting Agency',
+      status: 'COMPLETED',
+      statusLabel: project.submissionDate ? `Submitted on ${new Date(project.submissionDate).toLocaleDateString('en-IN')}` : 'Submitted',
+      description: 'Project corridor alignment GeoJSON, Right-of-Way buffer, and initial charter submitted by Proponent.',
+      slaDays: 7,
+      leadOfficer: project.nodalOfficer?.name || 'Proponent Nodal Desk',
+      leadDesignation: project.nodalOfficer?.designation || 'Project Director',
+      deliverables: [
+        { name: 'Corridor GeoJSON Alignment Coordinates', status: 'VERIFIED' },
+        { name: 'Right-of-Way (ROW) Buffer Demarcation', status: 'VERIFIED' },
+        { name: 'Statutory Acquisition Purpose Charter', status: 'VERIFIED' },
+      ],
+    },
+    {
+      index: 2,
+      num: '02',
+      title: 'BOSS Cadastral Determination',
+      shortTitle: 'Cadastral Overlay',
+      sectionTag: 'BHU-AADHAAR SPATIAL',
+      authority: 'Central Cadastral Bureau',
+      status: isWorkflowActivated ? 'COMPLETED' : project.status === 'NEW_REQUEST' ? 'ACTIVE' : 'PENDING',
+      statusLabel: isWorkflowActivated ? 'Parcels Confirmed' : project.status === 'NEW_REQUEST' ? 'In Scrutiny' : 'Pending',
+      description: 'Spatial intersection of project corridor with Bhu-Aadhaar cadastral layers and workflow activation.',
+      slaDays: 14,
+      leadOfficer: 'Dr. Rajiv Malhotra',
+      leadDesignation: 'Chief Cadastral Surveyor (BOSS Reviewer)',
+      deliverables: [
+        { name: `${project.selectedParcelsCount || project.candidateParcelsCount || 4} Intersected Cadastral Parcels`, status: isWorkflowActivated ? 'VERIFIED' : 'IN_PROGRESS' },
+        { name: 'Bhu-Aadhaar ULPIN Spatial Cross-Verification', status: isWorkflowActivated ? 'VERIFIED' : 'IN_PROGRESS' },
+        { name: 'Statutory 3-Branch Federal Workflow Configuration', status: isWorkflowActivated ? 'VERIFIED' : 'PENDING' },
+      ],
+    },
+    {
+      index: 3,
+      num: '03',
+      title: 'Field Acquisition & JMS',
+      shortTitle: 'JMS & Notification',
+      sectionTag: 'RFCTLARR SEC 11/19',
+      authority: 'District Acquisition Office (CALA)',
+      status: isAcquisitionCompleted ? 'COMPLETED' : isWorkflowActivated ? 'ACTIVE' : 'PENDING',
+      statusLabel: isAcquisitionCompleted ? 'Survey Completed' : isWorkflowActivated ? 'In Field Survey' : 'Awaiting BOSS',
+      description: 'Joint Measurement Survey (JMS), preliminary Section 11/19 Gazette notification, and objection scrutiny.',
+      slaDays: 15,
+      leadOfficer: 'Ananya Patel',
+      leadDesignation: 'District Competent Authority & Acquisition Officer',
+      deliverables: [
+        { name: 'Joint Measurement Survey (JMS) Field Sheets', status: isAcquisitionCompleted ? 'VERIFIED' : 'IN_PROGRESS' },
+        { name: 'Sec 11/19 Preliminary Gazette Notification Extract', status: isAcquisitionCompleted ? 'VERIFIED' : 'IN_PROGRESS' },
+        { name: 'Landowner Panchnama & Section 15 Hearing Records', status: isAcquisitionCompleted ? 'VERIFIED' : 'IN_PROGRESS' },
+      ],
+    },
+    {
+      index: 4,
+      num: '04',
+      title: 'Compensation Award & Solatium',
+      shortTitle: 'Sec 26–30 Award',
+      sectionTag: 'RFCTLARR SEC 26–30',
+      authority: 'Special Land Acquisition Office (SLAO)',
+      status: isCompensationCompleted ? 'COMPLETED' : isAcquisitionCompleted || isWorkflowActivated ? 'ACTIVE' : 'PENDING',
+      statusLabel: isCompensationCompleted ? 'Award Sanctioned' : isWorkflowActivated ? 'Valuation in Progress' : 'Pending',
+      description: 'Statutory circle rate valuation, mandatory 100% Solatium (Sec 30), and PFMS direct benefit transfer.',
+      slaDays: 21,
+      leadOfficer: 'Mahesh Patil',
+      leadDesignation: 'Special Land Acquisition Officer (SLAO)',
+      deliverables: [
+        { name: 'Form 11 Statutory Valuation Ledger', status: isCompensationCompleted ? 'VERIFIED' : 'IN_PROGRESS' },
+        { name: '100% Solatium Determination Sheet (Sec 30)', status: isCompensationCompleted ? 'VERIFIED' : 'IN_PROGRESS' },
+        { name: 'PFMS DBT Beneficiary Bank Account Mandate', status: isCompensationCompleted ? 'VERIFIED' : 'IN_PROGRESS' },
+      ],
+    },
+    {
+      index: 5,
+      num: '05',
+      title: 'Physical Possession & Mutation',
+      shortTitle: 'Sec 38 Possession',
+      sectionTag: 'RFCTLARR SEC 38',
+      authority: 'Executive Magistrate & Tehsil',
+      status: isPossessionCompleted ? 'COMPLETED' : isCompensationCompleted ? 'ACTIVE' : 'PENDING',
+      statusLabel: isPossessionCompleted ? 'Possession Taken' : isCompensationCompleted ? 'Vacate Notice Issued' : 'Awaiting Award',
+      description: 'Statutory 60-day notice to vacate, physical spot panchnama with witnesses, and RoR Khatauni mutation.',
+      slaDays: 60,
+      leadOfficer: 'Rahul Deshmukh',
+      leadDesignation: 'Executive Magistrate & Tehsildar',
+      deliverables: [
+        { name: 'Section 38 Statutory 60-Day Notice to Vacate', status: isPossessionCompleted ? 'VERIFIED' : isCompensationCompleted ? 'IN_PROGRESS' : 'PENDING' },
+        { name: 'Spot Panchnama & Physical Handover Certificate', status: isPossessionCompleted ? 'VERIFIED' : 'PENDING' },
+        { name: 'Tehsildar RoR Khatauni Sovereign Mutation Order', status: isPossessionCompleted ? 'VERIFIED' : 'PENDING' },
+      ],
+    },
+    {
+      index: 6,
+      num: '06',
+      title: 'Sovereign Vesting & Handover',
+      shortTitle: 'Final Vesting',
+      sectionTag: 'FINAL VESTING',
+      authority: 'State Land & Revenue Authority',
+      status: isFullyVested ? 'COMPLETED' : 'PENDING',
+      statusLabel: isFullyVested ? 'Title Vested' : 'Pending Prior Stages',
+      description: 'Issuance of unencumbered sovereign vesting certificate and handover of clear corridor title to Proponent.',
+      slaDays: 7,
+      leadOfficer: 'Dr. Sanjay Kaushik',
+      leadDesignation: 'Principal Secretary (Revenue & CALA)',
+      deliverables: [
+        { name: 'Encumbrance-Free Sovereign Vesting Certificate', status: isFullyVested ? 'VERIFIED' : 'PENDING' },
+        { name: 'Unencumbered Land Title Handover Deed', status: isFullyVested ? 'VERIFIED' : 'PENDING' },
+        { name: 'Statutory Completion & Project Closure Register', status: isFullyVested ? 'VERIFIED' : 'PENDING' },
+      ],
+    },
+  ];
+
+  const federalBranches = [
+    {
+      key: 'ACQUISITION',
+      tag: 'BRANCH 1 • ACQUISITION',
+      title: 'Cadastral & Ground Acquisition',
+      statute: 'RFCTLARR Act 2013 (Sections 11 to 19)',
+      authority: 'District Competent Authority & CALA',
+      officer: 'Ananya Patel',
+      designation: 'District Competent Authority & Acquisition Officer',
+      status: isAcquisitionCompleted ? 'COMPLETED' : isWorkflowActivated ? 'ACTIVE' : 'PENDING',
+      statusLabel: isAcquisitionCompleted ? '✓ Completed' : isWorkflowActivated ? '● In Progress' : 'Pending',
+      statusClass: isAcquisitionCompleted ? 'status-sanctioned' : isWorkflowActivated ? 'status-submitted' : 'status-pending',
+      slaDays: 15,
+      deliverables: [
+        { name: 'Joint Measurement Survey (JMS)', status: isAcquisitionCompleted ? 'Verified' : 'In Progress' },
+        { name: 'Section 11/19 Gazette Notification', status: isAcquisitionCompleted ? 'Notified' : 'Drafted' },
+        { name: 'Objection Hearing Panchnama', status: isAcquisitionCompleted ? 'Disposed' : 'Under Review' },
+      ],
+    },
+    {
+      key: 'COMPENSATION',
+      tag: 'BRANCH 2 • COMPENSATION',
+      title: 'Statutory Valuation & Solatium',
+      statute: 'RFCTLARR Act 2013 (Sections 26 to 30)',
+      authority: 'Special Land Acquisition Office (SLAO)',
+      officer: 'Mahesh Patil',
+      designation: 'Special Land Acquisition Officer (SLAO)',
+      status: isCompensationCompleted ? 'COMPLETED' : isWorkflowActivated ? 'ACTIVE' : 'PENDING',
+      statusLabel: isCompensationCompleted ? '✓ Sanctioned & Disbursed' : isWorkflowActivated ? '● In Assessment' : 'Pending',
+      statusClass: isCompensationCompleted ? 'status-sanctioned' : isWorkflowActivated ? 'status-submitted' : 'status-pending',
+      slaDays: 21,
+      deliverables: [
+        { name: 'Form 11 Valuation Ledger', status: isCompensationCompleted ? 'Sanctioned' : 'Compiled' },
+        { name: '100% Solatium Schedule (Sec 30)', status: isCompensationCompleted ? 'Approved' : 'Assessed' },
+        { name: 'PFMS DBT Disbursal Scroll', status: isCompensationCompleted ? 'Disbursed' : 'Awaiting Mandate' },
+      ],
+    },
+    {
+      key: 'POSSESSION',
+      tag: 'BRANCH 3 • POSSESSION',
+      title: 'Physical Possession & Mutation',
+      statute: 'RFCTLARR Act 2013 (Sections 38 to 40)',
+      authority: 'Sub-Divisional Magistrate & Tehsil',
+      officer: 'Rahul Deshmukh',
+      designation: 'Executive Magistrate & Tehsildar',
+      status: isPossessionCompleted ? 'COMPLETED' : isCompensationCompleted ? 'ACTIVE' : 'PENDING',
+      statusLabel: isPossessionCompleted ? '✓ Possession Vested' : isCompensationCompleted ? '● 60-Day Notice Active' : 'Pending Award',
+      statusClass: isPossessionCompleted ? 'status-sanctioned' : isCompensationCompleted ? 'status-submitted' : 'status-pending',
+      slaDays: 60,
+      deliverables: [
+        { name: 'Sec 38 60-Day Notice to Vacate', status: isPossessionCompleted ? 'Delivered' : isCompensationCompleted ? 'Issued' : 'Pending' },
+        { name: 'Spot Panchnama & Handover', status: isPossessionCompleted ? 'Executed' : 'Scheduled' },
+        { name: 'Khatauni RoR Sovereign Mutation', status: isPossessionCompleted ? 'Mutated' : 'Pending' },
+      ],
+    },
+  ];
+
+  const selectedMilestoneData = selectedMilestone
+    ? statutoryMilestones.find((m) => m.index === selectedMilestone)
+    : null;
 
   // Filtered grievances for the record card
   const filteredGrievances = grievances.filter((g) => {
@@ -638,73 +850,225 @@ export const ProponentProjectDetailPage: React.FC = () => {
           </section>
         )}
 
-        {/* 4-Stage Statutory Workflow Lifecycle Stepper */}
-        <section className="things-stepper-container">
-          {/* Step 01: Requisition Submitted */}
-          <div className="things-stepper-node completed">
-            <div className="things-step-badge">01</div>
-            <div className="things-step-texts">
-              <span className="things-step-title">Requisition Submitted</span>
-              <span className="things-step-date">
-                {project.submissionDate ? new Date(project.submissionDate).toLocaleDateString('en-IN') : 'Submitted'}
+        {/* Statutory 6-Milestone Lifecycle Stepper */}
+        <section className="things-statutory-stepper-card">
+          <div className="things-statutory-header">
+            <div>
+              <h2 className="things-statutory-header-title">RFCTLARR Act 2013 Statutory Lifecycle</h2>
+              <p className="things-statutory-header-sub">Federal 6-Milestone Progression &bull; Click any milestone to inspect statutory records</p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span className="things-status-pill pill-completed">
+                {statutoryMilestones.filter((m) => m.status === 'COMPLETED').length} / 6 Milestones Cleared
               </span>
             </div>
           </div>
-          <div className={`things-step-connector ${isBossApproved || step2Active ? 'completed' : ''}`} />
 
-          {/* Step 02: BOSS Scrutiny */}
-          <div className={`things-stepper-node ${step2Completed ? 'completed' : step2Active ? 'active' : 'upcoming'}`}>
-            <div className="things-step-badge">02</div>
-            <div className="things-step-texts">
-              <span className="things-step-title">BOSS Scrutiny</span>
-              <span className="things-step-date">
-                {step2Completed ? 'Approved' : step2Active ? 'In Review' : 'Pending'}
+          <div className="things-statutory-stepper">
+            {statutoryMilestones.map((m, idx) => (
+              <React.Fragment key={m.index}>
+                <div
+                  className={`things-statutory-node ${
+                    m.status === 'COMPLETED'
+                      ? 'completed'
+                      : m.status === 'ACTIVE'
+                      ? 'active'
+                      : m.status === 'ACTION_REQUIRED'
+                      ? 'action-needed'
+                      : 'upcoming'
+                  } ${selectedMilestone === m.index ? 'is-selected' : ''}`}
+                  onClick={() => setSelectedMilestone(selectedMilestone === m.index ? null : m.index)}
+                  title={`Inspect Milestone ${m.num}: ${m.title}`}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="things-statutory-top-row">
+                    <div className="things-statutory-disc">{m.num}</div>
+                    <span className="things-statutory-section-tag">{m.sectionTag}</span>
+                  </div>
+                  <div className="things-statutory-texts">
+                    <span className="things-statutory-title">{m.shortTitle}</span>
+                    <span className="things-statutory-desc">{m.statusLabel}</span>
+                    <span className="things-statutory-authority">🏛 {m.authority}</span>
+                  </div>
+                </div>
+                {idx < statutoryMilestones.length - 1 && (
+                  <div
+                    className={`things-statutory-connector ${
+                      m.status === 'COMPLETED' ? 'completed' : ''
+                    }`}
+                  />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </section>
+
+        {/* Milestone Deep-Dive Inspection Card */}
+        {selectedMilestoneData && (
+          <div className="things-milestone-inspector-card">
+            <div className="things-inspector-head">
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span className="things-branch-tag">MILESTONE {selectedMilestoneData.num} &bull; {selectedMilestoneData.sectionTag}</span>
+                  <span
+                    className={`things-status-pill ${
+                      selectedMilestoneData.status === 'COMPLETED'
+                        ? 'pill-completed'
+                        : selectedMilestoneData.status === 'ACTIVE'
+                        ? 'pill-active'
+                        : selectedMilestoneData.status === 'ACTION_REQUIRED'
+                        ? 'pill-rejected'
+                        : 'pill-pending'
+                    }`}
+                  >
+                    {selectedMilestoneData.status}
+                  </span>
+                </div>
+                <h3 className="things-inspector-title">{selectedMilestoneData.title}</h3>
+                <p className="things-inspector-desc">{selectedMilestoneData.description}</p>
+              </div>
+              <button
+                type="button"
+                className="things-btn things-btn-sm things-btn-secondary"
+                onClick={() => setSelectedMilestone(null)}
+                style={{ cursor: 'pointer' }}
+              >
+                ✕ Close Inspector
+              </button>
+            </div>
+
+            <div className="things-inspector-grid">
+              <div className="things-inspector-cell">
+                <span className="things-inspector-cell-label">Competent Authority</span>
+                <span className="things-inspector-cell-val">{selectedMilestoneData.authority}</span>
+              </div>
+              <div className="things-inspector-cell">
+                <span className="things-inspector-cell-label">Lead Statutory Officer</span>
+                <span className="things-inspector-cell-val">{selectedMilestoneData.leadOfficer}</span>
+                <span style={{ fontSize: '11px', color: 'var(--tp-fog)' }}>{selectedMilestoneData.leadDesignation}</span>
+              </div>
+              <div className="things-inspector-cell">
+                <span className="things-inspector-cell-label">Statutory SLA Window</span>
+                <span className="things-inspector-cell-val">{selectedMilestoneData.slaDays} Calendar Days</span>
+              </div>
+            </div>
+
+            <div>
+              <h4 style={{ fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--tp-fog)', margin: '0 0 8px 0' }}>
+                Mandatory Statutory Deliverables &amp; Evidence Records
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '8px' }}>
+                {selectedMilestoneData.deliverables.map((d, i) => (
+                  <div key={i} className="things-branch-deliverable-item">
+                    <span className="things-branch-deliverable-name">{d.name}</span>
+                    <span
+                      className="things-branch-deliverable-status"
+                      style={{
+                        color: d.status === 'VERIFIED' ? '#0d7d56' : d.status === 'IN_PROGRESS' ? '#2576eb' : '#838b96'
+                      }}
+                    >
+                      {d.status === 'VERIFIED' ? '✓ Verified' : d.status === 'IN_PROGRESS' ? '● In Progress' : '○ Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3-Branch Federal Execution Pipeline */}
+        <section className="things-branch-matrix-container">
+          <div className="things-branch-matrix-header">
+            <div>
+              <h2 className="things-branch-matrix-title">3-Branch Federal Execution Pipeline</h2>
+              <p className="things-branch-matrix-sub">
+                Post-Determination Multi-Departmental Execution under RFCTLARR Act 2013
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span className="things-table-scope" style={{ fontWeight: 600 }}>
+                Federal Coordination Desk
               </span>
             </div>
           </div>
-          <div className={`things-step-connector ${step3Completed ? 'completed' : ''}`} />
 
-          {/* Step 03: Officer Confirmation */}
-          <div
-            className={`things-stepper-node ${
-              step3Completed
-                ? 'completed'
-                : hasOfficerRejections
-                ? 'rejected'
-                : step3Active
-                ? 'active'
-                : 'upcoming'
-            }`}
-          >
-            <div className="things-step-badge">03</div>
-            <div className="things-step-texts">
-              <span className="things-step-title">Officer Confirmation</span>
-              <span className="things-step-date">
-                {step3Completed
-                  ? totalOfficerStages > 0
-                    ? `Approved (${completedOfficerStages}/${totalOfficerStages})`
-                    : 'All Officers Approved'
-                  : hasOfficerRejections
-                  ? `Action Required (${completedOfficerStages}/${totalOfficerStages} Approved)`
-                  : step3Active
-                  ? totalOfficerStages > 0
-                    ? `${completedOfficerStages}/${totalOfficerStages} Officers Confirmed`
-                    : 'In Review by Officers'
-                  : 'Pending BOSS Clearance'}
-              </span>
-            </div>
-          </div>
-          <div className={`things-step-connector ${step4Completed ? 'completed' : ''}`} />
+          <div className="things-branch-matrix-grid">
+            {federalBranches.map((branch) => (
+              <div
+                key={branch.key}
+                className={`things-branch-card ${
+                  branch.status === 'COMPLETED' ? 'is-completed' : branch.status === 'ACTIVE' ? 'is-active' : ''
+                }`}
+              >
+                <div>
+                  <div className="things-branch-top">
+                    <span className="things-branch-tag">{branch.tag}</span>
+                    <span className={`things-status-pill ${branch.status === 'COMPLETED' ? 'pill-completed' : branch.status === 'ACTIVE' ? 'pill-active' : 'pill-pending'}`}>
+                      {branch.statusLabel}
+                    </span>
+                  </div>
+                  <h3 className="things-branch-title">{branch.title}</h3>
+                  <div className="things-branch-statute">{branch.statute}</div>
 
-          {/* Step 04: Process Complete */}
-          <div className={`things-stepper-node ${step4Completed ? 'completed' : 'upcoming'}`}>
-            <div className="things-step-badge">04</div>
-            <div className="things-step-texts">
-              <span className="things-step-title">Process Complete</span>
-              <span className="things-step-date">
-                {step4Completed ? 'Statutory Process Complete' : 'Pending Officer Approvals'}
-              </span>
-            </div>
+                  <div className="things-branch-officer-box">
+                    <span className="things-branch-officer-label">Assigned Statutory Authority</span>
+                    <span className="things-branch-officer-name">{branch.officer}</span>
+                    <span className="things-branch-officer-role">{branch.designation}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--tp-fog)', marginTop: '2px' }}>
+                      🏛 {branch.authority}
+                    </span>
+                  </div>
+
+                  <div className="things-branch-deliverables">
+                    <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--tp-fog)', marginBottom: '2px' }}>
+                      Branch Deliverables
+                    </span>
+                    {branch.deliverables.map((del, i) => (
+                      <div key={i} className="things-branch-deliverable-item">
+                        <span className="things-branch-deliverable-name">{del.name}</span>
+                        <span
+                          className="things-branch-deliverable-status"
+                          style={{
+                            color:
+                              del.status === 'Verified' ||
+                              del.status === 'Notified' ||
+                              del.status === 'Disposed' ||
+                              del.status === 'Sanctioned' ||
+                              del.status === 'Approved' ||
+                              del.status === 'Disbursed' ||
+                              del.status === 'Delivered' ||
+                              del.status === 'Executed' ||
+                              del.status === 'Mutated'
+                                ? '#0d7d56'
+                                : del.status === 'In Progress' ||
+                                  del.status === 'Compiled' ||
+                                  del.status === 'Assessed' ||
+                                  del.status === 'Issued' ||
+                                  del.status === 'Scheduled'
+                                ? '#2576eb'
+                                : '#838b96',
+                          }}
+                        >
+                          {del.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="things-branch-footer">
+                  <span className="things-branch-sla">⏱ SLA: {branch.slaDays} Days</span>
+                  <span style={{ fontSize: '11.5px', color: 'var(--tp-fog)' }}>
+                    {branch.status === 'COMPLETED'
+                      ? 'Clearing complete'
+                      : branch.status === 'ACTIVE'
+                      ? 'Active in jurisdiction'
+                      : 'Awaiting upstream trigger'}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 

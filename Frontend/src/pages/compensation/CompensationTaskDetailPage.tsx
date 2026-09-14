@@ -95,6 +95,14 @@ export const CompensationTaskDetailPage: React.FC = () => {
       });
       setRecord(updated);
       setPaymentAmount(updated.approvedAmount || updated.assessedAmount);
+
+      // Persist project status for Compensation Officer Dashboard
+      if (record.projectId) {
+        localStorage.setItem(`bhoomi_comp_status_${record.projectId}`, 'SANCTIONED');
+        localStorage.setItem(`bhoomi_comp_approved_${record.projectId}`, 'true');
+        localStorage.setItem('bhoomi_comp_branch_completed', 'true');
+      }
+
       setActionSuccess('✓ Award successfully approved and sanctioned under Section 28 RFCTLARR 2013.');
       setTimeout(() => setActionSuccess(null), 4000);
     } catch (err: any) {
@@ -144,6 +152,14 @@ export const CompensationTaskDetailPage: React.FC = () => {
         remarks: 'All statutory compensation awards sanctioned, disbursed through PFMS DBT, and verified.',
       });
       setTask((prev) => (prev ? { ...prev, status: 'ACCEPTED', completedAt: new Date().toISOString() } : null));
+
+      // Persist project status for Compensation Officer Dashboard
+      if (task.projectId) {
+        localStorage.setItem(`bhoomi_comp_status_${task.projectId}`, 'SANCTIONED');
+        localStorage.setItem(`bhoomi_comp_approved_${task.projectId}`, 'true');
+        localStorage.setItem('bhoomi_comp_branch_completed', 'true');
+      }
+
       setActionSuccess('✓ Compensation Officer Task marked COMPLETED.');
       setTimeout(() => setActionSuccess(null), 4000);
     } catch (err: any) {

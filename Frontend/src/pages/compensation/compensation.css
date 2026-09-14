@@ -1,39 +1,1214 @@
 /* ==========================================================================
-   COMPENSATION V2 — THINGS / APPLE RESTRAINT DESIGN SYSTEM
-   Derived from DESIGN.md & V2 API Endpoints and Behaviour.md
-   Colors: Mist (#f2f5f7), Paper (#ffffff), Ink (#1e293b), Hairline (#e2e8f0),
-           Signal Blue (#2563eb), Emerald (#059669), Amber (#d97706), Rose (#dc2626)
+   COMPENSATION OFFICER DASHBOARD — THINGS 3 AESTHETIC DESIGN SYSTEM
+   Derived from DESIGN.md:
+   Mist Canvas (#f2f5f7), Paper Surfaces (#ffffff), Ink Typography (#303336),
+   Fog Neutrals (#838b96), Signal Blue Accents (#2576eb), 18px Card Radii,
+   6px Button Radii, Dual Layer Ambient Shadows, System Sans-Serif Typography.
    ========================================================================== */
 
 :root {
-  --comp-bg: #f8fafc;
-  --comp-surface: #ffffff;
-  --comp-border: #e2e8f0;
+  /* Core Things Tokens */
+  --to-ink: #303336;
+  --to-paper: #ffffff;
+  --to-mist: #f2f5f7;
+  --to-fog: #838b96;
+  --to-ash: #55606e;
+  --to-smoke: #44474b;
+  --to-silver: #9299a4;
+  --to-hairline: #dfe3e8;
+  --to-signal-blue: #2576eb;
+  --to-signal-blue-hover: #1d65d4;
+  --to-signal-blue-tint: rgba(37, 118, 235, 0.08);
+  --to-sky-blue: #5c9cf5;
+  --to-emerald: #10b981;
+  --to-emerald-tint: rgba(16, 185, 129, 0.08);
+  --to-rose: #ef4444;
+  --to-rose-tint: rgba(239, 68, 68, 0.08);
+  --to-amber: #f59e0b;
+  --to-amber-tint: rgba(245, 158, 11, 0.08);
+
+  --to-radius-cards: 18px;
+  --to-radius-buttons: 6px;
+  --to-radius-inputs: 6px;
+  --to-radius-pills: 9999px;
+
+  --to-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 24px -6px rgba(0, 0, 0, 0.06);
+  --to-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 16px 36px -8px rgba(0, 0, 0, 0.08);
+
+  --to-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --to-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Backward Compatibility Variables for Legacy Task Detail Components */
+  --comp-bg: var(--to-mist);
+  --comp-surface: var(--to-paper);
+  --comp-border: var(--to-hairline);
   --comp-border-subtle: #f1f5f9;
-  --comp-ink: #0f172a;
-  --comp-ink-secondary: #475569;
-  --comp-ink-muted: #64748b;
-  --comp-signal-blue: #2563eb;
+  --comp-ink: var(--to-ink);
+  --comp-ink-secondary: var(--to-ash);
+  --comp-ink-muted: var(--to-fog);
+  --comp-signal-blue: var(--to-signal-blue);
   --comp-emerald: #059669;
   --comp-amber: #d97706;
   --comp-rose: #dc2626;
-  --comp-radius-card: 12px;
+  --comp-radius-card: 18px;
   --comp-radius-btn: 6px;
   --comp-radius-pill: 9999px;
-  --comp-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --comp-shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
-  --comp-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --comp-shadow-sm: var(--to-shadow-card);
+  --comp-shadow-card: var(--to-shadow-card);
+  --comp-shadow-hover: var(--to-shadow-hover);
 }
+
+/* ==========================================================================
+   Things 3 Layout Foundation
+   ========================================================================== */
+
+.things-comp-root {
+  min-height: 100vh;
+  background-color: var(--to-mist);
+  font-family: var(--to-font-sans);
+  color: var(--to-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.things-comp-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 24px 80px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ==========================================================================
+   1. Sovereign Editorial Masthead
+   ========================================================================== */
+
+.things-comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.things-comp-header-main {
+  flex: 1;
+  min-width: 320px;
+}
+
+.things-comp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--to-fog);
+  margin-bottom: 10px;
+}
+
+.things-comp-eyebrow-pill {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  padding: 3px 10px;
+  border-radius: var(--to-radius-pills);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.things-comp-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.things-comp-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.things-comp-subtitle {
+  font-size: 14.5px;
+  color: var(--to-fog);
+  line-height: 1.6;
+  max-width: 720px;
+  margin: 0;
+}
+
+/* SLAO Duty Card */
+.things-comp-duty-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 18px 22px;
+  min-width: 300px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.things-comp-duty-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--to-signal-blue);
+}
+
+.things-comp-duty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--to-signal-blue);
+  box-shadow: 0 0 0 3px rgba(37, 118, 235, 0.2);
+  display: inline-block;
+  animation: pulse-comp-duty 2s infinite;
+}
+
+@keyframes pulse-comp-duty {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 118, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(37, 118, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 118, 235, 0);
+  }
+}
+
+.things-comp-duty-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--to-hairline);
+  padding-top: 10px;
+}
+
+.things-comp-duty-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  gap: 12px;
+}
+
+.things-comp-duty-label {
+  color: var(--to-fog);
+  font-weight: 500;
+}
+
+.things-comp-duty-val {
+  font-weight: 600;
+  color: var(--to-ink);
+  text-align: right;
+}
+
+/* ==========================================================================
+   2. Triage Summary Bar (KPIs)
+   ========================================================================== */
+
+.things-comp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .things-comp-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .things-comp-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.things-comp-kpi-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 20px 22px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.things-comp-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--to-shadow-hover);
+}
+
+.things-comp-kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--to-fog);
+}
+
+.things-comp-kpi-val {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--to-ink);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.things-comp-kpi-val.text-blue {
+  color: var(--to-signal-blue);
+}
+
+.things-comp-kpi-val.text-emerald {
+  color: var(--to-emerald);
+}
+
+.things-comp-kpi-val.text-amber {
+  color: var(--to-amber);
+}
+
+.things-comp-kpi-caption {
+  font-size: 12px;
+  color: var(--to-fog);
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   3. Inbound Projects Grid & Selection
+   ========================================================================== */
+
+.things-comp-hub-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 24px 28px;
+  box-shadow: var(--to-shadow-card);
+}
+
+.things-comp-hub-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.things-comp-hub-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.015em;
+}
+
+.things-comp-hub-sub {
+  font-size: 13.5px;
+  color: var(--to-fog);
+  margin: 0;
+}
+
+.things-comp-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.things-comp-project-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 24px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.things-comp-project-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--to-shadow-hover);
+  border-color: var(--to-signal-blue);
+}
+
+.things-comp-project-card.is-selected {
+  border-color: var(--to-signal-blue);
+  box-shadow: 0 0 0 2px rgba(37, 118, 235, 0.18), var(--to-shadow-hover);
+}
+
+.things-comp-project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.things-comp-code-pill {
+  font-family: var(--to-font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--to-signal-blue);
+  background-color: var(--to-signal-blue-tint);
+  border: 1px solid rgba(37, 118, 235, 0.2);
+  padding: 3px 8px;
+  border-radius: var(--to-radius-buttons);
+}
+
+.things-comp-state-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--to-fog);
+  background-color: var(--to-mist);
+  padding: 3px 8px;
+  border-radius: var(--to-radius-buttons);
+}
+
+.things-comp-project-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0 0 10px 0;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.things-comp-project-meta {
+  font-size: 12.5px;
+  color: var(--to-fog);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.things-comp-project-meta strong {
+  color: var(--to-ash);
+}
+
+.things-comp-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background-color: var(--to-mist);
+  border: 1px solid var(--to-hairline);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.things-comp-metric-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--to-fog);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.things-comp-metric-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--to-ink);
+}
+
+.things-comp-metric-val.blue {
+  color: var(--to-signal-blue);
+}
+
+/* Empty State Card */
+.things-comp-empty-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 56px 24px;
+  text-align: center;
+  max-width: 520px;
+  margin: 30px auto;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.things-comp-empty-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--to-mist);
+  color: var(--to-fog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.things-comp-empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0;
+}
+
+.things-comp-empty-sub {
+  font-size: 13.5px;
+  color: var(--to-fog);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Requisition Banner Card */
+.things-comp-req-banner {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-left: 4px solid var(--to-signal-blue);
+  border-radius: var(--to-radius-cards);
+  padding: 18px 24px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.things-comp-req-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.things-comp-req-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.things-comp-req-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--to-ink);
+}
+
+.things-comp-req-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12.5px;
+  color: var(--to-fog);
+  flex-wrap: wrap;
+}
+
+.things-comp-req-meta strong {
+  color: var(--to-ash);
+}
+
+/* ==========================================================================
+   4. Selected Project Workspace & Navigation
+   ========================================================================== */
+
+.things-comp-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 12px 20px;
+  box-shadow: var(--to-shadow-card);
+}
+
+.things-comp-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.things-comp-nav-btn {
+  background-color: var(--to-mist);
+  border: 1px solid var(--to-hairline);
+  color: var(--to-ink);
+  font-family: var(--to-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--to-radius-buttons);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.things-comp-nav-btn:hover {
+  background-color: #e5eaf0;
+  border-color: var(--to-fog);
+}
+
+.things-comp-nav-divider {
+  color: var(--to-hairline);
+  font-size: 14px;
+}
+
+.things-comp-select {
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--to-font-sans);
+  border-radius: var(--to-radius-buttons);
+  border: 1px solid var(--to-hairline);
+  background-color: var(--to-paper);
+  color: var(--to-ink);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.things-comp-select:focus {
+  border-color: var(--to-signal-blue);
+}
+
+/* ==========================================================================
+   5. Things 3 Hero Valuation Card (Refined White Card)
+   ========================================================================== */
+
+.things-comp-hero-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 32px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.things-comp-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.things-comp-hero-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--to-fog);
+  margin-bottom: 8px;
+}
+
+.things-comp-hero-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.things-comp-hero-val {
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--to-signal-blue);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.things-comp-hero-sub {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--to-fog);
+}
+
+.things-comp-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 18px;
+  border-top: 1px solid var(--to-hairline);
+}
+
+.things-comp-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  background-color: var(--to-mist);
+  padding: 6px 14px;
+  border-radius: var(--to-radius-pills);
+  border: 1px solid var(--to-hairline);
+  color: var(--to-ink);
+}
+
+.things-comp-stat-chip .chip-label {
+  color: var(--to-fog);
+  font-weight: 500;
+}
+
+.things-comp-stat-chip .chip-val {
+  font-weight: 700;
+  color: var(--to-ink);
+}
+
+.things-comp-stat-chip.emerald .chip-val {
+  color: var(--to-emerald);
+}
+
+/* Forwarding Action Box */
+.things-comp-forward-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .things-comp-forward-box {
+    align-items: stretch;
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   6. Received Parcels & Statutory Records
+   ========================================================================== */
+
+.things-comp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.things-comp-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--to-ink);
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
+}
+
+.things-comp-section-sub {
+  font-size: 13.5px;
+  color: var(--to-fog);
+  margin: 0;
+}
+
+.things-comp-parcel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.things-comp-parcel-card {
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 24px;
+  box-shadow: var(--to-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.things-comp-parcel-card:hover {
+  box-shadow: var(--to-shadow-hover);
+}
+
+.things-comp-parcel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--to-hairline);
+  flex-wrap: wrap;
+}
+
+.things-comp-parcel-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.things-comp-index-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background-color: var(--to-signal-blue-tint);
+  color: var(--to-signal-blue);
+  border: 1px solid rgba(37, 118, 235, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.things-comp-parcel-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--to-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.things-comp-ulpin-tag {
+  font-family: var(--to-font-mono);
+  font-size: 11px;
+  color: var(--to-fog);
+  background-color: var(--to-mist);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--to-hairline);
+}
+
+.things-comp-parcel-sub {
+  font-size: 13px;
+  color: var(--to-fog);
+  margin-top: 3px;
+}
+
+.things-comp-parcel-sub strong {
+  color: var(--to-ash);
+}
+
+/* Parcel Inner Details Grid */
+.things-comp-parcel-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 18px;
+  background-color: var(--to-mist);
+  border: 1px solid var(--to-hairline);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+@media (max-width: 960px) {
+  .things-comp-parcel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.things-comp-block-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--to-fog);
+  margin-bottom: 8px;
+}
+
+.things-comp-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.things-comp-currency {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--to-fog);
+}
+
+.things-comp-input {
+  padding: 8px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--to-ink);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-inputs);
+  width: 170px;
+  outline: none;
+  background-color: var(--to-paper);
+  transition: border-color 0.15s ease;
+}
+
+.things-comp-input:focus {
+  border-color: var(--to-signal-blue);
+}
+
+.things-comp-lakh-chip {
+  font-size: 12.5px;
+  color: var(--to-emerald);
+  font-weight: 700;
+}
+
+.things-comp-formula-note {
+  font-size: 11.5px;
+  color: var(--to-fog);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.things-comp-mandate-info {
+  font-size: 13px;
+  color: var(--to-ink);
+  line-height: 1.45;
+}
+
+.things-comp-mandate-meta {
+  font-size: 11.5px;
+  color: var(--to-fog);
+  margin-top: 4px;
+}
+
+.things-comp-mandate-meta code {
+  font-family: var(--to-font-mono);
+  background-color: rgba(0, 0, 0, 0.04);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.things-comp-proof-info {
+  font-size: 13px;
+  color: var(--to-emerald);
+  line-height: 1.45;
+}
+
+.things-comp-proof-meta {
+  font-size: 11.5px;
+  color: var(--to-fog);
+  margin-top: 4px;
+}
+
+.things-comp-proof-trigger {
+  background: none;
+  border: none;
+  color: var(--to-signal-blue);
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.things-comp-proof-trigger:hover {
+  text-decoration: underline;
+}
+
+/* Supporting Documents Box in Parcel Card */
+.things-comp-docs-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.things-comp-docs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.things-comp-docs-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--to-ash);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.things-comp-docs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.things-comp-doc-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.things-comp-doc-name {
+  font-weight: 600;
+  color: var(--to-ink);
+}
+
+.things-comp-doc-sub {
+  font-size: 10.5px;
+  color: var(--to-fog);
+}
+
+.things-comp-doc-type {
+  color: var(--to-signal-blue);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   7. Things 3 Buttons & Actions
+   ========================================================================== */
+
+.things-comp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--to-font-sans);
+  border-radius: var(--to-radius-buttons);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.things-comp-btn:active {
+  transform: scale(0.99);
+}
+
+.things-comp-btn-primary {
+  background-color: var(--to-signal-blue);
+  color: #ffffff;
+  border-color: var(--to-signal-blue);
+  box-shadow: 0 1px 3px rgba(37, 118, 235, 0.25);
+}
+
+.things-comp-btn-primary:hover {
+  background-color: var(--to-signal-blue-hover);
+  border-color: var(--to-signal-blue-hover);
+}
+
+.things-comp-btn-success {
+  background-color: var(--to-emerald);
+  color: #ffffff;
+  border-color: var(--to-emerald);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.25);
+}
+
+.things-comp-btn-success:hover {
+  background-color: #059669;
+  border-color: #059669;
+}
+
+.things-comp-btn-outline {
+  background-color: var(--to-paper);
+  border-color: var(--to-hairline);
+  color: var(--to-ash);
+}
+
+.things-comp-btn-outline:hover {
+  background-color: var(--to-mist);
+  color: var(--to-ink);
+  border-color: var(--to-fog);
+}
+
+.things-comp-btn-subtle {
+  background-color: var(--to-mist);
+  border-color: transparent;
+  color: var(--to-ash);
+}
+
+.things-comp-btn-subtle:hover {
+  background-color: #e2e8f0;
+  color: var(--to-ink);
+}
+
+/* ==========================================================================
+   8. Things 3 Status Badges & Pills
+   ========================================================================== */
+
+.things-comp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--to-radius-pills);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.things-comp-badge.status-sanctioned {
+  background-color: var(--to-emerald-tint);
+  color: var(--to-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.things-comp-badge.status-submitted {
+  background-color: var(--to-signal-blue-tint);
+  color: var(--to-signal-blue);
+  border: 1px solid rgba(37, 118, 235, 0.25);
+}
+
+.things-comp-badge.status-pending {
+  background-color: var(--to-amber-tint);
+  color: var(--to-amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+/* Success Notice Banner */
+.things-comp-notice {
+  background-color: var(--to-emerald-tint);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #065f46;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08);
+}
+
+.things-comp-notice-close {
+  background: none;
+  border: none;
+  color: #065f46;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   9. Modals (Things 3 Modal Dialog)
+   ========================================================================== */
+
+.things-comp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(48, 51, 54, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.things-comp-modal-box {
+  background-color: var(--to-paper);
+  border-radius: var(--to-radius-cards);
+  padding: 28px 32px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--to-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.things-comp-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.things-comp-modal-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--to-ink);
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.things-comp-modal-sub {
+  font-size: 13px;
+  color: var(--to-fog);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.things-comp-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.things-comp-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--to-ash);
+}
+
+.things-comp-form-input,
+.things-comp-form-select {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-family: var(--to-font-sans);
+  border-radius: var(--to-radius-inputs);
+  border: 1px solid var(--to-hairline);
+  background-color: var(--to-paper);
+  color: var(--to-ink);
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.things-comp-form-input:focus,
+.things-comp-form-select:focus {
+  border-color: var(--to-signal-blue);
+}
+
+.things-comp-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--to-hairline);
+}
+
+/* ==========================================================================
+   10. Backward Compatibility Shims for Task Detail and Existing Pages
+   ========================================================================== */
 
 .comp-workspace {
-  max-width: 1440px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 24px 32px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: var(--comp-ink);
+  padding: 40px 24px 80px 24px;
+  font-family: var(--to-font-sans);
+  color: var(--to-ink);
 }
 
-/* Header Masthead */
 .comp-header {
   display: flex;
   align-items: flex-start;
@@ -51,228 +1226,34 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #b45309;
-  background: #fef3c7;
+  color: var(--to-signal-blue);
+  background: var(--to-signal-blue-tint);
   padding: 4px 10px;
-  border-radius: var(--comp-radius-pill);
-  border: 1px solid #fde68a;
-  margin-bottom: 8px;
+  border-radius: var(--to-radius-pills);
+  border: 1px solid rgba(37, 118, 235, 0.2);
 }
 
 .comp-title {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
-  color: var(--comp-ink);
+  color: var(--to-ink);
   margin: 0 0 4px 0;
   letter-spacing: -0.02em;
 }
 
 .comp-subtitle {
-  font-size: 13px;
-  color: var(--comp-ink-muted);
+  font-size: 14px;
+  color: var(--to-fog);
   margin: 0;
   line-height: 1.5;
 }
 
-/* Milestone Stepper */
-.comp-stepper-container {
-  background: var(--comp-surface);
-  border: 1px solid var(--comp-border);
-  border-radius: var(--comp-radius-card);
-  padding: 16px 20px;
-  margin-bottom: 24px;
-  box-shadow: var(--comp-shadow-sm);
-}
-
-.comp-stepper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-}
-
-.comp-step-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  position: relative;
-  z-index: 2;
-  flex: 1;
-}
-
-.comp-step-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12.5px;
-  font-weight: 700;
-  background: #f1f5f9;
-  color: #94a3b8;
-  border: 2px solid #e2e8f0;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.comp-step-item.active .comp-step-circle {
-  background: #eff6ff;
-  color: var(--comp-signal-blue);
-  border-color: var(--comp-signal-blue);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-.comp-step-item.completed .comp-step-circle {
-  background: var(--comp-emerald);
-  color: #ffffff;
-  border-color: var(--comp-emerald);
-}
-
-.comp-step-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.comp-step-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--comp-ink);
-}
-
-.comp-step-item:not(.active):not(.completed) .comp-step-title {
-  color: #94a3b8;
-}
-
-.comp-step-sub {
-  font-size: 11px;
-  color: var(--comp-ink-muted);
-}
-
-.comp-step-line {
-  flex: 1;
-  height: 2px;
-  background: #e2e8f0;
-  margin: 0 12px;
-}
-
-.comp-step-line.completed {
-  background: var(--comp-emerald);
-}
-
-/* KPI Summary Cards Grid */
-.comp-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.comp-kpi-card {
-  background: var(--comp-surface);
-  border: 1px solid var(--comp-border);
-  border-radius: var(--comp-radius-card);
-  padding: 18px 20px;
-  box-shadow: var(--comp-shadow-sm);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.comp-kpi-card:hover {
-  box-shadow: var(--comp-shadow-hover);
-}
-
-.comp-kpi-label {
-  font-size: 12px;
-  color: var(--comp-ink-muted);
-  font-weight: 600;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.comp-kpi-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--comp-ink);
-  line-height: 1.2;
-}
-
-.comp-kpi-caption {
-  font-size: 11.5px;
-  color: #94a3b8;
-  margin-top: 4px;
-}
-
-/* Task & Parcel Dual Card Banner */
-.comp-demo-banner {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #cbd5e1;
-  border-radius: var(--comp-radius-card);
-  padding: 16px 20px;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.comp-demo-pill {
-  font-size: 11.5px;
-  padding: 4px 10px;
-  border-radius: var(--comp-radius-pill);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.comp-demo-pill.parcel1 {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
-}
-
-.comp-demo-pill.parcel2 {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
-}
-
-/* 10 Dimensions Grid on Task Detail Page */
-.comp-dimensions-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.comp-dim-col-8 {
-  grid-column: span 8;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.comp-dim-col-4 {
-  grid-column: span 4;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-@media (max-width: 1024px) {
-  .comp-dim-col-8,
-  .comp-dim-col-4 {
-    grid-column: span 12;
-  }
-}
-
 .comp-card {
-  background: var(--comp-surface);
-  border: 1px solid var(--comp-border);
-  border-radius: var(--comp-radius-card);
-  padding: 20px 24px;
-  box-shadow: var(--comp-shadow-sm);
+  background: var(--to-paper);
+  border: 1px solid var(--to-hairline);
+  border-radius: var(--to-radius-cards);
+  padding: 24px;
+  box-shadow: var(--to-shadow-card);
 }
 
 .comp-card-header {
@@ -281,96 +1262,25 @@
   justify-content: space-between;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--comp-border-subtle);
+  border-bottom: 1px solid var(--to-hairline);
 }
 
 .comp-card-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  color: var(--comp-ink);
+  color: var(--to-ink);
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.comp-card-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--comp-radius-pill);
-}
-
-/* Dimension Attributes Table */
-.comp-attr-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px 20px;
-}
-
-.comp-attr-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--comp-ink-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 3px;
-}
-
-.comp-attr-value {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--comp-ink);
-}
-
-.comp-attr-value.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-/* Beneficiary Bank Mandate Card */
-.comp-bank-chip {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  color: #ffffff;
-  border-radius: 10px;
-  padding: 16px 20px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
-  position: relative;
-  overflow: hidden;
-  margin-top: 12px;
-}
-
-.comp-bank-chip-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: #94a3b8;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-bottom: 14px;
-}
-
-.comp-bank-chip-number {
-  font-family: monospace;
-  font-size: 17px;
-  letter-spacing: 0.12em;
-  margin-bottom: 12px;
-}
-
-.comp-bank-chip-footer {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #cbd5e1;
-}
-
-/* Status Badges */
 .comp-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--to-radius-pills);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -378,37 +1288,24 @@
 }
 
 .comp-badge-assessed {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background: var(--to-amber-tint);
+  color: var(--to-amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 .comp-badge-approved {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
+  background: var(--to-signal-blue-tint);
+  color: var(--to-signal-blue);
+  border: 1px solid rgba(37, 118, 235, 0.25);
 }
 
 .comp-badge-paid,
 .comp-badge-disbursed {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  background: var(--to-emerald-tint);
+  color: var(--to-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
-.comp-badge-pending {
-  background: #fef3c7;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.comp-badge-disputed {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-/* Action Buttons */
 .comp-btn {
   display: inline-flex;
   align-items: center;
@@ -417,60 +1314,48 @@
   padding: 8px 16px;
   font-size: 12.5px;
   font-weight: 600;
-  border-radius: var(--comp-radius-btn);
+  font-family: var(--to-font-sans);
+  border-radius: var(--to-radius-buttons);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
-}
-
-.comp-btn:active {
-  transform: scale(0.99);
+  transition: all 0.15s ease;
 }
 
 .comp-btn-primary {
-  background: var(--comp-signal-blue);
+  background: var(--to-signal-blue);
   color: #ffffff;
 }
 
 .comp-btn-primary:hover {
-  background: #1d4ed8;
+  background: var(--to-signal-blue-hover);
 }
 
 .comp-btn-success {
-  background: var(--comp-emerald);
+  background: var(--to-emerald);
   color: #ffffff;
 }
 
 .comp-btn-success:hover {
-  background: #047857;
-}
-
-.comp-btn-amber {
-  background: var(--comp-amber);
-  color: #ffffff;
-}
-
-.comp-btn-amber:hover {
-  background: #b45309;
+  background: #059669;
 }
 
 .comp-btn-outline {
-  background: var(--comp-surface);
-  border-color: var(--comp-border);
-  color: var(--comp-ink-secondary);
+  background: var(--to-paper);
+  border-color: var(--to-hairline);
+  color: var(--to-ash);
 }
 
 .comp-btn-outline:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: var(--to-mist);
+  color: var(--to-ink);
+  border-color: var(--to-fog);
 }
 
-/* Modals */
 .comp-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(2px);
+  background: rgba(48, 51, 54, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -479,11 +1364,11 @@
 }
 
 .comp-modal-card {
-  background: var(--comp-surface);
-  border-radius: 14px;
-  padding: 24px 28px;
+  background: var(--to-paper);
+  border-radius: var(--to-radius-cards);
+  padding: 28px 32px;
   max-width: 520px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--comp-border);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--to-hairline);
 }

@@ -1073,29 +1073,71 @@ export const compensationV2Service = {
   /**
    * Forward total compensation estimate & valuation dossier to District Authority (Ananya Patel)
    */
-  submitDossierToDistrict(): CompensationDossier {
+  submitDossierToDistrict(projectIdOrCode?: string): CompensationDossier {
     const dossier = this.getDossier();
     dossier.status = 'SUBMITTED_TO_DISTRICT';
     dossier.submittedAt = new Date().toISOString();
     this.saveDossier(dossier);
     try {
       localStorage.setItem('bhoomi_comp_estimate_submitted', 'true');
+      if (projectIdOrCode) {
+        localStorage.setItem(`bhoomi_comp_status_${projectIdOrCode}`, 'SUBMITTED_TO_DISTRICT');
+        localStorage.setItem(`bhoomi_comp_submitted_${projectIdOrCode}`, 'true');
+      }
+      if (dossier.projectId) {
+        localStorage.setItem(`bhoomi_comp_status_${dossier.projectId}`, 'SUBMITTED_TO_DISTRICT');
+      }
+      if (dossier.projectCode) {
+        localStorage.setItem(`bhoomi_comp_status_${dossier.projectCode}`, 'SUBMITTED_TO_DISTRICT');
+      }
     } catch (e) {}
     return dossier;
   },
 
   /**
-   * Mark dossier approved / sanctioned by District Authority
+   * Approve Statutory Compensation Award for project (Section 28/30 RFCTLARR)
    */
-  approveDossierByDistrict(_officerName?: string): CompensationDossier {
+  approveProjectAward(projectIdOrCode?: string, officerName?: string): CompensationDossier {
     const dossier = this.getDossier();
     dossier.status = 'SANCTIONED';
     dossier.sanctionedAt = new Date().toISOString();
     this.saveDossier(dossier);
     try {
       localStorage.setItem('bhoomi_comp_branch_completed', 'true');
+      localStorage.setItem('bhoomi_comp_estimate_submitted', 'true');
+      if (projectIdOrCode) {
+        localStorage.setItem(`bhoomi_comp_status_${projectIdOrCode}`, 'SANCTIONED');
+        localStorage.setItem(`bhoomi_comp_approved_${projectIdOrCode}`, 'true');
+      }
+      if (dossier.projectId) {
+        localStorage.setItem(`bhoomi_comp_status_${dossier.projectId}`, 'SANCTIONED');
+        localStorage.setItem(`bhoomi_comp_approved_${dossier.projectId}`, 'true');
+      }
+      if (dossier.projectCode) {
+        localStorage.setItem(`bhoomi_comp_status_${dossier.projectCode}`, 'SANCTIONED');
+        localStorage.setItem(`bhoomi_comp_approved_${dossier.projectCode}`, 'true');
+      }
     } catch (e) {}
+
+    try {
+      const tasks = getLocalTasks();
+      const updated = tasks.map((t) => ({
+        ...t,
+        status: 'ACCEPTED' as const,
+        completedAt: new Date().toISOString(),
+        previousStageNotes: `Award approved and sanctioned by SLAO ${officerName || 'Mahesh Patil'} under Section 28/30 RFCTLARR 2013.`,
+      }));
+      saveLocalTasks(updated);
+    } catch (e) {}
+
     return dossier;
+  },
+
+  /**
+   * Mark dossier approved / sanctioned by District Authority
+   */
+  approveDossierByDistrict(officerName?: string): CompensationDossier {
+    return this.approveProjectAward(undefined, officerName);
   },
 
   /**
