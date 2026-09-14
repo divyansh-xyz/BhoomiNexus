@@ -67,7 +67,7 @@ export const getV2TaskById = async (taskId: string) => {
      JOIN workflow_instances wi ON wi.id = we.workflow_instance_id
      JOIN projects p ON p.id = wi.project_id
      LEFT JOIN users u ON u.id = wt.assigned_to
-     WHERE wt.id = $1`,
+     WHERE wt.id::text = $1`,
     [taskId]
   );
 
