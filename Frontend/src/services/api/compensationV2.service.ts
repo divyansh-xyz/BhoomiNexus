@@ -413,9 +413,14 @@ export const compensationV2Service = {
    * Spec Line 271: Returns compensation tasks assigned to the authenticated Compensation Officer.
    */
   async getMyTasks(): Promise<WorkflowTask[]> {
-    const demoProjectId = localStorage.getItem('bhoomi_demo_active_project_id') || '4ed46de6-586e-4459-b011-f090a1c3bafd';
-    const demoProjectTitle = localStorage.getItem('bhoomi_demo_active_project_title') || 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor';
-    const demoProjectCode = localStorage.getItem('bhoomi_demo_active_project_code') || 'PRJ-DL-7701';
+    const activeCustomId = localStorage.getItem('bhoomi_demo_active_project_id');
+    const activeCustomCode = localStorage.getItem('bhoomi_demo_active_project_code');
+    const activeCustomTitle = localStorage.getItem('bhoomi_demo_active_project_title');
+    const activeCustomDistrict = (localStorage.getItem('bhoomi_demo_active_district') || 'Rithala').trim();
+
+    const demoProjectId = activeCustomId || '4ed46de6-586e-4459-b011-f090a1c3bafd';
+    const demoProjectTitle = activeCustomTitle || 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor';
+    const demoProjectCode = activeCustomCode || 'PRJ-DL-7701';
 
     let list: WorkflowTask[] = [];
     try {
@@ -434,10 +439,13 @@ export const compensationV2Service = {
       list = getLocalTasks();
     }
 
-    // Isolate tasks strictly to the active Rithala/demo project so only this project is visible
+    // Isolate tasks strictly to the active demo project so only this project is visible
     const filtered = list.filter((t) => {
       const pId = t.projectId || '';
       const pCode = t.projectCode || '';
+      if (activeCustomId || activeCustomCode) {
+        return (activeCustomId && pId === activeCustomId) || (activeCustomCode && pCode === activeCustomCode);
+      }
       const dist = (t.district || (t.parcel as any)?.district || '').toLowerCase();
       return (
         pId === demoProjectId ||
@@ -448,13 +456,13 @@ export const compensationV2Service = {
       );
     });
 
-    const targetList = filtered.length > 0 ? filtered : getLocalTasks();
-    return targetList.map((t) => ({
+    const targetList = filtered.length > 0 ? filtered : [getLocalTasks()[0]];
+    return targetList.slice(0, 1).map((t) => ({
       ...t,
       projectId: demoProjectId,
       projectTitle: demoProjectTitle,
       projectCode: demoProjectCode,
-      district: 'Rithala',
+      district: activeCustomDistrict,
       state: 'Delhi',
       assignedOfficer: {
         id: 'comp.officer@bhoomi.gov.in',

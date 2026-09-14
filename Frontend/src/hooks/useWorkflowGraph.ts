@@ -702,6 +702,19 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setGraph((prev) => (prev ? { ...prev, status: 'ACTIVE', activatedAt: res.activatedAt } : null));
         setNodes((prev) => prev.map((n) => ({ ...n, status: 'ACTIVE' })));
         setIsDirty(false);
+        try {
+          localStorage.setItem('bhoomi_demo_active_project_id', projectId);
+          const pCode = (graph as any)?.projectCode || (graph as any)?.code;
+          if (pCode) {
+            localStorage.setItem('bhoomi_demo_active_project_code', pCode);
+          }
+          const pTitle = (graph as any)?.projectTitle || (graph as any)?.title;
+          if (pTitle) {
+            localStorage.setItem('bhoomi_demo_active_project_title', pTitle);
+          }
+        } catch (e) {
+          // ignore
+        }
         return res;
       }
       return null;
@@ -712,6 +725,19 @@ export function useWorkflowGraph(projectId?: string): UseWorkflowGraphReturn {
         setGraph((prev) => (prev ? { ...prev, status: 'ACTIVE' } : null));
         setNodes((prev) => prev.map((n) => ({ ...n, status: 'ACTIVE' })));
         setIsDirty(false);
+        try {
+          localStorage.setItem('bhoomi_demo_active_project_id', projectId);
+          const pCode = (graph as any)?.projectCode || (graph as any)?.code;
+          if (pCode) {
+            localStorage.setItem('bhoomi_demo_active_project_code', pCode);
+          }
+          const pTitle = (graph as any)?.projectTitle || (graph as any)?.title;
+          if (pTitle) {
+            localStorage.setItem('bhoomi_demo_active_project_title', pTitle);
+          }
+        } catch (e) {
+          // ignore
+        }
         return {
           projectId,
           workflowId: graph?.workflowId || `wf-${projectId}`,

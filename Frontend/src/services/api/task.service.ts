@@ -20,11 +20,35 @@ function unwrapData<T>(res: any): T {
   return res.data as T;
 }
 
+async function syncActiveProjectIfUnset(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const currentId = localStorage.getItem('bhoomi_demo_active_project_id');
+  if (currentId) return;
+
+  try {
+    const res = await apiClient.get<any>('/projects');
+    const projs = unwrapData<any[]>(res);
+    if (Array.isArray(projs) && projs.length > 0) {
+      const activeProjects = projs.filter((p) => p.status === 'WORKFLOW_ACTIVE' || p.status === 'PROJECT_APPROVED');
+      const target = activeProjects.length > 0 ? activeProjects[activeProjects.length - 1] : projs[projs.length - 1];
+      if (target && target.id) {
+        localStorage.setItem('bhoomi_demo_active_project_id', target.id);
+        localStorage.setItem('bhoomi_demo_active_project_code', target.code || target.projectCode || 'PRJ-2227');
+        localStorage.setItem('bhoomi_demo_active_project_title', target.title || 'Demo');
+        localStorage.setItem('bhoomi_demo_active_district', (target.district || 'Rithala').trim());
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
 export const taskService = {
   /**
    * Section 17.1: GET /api/v1/tasks?assignedTo=me OR ?projectId=:projectId
    */
   async getTasks(assignedTo?: string, projectId?: string): Promise<WorkflowTask[]> {
+    await syncActiveProjectIfUnset();
     try {
       const params: Record<string, string> = {};
       if (assignedTo) params.assignedTo = assignedTo;
@@ -32,17 +56,26 @@ export const taskService = {
       const res = await apiClient.get<any>('/tasks', { params });
       const data = unwrapData<WorkflowTask[]>(res);
       if (data && Array.isArray(data) && data.length > 0) {
-        // Isolate to the active demo project (Rithala or newly initiated project)
+        // Isolate strictly to the active demo project (only the single approved project)
         const activeProjId = localStorage.getItem('bhoomi_demo_active_project_id');
+        const activeCode = localStorage.getItem('bhoomi_demo_active_project_code');
         const activeTitle = localStorage.getItem('bhoomi_demo_active_project_title');
+
         const filtered = data.filter((t: any) => {
-          if (activeProjId && (t.projectId === activeProjId || t.project_id === activeProjId)) return true;
-          if (activeTitle && t.projectTitle?.toLowerCase().includes(activeTitle.toLowerCase())) return true;
-          if (t.district === 'Rithala' || t.projectCode === 'PRJ-DL-7701' || t.projectTitle?.toLowerCase().includes('rithala')) return true;
-          return false;
+          if (activeProjId) {
+            return t.projectId === activeProjId || t.project_id === activeProjId;
+          }
+          if (activeCode) {
+            return t.projectCode === activeCode || t.project_code === activeCode;
+          }
+          if (activeTitle) {
+            return t.projectTitle?.toLowerCase().includes(activeTitle.toLowerCase());
+          }
+          return t.district === 'Rithala' || t.projectCode === 'PRJ-DL-7701';
         });
-        if (filtered.length > 0) return filtered;
-        return filtered; // If none match, strictly keep isolated (empty or deterministic fallback)
+        if (filtered.length > 0) {
+          return filtered.slice(0, 1);
+        }
       }
     } catch (e) {
       console.warn('[taskService] GET /api/v1/tasks pending backend:', e);
@@ -88,7 +121,7 @@ export const taskService = {
 
   /**
    * Section 17.4: POST /api/v1/tasks/:taskId/accept
-   * Completes task/stage and routes the next configured parcel-level execution
+   * Statutory Acceptance Affirmation under RFCTLARR Act 2013
    */
   async acceptTask(taskId: string): Promise<TaskAcceptResponse> {
     try {
@@ -102,10 +135,6 @@ export const taskService = {
     if (t) {
       t.status = 'ACCEPTED';
       t.completedAt = new Date().toISOString();
-      if (t.verification) {
-        t.verification.status = 'VERIFIED';
-        t.verification.verifiedAt = new Date().toISOString();
-      }
       updateCachedTask(t);
       return {
         success: true,
@@ -182,38 +211,36 @@ export const taskService = {
       console.warn(`[taskService] POST /api/v1/tasks/${taskId}/evidence fallback:`, e);
     }
 
-    const newItem: TaskEvidenceItem = {
+    const newEvidence: TaskEvidenceItem = {
       id: `ev-${Date.now()}`,
       taskId,
       fileName: file.name,
-      fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
       fileType: file.type || 'application/pdf',
       uploadedAt: new Date().toISOString(),
-      uploadedBy: 'Ananya Patel (Processing Officer)',
-      evidenceType: (evidenceType as any) || 'OTHER',
-      url: URL.createObjectURL(file),
-      hash: `sha256-${Math.random().toString(36).substring(2, 12)}`,
+      uploadedBy: 'Ananya Patel (Field Officer)',
+      evidenceType: evidenceType as any,
+      hash: `sha256-${Math.random().toString(16).substring(2, 18)}`,
       verified: true,
     };
 
     const t = getDeterministicTask(taskId);
     if (t) {
-      t.evidence = [...(t.evidence || []), newItem];
+      t.evidence = [...(t.evidence || []), newEvidence];
       updateCachedTask(t);
     }
-    return newItem;
+
+    return newEvidence;
   },
 
   /**
-   * Section 17.7: GET /api/v1/tasks/:taskId/evidence
+   * GET /api/v1/tasks/:taskId/evidence
    */
   async getTaskEvidence(taskId: string): Promise<TaskEvidenceItem[]> {
     try {
       const res = await apiClient.get<any>(`/tasks/${taskId}/evidence`);
       const data = unwrapData<TaskEvidenceItem[]>(res);
-      if (data && Array.isArray(data)) {
-        return data;
-      }
+      if (Array.isArray(data)) return data;
     } catch (e) {
       console.warn(`[taskService] GET /api/v1/tasks/${taskId}/evidence fallback:`, e);
     }
@@ -222,7 +249,85 @@ export const taskService = {
   },
 
   /**
-   * Section 18.1: POST /api/v1/projects/:projectId/workflow-stages/:stageId/resubmit
+   * Section 17.7: GET /api/v1/tasks/:taskId/audit-trail
+   */
+  async getTaskAuditTrail(taskId: string): Promise<TaskAuditEvent[]> {
+    try {
+      const res = await apiClient.get<any>(`/tasks/${taskId}/audit-trail`);
+      const data = unwrapData<TaskAuditEvent[]>(res);
+      if (data && Array.isArray(data)) return data;
+    } catch (e) {
+      console.warn(`[taskService] GET /api/v1/tasks/${taskId}/audit-trail fallback:`, e);
+    }
+
+    const t = getDeterministicTask(taskId);
+    const events: TaskAuditEvent[] = [
+      {
+        id: `audit-${taskId}-01`,
+        projectId: t?.projectId || 'PRJ-DEMO-001',
+        taskId,
+        stageOrder: 1,
+        stageName: t?.stageName || 'Acquisition Verification & Final Clearance',
+        eventType: 'TASK_ASSIGNED',
+        performedBy: 'System / District Magistrate Portal',
+        details: `Task formally routed to designated revenue officer ${t?.assignedOfficer?.name || 'Ananya Patel'} under Section 11/19 schedule.`,
+        timestamp: t?.createdAt || new Date(Date.now() - 86400000).toISOString(),
+      },
+      {
+        id: `audit-${taskId}-02`,
+        projectId: t?.projectId || 'PRJ-DEMO-001',
+        taskId,
+        stageOrder: 1,
+        stageName: t?.stageName || 'Acquisition Verification & Final Clearance',
+        eventType: 'TASK_STARTED',
+        performedBy: `${t?.assignedOfficer?.name || 'Ananya Patel'} (${t?.assignedOfficer?.designation || 'Field Officer'})`,
+        details: 'Operational scrutiny started. Land parcel coordinates locked for on-site boundary verification.',
+        timestamp: t?.startedAt || new Date(Date.now() - 43200000).toISOString(),
+      },
+      {
+        id: `audit-${taskId}-03`,
+        projectId: t?.projectId || 'PRJ-DEMO-001',
+        taskId,
+        stageOrder: 1,
+        stageName: t?.stageName || 'Acquisition Verification & Final Clearance',
+        eventType: 'TASK_STARTED',
+        performedBy: `${t?.assignedOfficer?.name || 'Ananya Patel'} (${t?.assignedOfficer?.designation || 'Field Officer'})`,
+        details: 'Field Inspection Panchnama with digital timestamp appended to statutory evidence docket.',
+        timestamp: new Date(Date.now() - 36000000).toISOString(),
+      },
+      {
+        id: `audit-${taskId}-04`,
+        projectId: t?.projectId || 'PRJ-DEMO-001',
+        taskId,
+        stageOrder: 1,
+        stageName: t?.stageName || 'Acquisition Verification & Final Clearance',
+        eventType: 'TASK_STARTED',
+        performedBy: 'Gemini Multimodal Intelligence Pipeline',
+        details: 'Multimodal spatial boundary comparison and Jamabandi tenure extraction completed with 98% confidence.',
+        timestamp: new Date(Date.now() - 18000000).toISOString(),
+      },
+    ];
+
+    if (t?.status === 'ACCEPTED') {
+      events.push({
+        id: `audit-${taskId}-05`,
+        projectId: t.projectId,
+        taskId,
+        stageOrder: t.stageOrder,
+        stageName: t.stageName,
+        eventType: 'TASK_ACCEPTED',
+        performedBy: `${t.assignedOfficer.name} (${t.assignedOfficer.designation})`,
+        details: 'All 4 statutory affirmations confirmed. Section 19 stage cleared and forwarded to next statutory phase.',
+        timestamp: t.completedAt || new Date().toISOString(),
+      });
+    }
+
+    return events;
+  },
+
+  /**
+   * Section 17.8: POST /api/v1/projects/:projectId/workflow-stages/:stageId/resubmit
+   * Requesting Authority (NHAI/Proponent) submits corrected documents after officer rejection
    */
   async resubmitStage(
     projectId: string,
@@ -235,18 +340,33 @@ export const taskService = {
         payload
       );
       const data = unwrapData<StageResubmitResponse>(res);
-      if (data && (data.task || data.stage)) return data;
+      if (data && data.task) return data;
     } catch (e) {
-      console.warn(`[taskService] resubmitStage fallback:`, e);
+      console.warn(`[taskService] POST resubmit fallback:`, e);
     }
 
     initCache();
-    let matchedTask: WorkflowTask | undefined;
+    let matchedTask: WorkflowTask | null = null;
     Object.values(runtimeTasksCache || {}).forEach((task) => {
-      if (task.projectId === projectId && (task.stageId === stageId || task.id.includes(stageId))) {
+      if (task.projectId === projectId || task.stageId === stageId) {
         task.status = 'IN_PROGRESS';
         task.rejectionReason = undefined;
-        task.previousStageNotes = `Resubmitted by Proponent with explanation: "${payload.explanation}". Corrected evidence appended.`;
+        if (payload.correctedDocuments && payload.correctedDocuments.length > 0) {
+          const newEv: TaskEvidenceItem = {
+            id: `ev-resubmit-${Date.now()}`,
+            taskId: task.id,
+            fileName: payload.correctedDocuments[0],
+            fileSize: '2.4 MB',
+            fileType: 'application/pdf',
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: 'Requesting Authority (NHAI Representative)',
+            evidenceType: 'REVENUE_EXTRACT',
+            hash: `sha256-${Math.random().toString(16).substring(2, 18)}`,
+            verified: false,
+          };
+          task.evidence = [...(task.evidence || []), newEv];
+        }
+        updateCachedTask(task);
         matchedTask = task;
       }
     });
@@ -283,25 +403,28 @@ export const taskService = {
    */
   async getWorkflowProgress(projectId: string): Promise<WorkflowProgressSummary> {
     try {
-      const res = await apiClient.get<WorkflowProgressSummary>(
-        `/projects/${projectId}/workflow/progress`
-      );
-      if (res.data) return res.data;
+      const res = await apiClient.get<any>(`/projects/${projectId}/workflow/progress`);
+      const data = unwrapData<WorkflowProgressSummary>(res);
+      if (data && typeof data === 'object' && 'totalStages' in data) return data;
     } catch (e) {
-      console.warn(`[taskService] GET /api/v1/projects/${projectId}/workflow/progress pending:`, e);
+      console.warn(`[taskService] GET progress fallback:`, e);
     }
+
+    const t = getDeterministicTasks()[0];
+    const isCompleted = t?.status === 'ACCEPTED';
+    const isRejected = t?.status === 'REJECTED';
 
     return {
       projectId,
-      totalStages: 3,
-      completedStages: 0,
-      currentStageIndex: 1,
+      totalStages: 1,
+      completedStages: isCompleted ? 1 : 0,
+      currentStageIndex: 0,
       currentStageName: 'Acquisition Verification & Final Clearance',
-      currentStageStatus: 'ACTIVE',
-      percentage: 33,
+      currentStageStatus: isCompleted ? 'COMPLETED' : isRejected ? 'REJECTED' : 'ACTIVE',
+      percentage: isCompleted ? 100 : 50,
       currentOfficerName: 'Ananya Patel',
-      currentOfficerRole: 'Processing & Field Officer',
-      status: 'ACTIVE',
+      currentOfficerRole: 'Processing Officer',
+      status: isCompleted ? 'COMPLETED' : isRejected ? 'REJECTED' : 'ACTIVE',
     };
   },
 
@@ -321,13 +444,13 @@ export const taskService = {
   },
 };
 
-// ────────────────────────────────────────────────────────────
-// Demonstration Tasks Setup (Rithala Project Isolated)
-// ────────────────────────────────────────────────────────────
+// ============================================================================
+// Deterministic in-memory database for fallback and local testing
+// ============================================================================
 
 function getActiveProjectInfo() {
   return {
-    id: localStorage.getItem('bhoomi_demo_active_project_id') || '4ed46de6-586e-4459-b011-f090a1c3bafd',
+    id: localStorage.getItem('bhoomi_demo_active_project_id') || 'cb01dd0f-b715-4917-b7b2-7583198e2de7',
     code: localStorage.getItem('bhoomi_demo_active_project_code') || 'PRJ-DL-7701',
     title: localStorage.getItem('bhoomi_demo_active_project_title') || 'Delhi Metro Phase-IV Rithala Rapid Transit Corridor',
     district: localStorage.getItem('bhoomi_demo_active_district') || 'Rithala',
@@ -336,10 +459,14 @@ function getActiveProjectInfo() {
 }
 
 function initCache() {
-  if (runtimeTasksCache) return;
-
   const proj = getActiveProjectInfo();
 
+  // If cache already belongs to the current active project, preserve modifications
+  if (runtimeTasksCache && Object.values(runtimeTasksCache)[0]?.projectId === proj.id) {
+    return;
+  }
+
+  // Exactly 1 statutory task docket for the single approved project
   const taskA: WorkflowTask = {
     id: 'TASK-ACQ-RITHALA-001',
     projectId: proj.id,
@@ -358,7 +485,7 @@ function initCache() {
       designation: 'Processing & Field Officer',
       department: 'Revenue & Land Records Branch',
       role: 'PROCESSING_OFFICER',
-      district: 'Rithala',
+      district: proj.district || 'Rithala',
       state: 'Delhi',
       activeTasksCount: 1,
     },
@@ -389,9 +516,9 @@ function initCache() {
       slaDays: 21,
     },
     cohortContext: {
-      unitName: 'Rithala Tehsil Sub-Division',
+      unitName: `${proj.district || 'Rithala'} Tehsil Sub-Division`,
       cohortBranch: 'Acquisition Final Stage',
-      cohortParcelCount: 4,
+      cohortParcelCount: 1,
     },
     requiredDocuments: [
       { id: 'req-doc-1', name: 'Form 11 Statutory Valuation Schedule.pdf', type: 'Valuation Ledger', mandatory: true, status: 'UPLOADED' },
@@ -413,12 +540,12 @@ function initCache() {
       },
       {
         id: 'ev-002',
-        taskId: 'TASK-ACQ-101-1-A',
+        taskId: 'TASK-ACQ-RITHALA-001',
         fileName: 'Boundary_Ground_Demarcation_Photo.jpg',
         fileSize: '3.2 MB',
         fileType: 'image/jpeg',
         uploadedAt: new Date(Date.now() - 40000000).toISOString(),
-        uploadedBy: 'Ananya Patel (SDM)',
+        uploadedBy: 'Ananya Patel (Field Officer)',
         evidenceType: 'GROUND_PHOTO',
         hash: 'sha256-88b17c99201f3e7a',
         verified: true,
@@ -428,124 +555,29 @@ function initCache() {
       status: 'COMPLETED',
       confidenceScore: 0.98,
       extractedFields: {
-        khasraNumber: { value: '101/1', confidence: 0.99 },
-        khatauniNumber: { value: '00412', confidence: 0.98 },
-        recordedOwner: { value: 'Ram Swaroop s/o Hariram', confidence: 0.97 },
-        totalLandAreaAcres: { value: '2.45', confidence: 0.99 },
-        statutoryEncumbrance: { value: 'Nil / Clear Title', confidence: 0.96 },
+        khasraNumber: { value: '101/A', confidence: 0.99 },
+        khatauniNumber: { value: 'KH-402', confidence: 0.98 },
+        recordedOwner: { value: 'Smt. Lakshmi Devi & Co-sharers', confidence: 0.97 },
+        totalLandAreaAcres: { value: '3.45', confidence: 0.99 },
+        statutoryTenure: { value: 'Freehold Agricultural Class A', confidence: 0.96 },
+        villageName: { value: 'Rithala Urban', confidence: 0.99 },
+        encumbranceReport: { value: 'Nil / Clear Title Record', confidence: 0.95 },
       },
     },
     verification: {
-      status: 'VERIFIED',
+      status: 'UNVERIFIED',
       affirmations: {
-        boundaryAffirmed: true,
-        khasraSurveyAffirmed: true,
-        ownershipLedgerAffirmed: true,
-        noEncumbranceAffirmed: true,
-        officerRemarks: 'Ground boundary verified with GPS coordinates. Title confirmed in village revenue register.',
-        verifiedBy: 'Ananya Patel',
-        verifiedAt: new Date(Date.now() - 3600000).toISOString(),
-      },
-    },
-  };
-
-  const taskB: WorkflowTask = {
-    id: 'TASK-ACQ-RITHALA-002',
-    projectId: proj.id,
-    projectCode: proj.code,
-    projectTitle: proj.title,
-    ministry: 'Ministry of Housing and Urban Affairs',
-    statutoryPurpose: 'Mass Rapid Transit & Urban Infrastructure',
-    state: proj.state,
-    district: proj.district,
-    stageId: 'node-acq-1',
-    stageOrder: 1,
-    stageName: 'Acquisition Verification & Final Clearance',
-    assignedOfficer: {
-      id: 'usr-officer-01',
-      name: 'Ananya Patel',
-      designation: 'Processing & Field Officer',
-      department: 'Revenue & Land Records Branch',
-      role: 'PROCESSING_OFFICER',
-      district: 'Rithala',
-      state: 'Delhi',
-      activeTasksCount: 1,
-    },
-    department: 'Revenue & Land Records Branch',
-    slaDays: 21,
-    dueDate: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
-    status: 'IN_PROGRESS',
-    startedAt: new Date(Date.now() - 20000000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    parcel: {
-      id: 'parcel-demo-002',
-      ulpin: '07-104-5829-1022',
-      khasraNumber: '102/B',
-      village: 'Rithala Extension',
-      areaAcres: 1.80,
-      tenureType: 'Private Commercial Freehold',
-      disputed: false,
-    },
-    relevantParcels: [
-      { id: 'parcel-demo-002', surveyNumber: 'SV-102/B', village: 'Rithala Extension', area: '1.80 Acres' },
-    ],
-    workflowNode: {
-      id: 'node-acq-1',
-      name: 'Acquisition Verification & Final Clearance',
-      type: 'STAGE',
-      branchType: 'ACQUISITION',
-      responsibility: 'REVENUE_BRANCH',
-      slaDays: 21,
-    },
-    cohortContext: {
-      unitName: 'Rithala Tehsil Sub-Division',
-      cohortBranch: 'Acquisition Final Stage',
-      cohortParcelCount: 4,
-    },
-    requiredDocuments: [
-      { id: 'req-doc-4', name: 'Cadastral Vector Demarcation Map.pdf', type: 'Map', mandatory: true, status: 'UPLOADED' },
-      { id: 'req-doc-5', name: 'Joint Physical Measurement Verification Report.pdf', type: 'Inspection', mandatory: true, status: 'UPLOADED' },
-    ],
-    evidence: [
-      {
-        id: 'ev-003',
-        taskId: 'TASK-ACQ-RITHALA-002',
-        fileName: 'Field_Pillar_Coordinates_Vector.geojson',
-        fileSize: '0.9 MB',
-        fileType: 'application/geo+json',
-        uploadedAt: new Date(Date.now() - 20000000).toISOString(),
-        uploadedBy: 'Ananya Patel (Field Officer)',
-        evidenceType: 'CADASTRAL_MAP',
-        hash: 'sha256-9a2c88f110c7e5d2',
-        verified: true,
-      },
-    ],
-    ocrExtraction: {
-      status: 'COMPLETED',
-      confidenceScore: 0.96,
-      extractedFields: {
-        khasraNumber: { value: '102/B', confidence: 0.98 },
-        measuredCorridorWidth: { value: '35 meters', confidence: 0.95 },
-        recordedOwner: { value: 'Shri Rajesh Kumar & Sons', confidence: 0.97 },
-      },
-    },
-    verification: {
-      status: 'VERIFIED',
-      affirmations: {
-        boundaryAffirmed: true,
-        khasraSurveyAffirmed: true,
-        ownershipLedgerAffirmed: true,
-        noEncumbranceAffirmed: true,
-        officerRemarks: 'Demarcation vector verified against satellite orthophoto. Clear title affirmed.',
-        verifiedBy: 'Ananya Patel',
-        verifiedAt: new Date(Date.now() - 2000000).toISOString(),
+        boundaryAffirmed: false,
+        khasraSurveyAffirmed: false,
+        ownershipLedgerAffirmed: false,
+        noEncumbranceAffirmed: false,
+        officerRemarks: '',
       },
     },
   };
 
   runtimeTasksCache = {
     [taskA.id]: taskA,
-    [taskB.id]: taskB,
   };
 }
 
@@ -558,9 +590,11 @@ function updateCachedTask(task: WorkflowTask) {
 
 function getDeterministicTasks(_assignedTo?: string, projectId?: string): WorkflowTask[] {
   initCache();
+  const proj = getActiveProjectInfo();
   const list = Object.values(runtimeTasksCache || {});
   return list.filter((t) => {
     if (projectId && t.projectId !== projectId) return false;
+    if (proj.id && t.projectId !== proj.id) return false;
     return true;
   });
 }

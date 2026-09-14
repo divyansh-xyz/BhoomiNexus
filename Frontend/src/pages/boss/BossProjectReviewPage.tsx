@@ -126,6 +126,20 @@ export const BossProjectReviewPage: React.FC = () => {
       }
       const res = await workflowService.activateWorkflow(projectId);
       await loadProject(projectId);
+      try {
+        localStorage.setItem('bhoomi_demo_active_project_id', projectId);
+        const pCode = project?.code || (project as any)?.projectCode;
+        if (pCode) {
+          localStorage.setItem('bhoomi_demo_active_project_code', pCode);
+        }
+        if (project?.title) {
+          localStorage.setItem('bhoomi_demo_active_project_title', project.title);
+        }
+        const dist = ((project as any)?.district || ((project as any)?.districts && (project as any).districts[0]) || 'Rithala').trim();
+        localStorage.setItem('bhoomi_demo_active_district', dist);
+      } catch (e) {
+        // ignore
+      }
       setIsApproveModalOpen(false);
       setApproveSuccessMessage(
         `Project successfully approved! Operational authority has been transferred to the Statutory Task Engine. First stage assigned to ${res.assignedOfficerName}.`
