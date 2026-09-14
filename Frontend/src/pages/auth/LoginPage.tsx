@@ -1,5 +1,5 @@
 import React from 'react';
-import Component from '@/components/ui/login-1';
+import Component from '../../components/ui/login-1';
 
 const DemoOne: React.FC = () => {
   return (
