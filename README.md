@@ -1,193 +1,234 @@
-# BhoomiNexus — National Land Acquisition & Management System
+<div align="center">
 
-Unified spatial GIS and statutory workflow clearinghouse designed for the **Right to Fair Compensation and Transparency in Land Acquisition, Rehabilitation and Resettlement (RFCTLARR) Act, 2013**.
+# 🏛️ BhoomiNexus
 
----
+### National Land Acquisition & Management System
 
-## 🏗️ System Architecture
+*A unified spatial GIS and statutory workflow platform built for the*
+***Right to Fair Compensation and Transparency in Land Acquisition, Rehabilitation and Resettlement (RFCTLARR) Act, 2013***
 
-BhoomiNexus operates as a multi-service distributed government platform:
+[![Node.js](https://img.shields.io/badge/Node.js-v20+-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-100%25-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+PostGIS-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev)
+[![Express](https://img.shields.io/badge/Express-5.2-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com)
+[![License](https://img.shields.io/badge/License-ISC-blue?style=flat-square)](LICENSE)
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   Web Browser Client                   │
-│         React 19 + TypeScript + Vite + Leaflet         │
-│                 (Port: 5173 / Proxy)                   │
-└───────────────────────────┬────────────────────────────┘
-                            │ /api/v1 (Reverse Proxy)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                   Backend REST API                     │
-│         Express 5 + TypeScript + RBAC Engine           │
-│                      (Port: 5000)                      │
-└───────┬───────────────────┬────────────────────┬───────┘
-        │                   │                    │
-        ▼                   ▼                    ▼
-┌──────────────┐    ┌──────────────┐     ┌──────────────┐
-│  PostgreSQL  │    │ Redis Cache  │     │ AI Document  │
-│  + PostGIS   │    │  & Queues    │     │ Intelligence │
-│ (Port: 5432) │    │ (Port: 6379) │     │ (Port: 8000) │
-└──────────────┘    └──────────────┘     └──────────────┘
-```
+**71,800+ lines of code** · **177 source files** · **3 services** · **24 REST endpoints**
 
 ---
 
-## ⚡ Quick Start: Running the Project Locally
+</div>
 
-Follow these exact, copy-pasteable steps to install, configure, and launch the complete stack.
+## 🎯 What is BhoomiNexus?
+
+BhoomiNexus digitizes India's entire land acquisition lifecycle — from the moment a government project is proposed, through parcel identification via GIS, multi-department statutory approvals, fair compensation determination, physical possession, to rehabilitation & resettlement tracking — all in one secure, role-based platform.
+
+> **One platform. Every stakeholder. Complete transparency.**
+
+### The Problem It Solves
+
+Land acquisition in India is currently fractured across manual paperwork, disconnected software systems, and state-specific processes. This creates:
+
+- **No single source of truth** — data is scattered across offices
+- **Approval bottlenecks** — no one knows who holds the next action
+- **Zero real-time visibility** — senior officials lack live project status
+- **Compensation disputes** — opaque valuation and delayed disbursement
+- **Missing audit trails** — no tamper-evident record of decisions
+- **Manual document processing** — officers re-enter data from scanned gazettes
+
+BhoomiNexus solves all of this.
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Web Browser Client                      │
+│          React 19  ·  TypeScript  ·  Vite  ·  Leaflet      │
+│                       Port 5173                             │
+└─────────────────────────┬───────────────────────────────────┘
+                          │  /api/v1 (Vite Reverse Proxy)
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Backend REST API                          │
+│          Express 5  ·  TypeScript  ·  RBAC Engine           │
+│                       Port 5000                             │
+└────────┬────────────────┬───────────────────┬───────────────┘
+         │                │                   │
+         ▼                ▼                   ▼
+┌──────────────┐  ┌──────────────┐   ┌────────────────────┐
+│  PostgreSQL  │  │    Redis     │   │   AI Document      │
+│  + PostGIS   │  │  Cache +     │   │   Intelligence     │
+│  Port 5432   │  │  Job Queues  │   │   Gemini + OCR     │
+│              │  │  Port 6379   │   │   Port 8000        │
+└──────────────┘  └──────────────┘   └────────────────────┘
+```
+
+---
+
+## ⚡ Quick Start — Run Locally
 
 ### Prerequisites
 
-Ensure you have installed:
-- **Docker & Docker Compose** (for PostgreSQL/PostGIS and Redis)
-- **Node.js**: `v20.x` or higher (tested on Node `v24.x`)
-- **npm**: `v10.x` or higher
-- **Git**
-
-Verify your environment:
-```bash
-docker --version
-docker compose version
-node -v
-npm -v
-git --version
-```
+| Tool | Version | Check |
+|------|---------|-------|
+| **Docker & Docker Compose** | Latest | `docker --version` |
+| **Node.js** | v20+ (tested on v24) | `node -v` |
+| **npm** | v10+ | `npm -v` |
+| **Git** | Any | `git --version` |
 
 ---
 
-### Step 1: Clone the Repository
+### 1️⃣ Clone the Repository
 
 ```bash
 git clone https://github.com/divyansh-xyz/BhoomiNexus.git
 cd BhoomiNexus
 ```
 
-If you already have the repository cloned, pull latest updates on your working branch:
-```bash
-git checkout divyansh
-git pull origin divyansh
-```
-
 ---
 
-### Step 2: Launch Database & Cache Infrastructure (Docker)
-
-Start the PostgreSQL (with PostGIS spatial extensions) and Redis services:
+### 2️⃣ Start Database & Cache (Docker)
 
 ```bash
-# Navigate to Backend directory
 cd Backend
-
-# Start PostGIS and Redis containers in the background
 docker compose up -d
+```
 
-# Verify containers are healthy
+This launches:
+- **PostgreSQL 16 + PostGIS 3.4** on `localhost:5432`
+- **Redis 7** on `localhost:6379`
+
+Verify they're running:
+```bash
 docker compose ps
 ```
 
-*Default ports exposed:* `5432` (PostgreSQL) and `6379` (Redis).
-
 ---
 
-### Step 3: Configure & Launch Backend API
+### 3️⃣ Launch Backend API
 
-In the same `Backend` directory, configure environment variables, install dependencies, run migrations, seed initial data, and launch the server:
+Still in the `Backend/` directory:
 
 ```bash
-# 1. Copy environment template
-cp .env.example .env
-
-# 2. Install Node dependencies
+# Install dependencies
 npm install
 
-# 3. Run database migrations (creates PostGIS extensions, tables & indexes)
+# Create environment file
+cp .env.example .env
+
+# Run database migrations (creates tables, PostGIS extensions, indexes)
 npm run migrate
 
-# 4. Seed initial roles, statutory users, states & master workflow templates
+# Seed demo users, roles, states, projects & workflow templates
 npm run seed
 
-# 5. Start the backend development server
+# Start the development server
 npm run dev
 ```
 
-The Backend server will be active at:
-```text
-[INFO] Server listening on http://localhost:5000
-[INFO] Database connected to postgresql://...:5432/bhoomi_nexus
-```
+✅ Backend is live at **http://localhost:5000**
 
 ---
 
-### Step 4: Configure & Launch Frontend Application
+### 4️⃣ Launch Frontend
 
-Open a new terminal window or tab and launch the Vite development server:
+Open a **new terminal**:
 
 ```bash
-# 1. From the repository root, navigate to Frontend
 cd Frontend
 
-# 2. Install dependencies
+# Install dependencies
 npm install
 
-# 3. Verify TypeScript build and linting
-npm run lint
-npm run build
-
-# 4. Start the Vite development server
+# Start Vite dev server
 npm run dev
 ```
 
-The Vite dev server will output:
-```text
-  VITE v8.2.2  ready in 250 ms
+✅ Frontend is live at **http://localhost:5173**
 
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-```
-
-Open **`http://localhost:5173/`** in your browser. All `/api/*` network requests are automatically proxied to `http://localhost:5000`.
+All `/api/*` requests are automatically proxied to the Backend.
 
 ---
 
-### Step 5 (Optional): Launch AI Document Intelligence Service
+### 5️⃣ Launch AI Document Parser *(Optional)*
 
-For automated OCR and Gemini-powered Gazette / Land Record parsing:
+Open a **new terminal**:
 
 ```bash
-# From repository root
 cd AI_Document_Parser
 
-# 1. Configure environment
-cp .env.example .env
-# Edit .env and set your LLM_API_KEY (Google Gemini API key)
-
-# 2. Install dependencies
+# Install dependencies
 npm install
 
-# 3. Generate Prisma client & sync schema
+# Create environment file
+cp .env.example .env
+# ⚠️  Edit .env and add your Google Gemini API key to LLM_API_KEY
+
+# Generate Prisma client & sync schema
 npm run prisma:generate
 npm run prisma:db-push
 
-# 4. Start AI Document Parser service
+# Start the AI service
 npm run dev
 ```
 
-Active on: `http://localhost:8000`
+✅ AI Document Intelligence is live at **http://localhost:8000**
 
 ---
 
-## 🔑 Demo Government User Credentials
+## 🔑 Demo Credentials
 
-All seeded accounts have the default password: **`Demo@123`**
+All accounts use the password: **`Demo@123`**
 
-| Role / Authority | Email Address | Cadre / Department | Default Landing |
-| :--- | :--- | :--- | :--- |
-| **Requesting Authority** | `requestor@bhoomi.gov.in` | Executive Engineer, MoRTH | `/projects` |
-| **BOSS / Scrutiny Officer** | `boss@bhoomi.gov.in` | Bureau Officer & Section Supervisor, NLAA | `/boss/dashboard` |
-| **Processing Officer** | `officer@bhoomi.gov.in` | Revenue & Field Officer, Revenue Dept | `/officer/dashboard` |
-| **System Administrator** | `admin@bhoomi.gov.in` | NIC System Administrator | `/dashboard/admin` |
+| Role | Email | Name | Landing Page |
+|------|-------|------|-------------|
+| **Requesting Authority** | `requestor@bhoomi.gov.in` | Rajesh Sharma | `/projects` |
+| **BOSS (Scrutiny Officer)** | `boss@bhoomi.gov.in` | Dr. Vikramaditya Sen | `/boss/dashboard` |
+| **Processing Officer** | `officer@bhoomi.gov.in` | Ananya Patel | `/officer/dashboard` |
+| **Compensation Officer** | `comp.officer@bhoomi.gov.in` | Mahesh Patil | `/compensation/dashboard` |
+| **Possession Officer** | `possession.officer@bhoomi.gov.in` | Vinayak Kulkarni | `/possession/dashboard` |
+| **District Authority** | `district.pune@bhoomi.gov.in` | Dr. Suhas Diwase | `/district/dashboard` |
+| **System Admin** | `admin@bhoomi.gov.in` | S. K. Verma | `/dashboard/admin` |
 
-> 💡 **Role Switcher**: When logged in, use the top government header's **Role Switcher** dropdown to instantly switch perspectives between roles without logging out.
+> 💡 Use the **Role Switcher** in the top header bar to instantly switch between roles without logging out.
+
+---
+
+## 🧩 Core Features
+
+### 🗺️ GIS & Spatial Intelligence
+- National interactive map of India with Leaflet + PostGIS
+- Corridor alignment plotting with waypoints and Right-of-Way buffer computation
+- Automated spatial intersection (`ST_Buffer`, `ST_Intersects`) for candidate parcel detection
+- Bhu-Aadhaar ULPIN-based parcel confirmation
+
+### 📋 Statutory Workflow Engine
+- Visual drag-and-drop workflow builder with DAG topology
+- Master template library (Acquisition → Compensation → Possession pipeline)
+- Per-stage SLA timers, officer assignment, and department routing
+- Boss statutory sanction and formal jurisdiction handover
+
+### 🤖 AI Document Intelligence
+- Gemini-powered structured extraction from scanned Gazette notifications and land records
+- OCR + multimodal document parsing with confidence scoring
+- Side-by-side human verification for officer review
+- BullMQ job queue for async processing
+
+### 💰 Compensation & Possession
+- RFCTLARR Sections 26–30 statutory valuation with 100% solatium computation
+- Per-parcel estimate tracking with supporting document dossiers
+- PFMS disbursal proof recording
+- Physical possession evidence intake with geo-tagged photographs
+
+### 🔒 Security & Governance
+- JWT authentication with role-based access control (RBAC)
+- 9 statutory roles with granular permission middleware
+- Tamper-evident audit trail on every action
+- Helmet security headers + CORS configuration
 
 ---
 
@@ -195,175 +236,245 @@ All seeded accounts have the default password: **`Demo@123`**
 
 ### Backend (`Backend/.env`)
 
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `PORT` | `5000` | HTTP port for the Express REST API |
-| `NODE_ENV` | `development` | Runtime environment mode |
-| `DATABASE_URL` | `postgresql://postgres:postgrespassword@localhost:5432/bhoomi_nexus` | PostgreSQL + PostGIS connection string |
-| `REDIS_URL` | `redis://localhost:6379` | Redis cache and queue connection string |
-| `JWT_SECRET` | `super_secret_jwt_key_bhoomi_nexus` | Secret key used for signing authentication tokens |
-| `JWT_EXPIRES_IN` | `7d` | JSON Web Token expiration period |
-
-### Frontend (`Frontend/.env` - Optional)
-
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `VITE_API_BASE_URL` | `/api/v1` | Backend API base path (proxied by Vite to port `5000`) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `5000` | Express API port |
+| `NODE_ENV` | `development` | Runtime environment |
+| `DATABASE_URL` | `postgresql://postgres:postgrespassword@localhost:5432/bhoomi_nexus` | PostgreSQL connection string |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
+| `JWT_SECRET` | `super_secret_jwt_key_bhoomi_nexus` | JWT signing secret |
+| `JWT_EXPIRES_IN` | `7d` | Token expiration |
 
 ### AI Document Parser (`AI_Document_Parser/.env`)
 
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `PORT` | `8000` | HTTP port for AI parser microservice |
-| `DATABASE_URL` | `postgresql://postgres:postgrespassword@localhost:5432/bhoomi_nexus` | PostgreSQL connection string |
-| `REDIS_URL` | `redis://localhost:6379` | Redis connection for BullMQ jobs |
-| `LLM_PROVIDER` | `google` | AI model provider |
-| `LLM_API_KEY` | *(your Gemini API key)* | Google Generative AI API Key |
-| `LLM_MODEL` | `gemini-1.5-flash` | Gemini model name |
-| `STORAGE_PATH` | `./uploads` | Local directory for document uploads |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8000` | AI service port |
+| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/land_acquisition` | PostgreSQL connection |
+| `REDIS_URL` | `redis://localhost:6379` | BullMQ job queue |
+| `LLM_PROVIDER` | `google` | AI provider |
+| `LLM_API_KEY` | *(your key)* | **Required** — Google Gemini API key |
+| `LLM_MODEL` | `gemini-1.5-flash` | Gemini model |
+| `STORAGE_PATH` | `./uploads` | Upload directory |
 
 ---
 
-## 🧭 Implemented Modules & Phases (Phases 1–11)
+## 📦 Tech Stack
 
-| Phase | Module Name | Primary Routes | Description & Features |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | **Public Transparency Map** | `/` | National interactive GIS map of India with Leaflet vector boundary rendering, state-level project aggregation, and acquisition metrics. |
-| **Phase 2** | **Cadastral Hero & Transparency Console** | `/` | Editorial broadsheet hero, sovereign typography, public inquiry submission, and state-by-state cadastral parcel drilldown. |
-| **Phase 3** | **Proponent Requisition Portal** | `/projects`, `/projects/new` | Requesting Authority portal to draft dockets, interactively plot corridor alignment waypoints on Leaflet GIS, compute RoW buffers, and upload statutory annexures. |
-| **Phase 4** | **BOSS Scrutiny & Parcel Determination** | `/boss/dashboard`, `/boss/projects/:id/parcels` | Bureau of Sovereign Scrutiny (BOSS) central intake ledger, National Geospatial Radar, and candidate parcel determination with Bhu-Aadhaar ULPIN confirmation. |
-| **Phase 5** | **Statutory Workflow Configuration** | `/boss/projects/:id/workflow` | Sovereign statutory workflow engine with master template instantiation (`tmpl-prototype-la`), custom stage additions, SLA days configuration, and officer assignment. |
-| **Phase 6** | **BOSS Exit & Workflow Task Engine** | `/boss/projects/:id` | BOSS statutory sanction sign-off ("Approve Project Forward"), formal handover of jurisdiction, multi-departmental task lifecycle (Start, Accept, Reject, Resubmit), and real-time audit ledger. |
-| **Phase 7** | **Officer Dashboard & Task Execution** | `/officer/dashboard`, `/officer/tasks/:id` | Processing officer inbox, SLA countdown timers, task status filters (PENDING, IN_PROGRESS, COMPLETED, REJECTED), stage inspection, and approval/rejection actions. |
-| **Phase 8** | **Sovereign Document Management** | `/documents`, `/documents/:id` | Central statutory document repository, multi-version tracking, cryptographic checksum hashing, metadata tagging, and direct PDF/file downloads. |
-| **Phase 9** | **Hard-Copy Evidence Intake & Verification** | `/officer/tasks/:id` | Field officer physical verification evidence uploader, geo-tagged site photographs, physical inquiry reports, and tamper-evident document linking. |
-| **Phase 10** | **AI Document Intelligence & Auto-Fill** | `/officer/tasks/:id` | Document text extraction and OCR integration via Gemini, structured field auto-fill, confidence scoring, and side-by-side human officer verification. |
-| **Phase 11** | **RA Tracking & Rejection Handling** | `/projects`, `/projects/:projectId` | Requesting Authority live tracking hub, multi-stage statutory visual progress pipeline, defect rejection alerts, corrective document uploads, and one-click resubmission modal. |
+<table>
+<tr>
+<td width="33%">
 
----
+### Frontend
+- **React** 19.2 + TypeScript
+- **Vite** 8.2 (build + HMR)
+- **React Router** v7
+- **TanStack Query** v5
+- **React Hook Form** + Zod
+- **Leaflet** 1.9 (GIS maps)
+- **Lucide React** (icons)
+- **Axios** (HTTP client)
+- **Oxlint** (linter)
 
-## 🗺️ Complete Route Directory
+</td>
+<td width="33%">
 
-| URL Path | Role / Access Tier | Module / Description |
-| :--- | :--- | :--- |
-| `/` | Public | National Overview, Republic of India GIS Map, Cadastral Console & Public Inquiry Form |
-| `/login` | Public | Government Single Sign-On / Sovereign Authentication Portal |
-| `/dashboard` | Authenticated | Redirects to `/projects` |
-| `/projects` | `REQUESTING_AUTHORITY`, `ADMIN` | Proponent Project Register, KPI Triage Bar, Workflow Progress Tracking, and Rejection Alerts |
-| `/projects/new` | `REQUESTING_AUTHORITY` | Spatial Corridor Alignment Drafter, Waypoint Plotter & Statutory Annexure Uploader |
-| `/projects/:projectId` | `REQUESTING_AUTHORITY`, `ADMIN` | Phase 11 Proponent Project Dossier, Live Stage Progress Pipeline, Defect Rectification Modal & Audit Trail |
-| `/boss/dashboard` | `BOSS`, `ADMIN` | Central Scrutiny Worklist, National Geospatial Intelligence Radar, and Project Triage |
-| `/boss/projects/:projectId` | `BOSS`, `ADMIN` | Pre-Feasibility Scrutiny Dossier, Card 5 Approval Engine & Statutory Sanction Sign-Off |
-| `/boss/projects/:projectId/parcels` | `BOSS`, `ADMIN` | Interactive PostGIS Cadastral Determination Workbench (Bhu-Aadhaar ULPIN Selection) |
-| `/boss/projects/:projectId/workflow` | `BOSS`, `ADMIN` | Project-Specific Workflow Pipeline Workbench (Stages, SLAs, Officer Assignment) |
-| `/boss/projects/:projectId/workflow/templates` | `BOSS`, `ADMIN` | Master Workflow Template Blueprints Selection Gallery |
-| `/officer/dashboard` | `PROCESSING_OFFICER`, `ADMIN` | Processing Officer Worklist, Priority Task Queue, SLA Timers & Status Categorization |
-| `/officer/tasks/:taskId` | `PROCESSING_OFFICER`, `ADMIN` | Task Execution Console, Evidence Intake, Document Verification, Accept/Reject Action Engine |
-| `/documents` | Authenticated | Sovereign Global Document Repository, Category Filtering & Metadata Clearinghouse |
-| `/documents/:documentId` | Authenticated | Document Version History, Verification Status, Checksum Details & File Viewer |
-| `/dashboard/admin` | `ADMIN` | System Administration & Configuration Module |
+### Backend
+- **Express** 5.2 + TypeScript
+- **node-postgres** (pg) v8
+- **Redis** v6 client
+- **Helmet** + CORS
+- **JWT** + BCrypt.js (auth)
+- **Multer** (file uploads)
+- **Pino** (structured logging)
+- **Zod** v4 (validation)
+- **Vitest** (testing)
 
----
+</td>
+<td width="33%">
 
-## 🔌 Complete REST API Directory
+### Infrastructure
+- **PostgreSQL** 16 + **PostGIS** 3.4
+- **Redis** 7 Alpine
+- **Docker Compose**
+- **Prisma** ORM (AI service)
+- **BullMQ** + ioredis (jobs)
+- **Google Gemini** API
+- **Google Cloud Vision** OCR
 
-All data communication adheres to REST API standards prefixed at `/api/v1`.
-
-### 1. System & Health
-* `GET /api/v1/health` — System health check and database connectivity status.
-* `GET /api/v1/public/stats` — Public aggregate national statistics (active projects, acquired hectares, compensation disbursed).
-* `GET /api/v1/public/states` — State-level acquisition boundaries and project counts.
-
-### 2. Authentication & Identity
-* `POST /api/v1/auth/login` — Sovereign login via email and password; returns JWT token and user profile.
-* `POST /api/v1/auth/refresh` — Refresh expired JWT authentication session.
-* `GET /api/v1/auth/me` — Retrieve active authenticated officer profile and assigned roles.
-* `POST /api/v1/auth/logout` — Invalidate current session.
-* `GET /api/v1/users?role=PROCESSING_OFFICER` — Fetch eligible officers for task assignment.
-
-### 3. Project Requisitions (Requesting Authority)
-* `GET /api/v1/projects` — Enriched project list with workflow progress, active stage, and rejection alerts (`?status=...&search=...&mine=...`).
-* `POST /api/v1/projects` — Submit new project requisition docket with corridor geometry and buffer parameters.
-* `GET /api/v1/projects/:id` — Comprehensive project dossier with enriched workflow stages, parcel progress, pending actions, and audit timeline.
-* `GET /api/v1/projects/:id/actions` — Required statutory actions and pending rectification alerts.
-* `GET /api/v1/projects/:id/timeline` — Complete chronological audit trail.
-
-### 4. BOSS Scrutiny & Land Parcel Determination
-* `POST /api/v1/boss/projects/:id/land-records/fetch` — Run PostGIS spatial intersection to detect candidate land parcels along alignment buffer.
-* `GET /api/v1/projects/:id/parcels` — List confirmed and candidate land parcels.
-* `POST /api/v1/boss/projects/:id/parcels/confirm` — Confirm selected parcels with Bhu-Aadhaar ULPINs (`{ parcelIds: string[] }`).
-
-### 5. Workflow Configuration & Activation
-* `GET /api/v1/workflow-templates` — Master statutory workflow templates (`tmpl-prototype-la`).
-* `POST /api/v1/projects/:id/workflow/initialize` — Instantiate project pipeline from template blueprint.
-* `GET /api/v1/projects/:id/workflow` — Fetch active pipeline stages, SLAs, and assigned officers.
-* `POST /api/v1/projects/:id/workflow/activate` — BOSS statutory sanction approval and formal handover to task engine.
-
-### 6. Processing Officer Task Engine
-* `GET /api/v1/tasks` — List officer tasks filtered by assigned officer or status (`?assignedTo=...&status=...`).
-* `GET /api/v1/tasks/:id` — Task details, checklist, associated stage metadata, and attached evidence.
-* `POST /api/v1/tasks/:id/start` — Mark task status as `IN_PROGRESS`.
-* `POST /api/v1/tasks/:id/accept` — Approve stage task and advance project pipeline.
-* `POST /api/v1/tasks/:id/reject` — Reject stage task with statutory remarks, returning it to Requesting Authority.
-* `GET /api/v1/tasks/:taskId/documents` — Retrieve documents linked to a specific task.
-* `POST /api/v1/projects/:projectId/workflow-stages/:stageId/resubmit` — Requesting Authority defect rectification and resubmission with corrective documents.
-
-### 7. Document Management
-* `GET /api/v1/documents` — Global document repository search and filter (`?projectId=...&category=...`).
-* `POST /api/v1/documents/upload` — Multipart form-data file upload with automatic SHA-256 checksum generation.
-* `GET /api/v1/documents/:id` — Retrieve document record, current version, and metadata.
-* `GET /api/v1/documents/:id/download` — Stream document binary file.
-* `GET /api/v1/documents/:id/versions` — Audit history of all document revisions.
-* `POST /api/v1/documents/:id/versions` — Upload new revision/version for an existing document.
+</td>
+</tr>
+</table>
 
 ---
 
-## 📦 Complete Tech Stack
+## 🗺️ Route Map
 
-### Frontend Application
-- **UI Engine**: React 19.2 + TypeScript + Vite 8.2
-- **Routing**: React Router DOM v7
-- **Server State & Caching**: TanStack Query v5 (React Query)
-- **Forms & Validation**: React Hook Form v7 + Zod v4 + `@hookform/resolvers`
-- **Spatial GIS & Maps**: Leaflet 1.9 + Esri World Imagery + CARTO Dark Canvas
-- **Iconography**: Lucide React
-- **HTTP Client**: Axios (Bearer token interceptor & HTML fallback detector)
-- **Linter**: Oxlint
-- **Design System**: Sovereign Editorial Broadside Palette (0px border-radius, high-contrast statutory typography)
+| Route | Role | Description |
+|-------|------|-------------|
+| `/` | Public | National GIS Map, Cadastral Console, Public Inquiry |
+| `/login` | Public | Government SSO Authentication |
+| `/projects` | Requesting Authority | Project Register, KPI Triage, Progress Tracking |
+| `/projects/new` | Requesting Authority | Corridor Alignment Drafter + GIS Plotter |
+| `/projects/:id` | Requesting Authority | Live Stage Pipeline, Defect Rectification |
+| `/boss/dashboard` | BOSS | Central Scrutiny Worklist, Geospatial Radar |
+| `/boss/projects/:id` | BOSS | Pre-Feasibility Dossier, Approval Engine |
+| `/boss/projects/:id/parcels` | BOSS | PostGIS Cadastral Determination Workbench |
+| `/boss/projects/:id/workflow-builder` | BOSS | Visual DAG Workflow Builder |
+| `/officer/dashboard` | Processing Officer | Task Inbox, SLA Timers, Status Filters |
+| `/officer/tasks/:id` | Processing Officer | Task Execution, Evidence Intake, Accept/Reject |
+| `/compensation/dashboard` | Compensation Officer | Valuation Dossier, PFMS Disbursal |
+| `/possession/dashboard` | Possession Officer | Physical Possession & Clearance |
+| `/district/dashboard` | District Authority | Compensation Approval, Jurisdiction Overview |
 
-### Backend API Server
-- **Runtime**: Node.js (v20+) + TypeScript + TSX
-- **Framework**: Express 5.2
-- **Database Driver**: `pg` (node-postgres v8) with Connection Pooling
-- **Cache & Message Broker**: Redis v6 client
-- **Security & Headers**: Helmet + CORS + BCrypt.js
-- **Authentication**: JSON Web Tokens (`jsonwebtoken`) with RBAC Middleware
-- **File Uploads**: Multer (50MB streaming limit)
-- **Logging**: Pino + Pino-Pretty
-- **Validation**: Zod v4
+---
 
-### Database & Spatial Infrastructure
-- **RDBMS**: PostgreSQL 16
-- **Spatial Engine**: PostGIS 3.4 (`ST_Buffer`, `ST_Intersects`, `ST_GeomFromGeoJSON`, `ST_AsGeoJSON`)
-- **Cache**: Redis 7 Alpine
+## 🔌 API Reference
 
-### AI Document Intelligence Service
-- **Runtime**: Node.js + TypeScript
-- **OCR Engine**: Google Cloud Vision API
-- **Generative AI / LLM**: Google Gemini API (`@google/generative-ai`)
-- **Job Queue**: BullMQ + ioredis
-- **ORM / Schema**: Prisma ORM
+All endpoints are prefixed with `/api/v1`. Authentication is via `Bearer` JWT token.
+
+<details>
+<summary><strong>Authentication</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/login` | Login with email + password, returns JWT |
+| `POST` | `/auth/refresh` | Refresh expired token |
+| `GET` | `/auth/me` | Get authenticated user profile |
+
+</details>
+
+<details>
+<summary><strong>Projects</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/projects` | List projects (with workflow progress) |
+| `POST` | `/projects` | Create new project requisition |
+| `GET` | `/projects/:id` | Project dossier with stages & audit trail |
+| `PATCH` | `/projects/:id` | Update draft project |
+| `POST` | `/projects/:id/submit` | Submit for BOSS review |
+| `GET` | `/projects/:id/actions` | Pending statutory actions |
+
+</details>
+
+<details>
+<summary><strong>BOSS Scrutiny & Parcels</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/boss/projects/:id/land-records/fetch` | PostGIS spatial parcel detection |
+| `GET` | `/projects/:id/parcels` | List confirmed parcels |
+| `POST` | `/boss/projects/:id/parcels/confirm` | Confirm parcels with ULPIN |
+
+</details>
+
+<details>
+<summary><strong>Workflow Engine</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/workflow-templates` | Master statutory templates |
+| `POST` | `/projects/:id/workflow/initialize` | Instantiate from template |
+| `GET` | `/projects/:id/workflow` | Get active pipeline |
+| `POST` | `/projects/:id/workflow/activate` | BOSS statutory sanction |
+
+</details>
+
+<details>
+<summary><strong>Tasks</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/tasks` | List tasks (filter by officer/status) |
+| `GET` | `/tasks/:id` | Task details + evidence |
+| `POST` | `/tasks/:id/start` | Mark IN_PROGRESS |
+| `POST` | `/tasks/:id/accept` | Approve and advance pipeline |
+| `POST` | `/tasks/:id/reject` | Reject with remarks |
+
+</details>
+
+<details>
+<summary><strong>Documents</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/documents` | Search document repository |
+| `POST` | `/documents/upload` | Upload with SHA-256 checksum |
+| `GET` | `/documents/:id` | Document metadata |
+| `GET` | `/documents/:id/download` | Stream file binary |
+
+</details>
 
 ---
 
 ## 🛑 Git Contribution Policy
 
-> ⚠️ **CRITICAL INSTRUCTIONS FOR ALL DEVELOPERS:**
->
-> 1. **DO NOT commit directly to `main`**:
->    Always create a dedicated feature or personal branch (`git checkout -b feature/your-feature` or `git checkout -b dev/yourname`).
-> 2. **ALWAYS update this `README.md`**:
->    If you add new packages, modify routes, add environment variables, or change launch steps, you **must update this README** in your PR.
+> ⚠️ **Do NOT commit directly to `main`.** Always work on a feature branch.
 
-For the full step-by-step Git branching, commit convention, and PR guide, please consult:  
-👉 **[`GIT_INSTRUCTIONS.md`](./GIT_INSTRUCTIONS.md)**
+```bash
+# Create your branch
+git checkout -b feature/your-feature
+
+# Make changes, then commit
+git add .
+git commit -m "feat(module): description of change"
+
+# Push and create PR
+git push origin feature/your-feature
+```
+
+If you add new packages, routes, or environment variables — **update this README**.
+
+See [`GIT_INSTRUCTIONS.md`](./GIT_INSTRUCTIONS.md) for the full branching and PR guide.
+
+---
+
+## 📁 Project Structure
+
+```
+BhoomiNexus/
+├── Frontend/                  # React 19 + Vite SPA
+│   ├── src/
+│   │   ├── pages/             # Route-level page components
+│   │   ├── components/        # Reusable UI components
+│   │   ├── services/api/      # API client layer
+│   │   ├── hooks/             # Custom React hooks
+│   │   ├── types/             # TypeScript type definitions
+│   │   └── utils/             # Shared utilities
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── Backend/                   # Express 5 REST API
+│   ├── src/
+│   │   ├── modules/           # Feature modules (projects, tasks, workflows...)
+│   │   ├── database/          # Migrations, seeds, SQL
+│   │   ├── middlewares/       # Auth, RBAC, error handling
+│   │   ├── config/            # DB pool, environment
+│   │   └── utils/             # Audit, errors, helpers
+│   ├── docker-compose.yml     # PostgreSQL + Redis
+│   └── package.json
+│
+├── AI_Document_Parser/        # Gemini + OCR microservice
+│   ├── src/
+│   │   ├── services/          # OCR, LLM extraction
+│   │   ├── jobs/              # BullMQ job processors
+│   │   └── routes/            # REST endpoints
+│   ├── prisma/                # Prisma schema
+│   └── package.json
+│
+├── PRD_SIH.md                 # Product Requirements Document
+├── TRD_SIH.md                 # Technical Requirements Document
+├── DESIGN.md                  # UI/UX Design System Reference
+└── README.md                  # ← You are here
+```
+
+---
+
+<div align="center">
+
+**Built for Smart India Hackathon 🇮🇳**
+
+*Digitizing land acquisition for a transparent, accountable, and efficient India.*
+
+</div>
